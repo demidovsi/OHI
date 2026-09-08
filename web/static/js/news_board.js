@@ -284,7 +284,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
     });
 
     // ── модальное окно новости (замена перехода на страницу /new/) ──
-    // main_llm_web.py:api_new_board оборачивает ту же new.py:prepare_form,
+    // main_ohi_web.py:api_new_board оборачивает ту же new.py:prepare_form,
     // что и страница /new/, в JSON - вся логика (перевод через ChatGPT,
     // сохранение, восстановление несохранённых правок, дозагрузка статьи с
     // сайта) работает без переписывания, здесь только тонкий UI поверх неё.

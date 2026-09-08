@@ -27,4 +27,4 @@ RUN playwright install --with-deps chromium
 COPY server/ .
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["python", "-u", "main_llm_server.py"]
+CMD ["python", "-u", "main_ohi_server.py"]

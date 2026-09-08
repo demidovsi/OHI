@@ -24,7 +24,7 @@ import rss_complete
 import clear_logs
 
 common.current_path = os.path.abspath(os.curdir)
-version = 'version 3.44 от 7 сентября 2026 г.'
+version = 'version 3.45 от 8 сентября 2026 г.'
 t0 = 0
 
 

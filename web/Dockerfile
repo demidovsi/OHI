@@ -18,4 +18,4 @@ COPY web/ .
 
 EXPOSE 8080
 
-CMD ["python", "main_llm_web.py"]
+CMD ["python", "main_ohi_web.py"]

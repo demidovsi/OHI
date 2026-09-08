@@ -110,7 +110,7 @@ def filter_date(request, answer, data):
     if need:
         # Реальный сдвиг интервала уже произошёл (button_to_left/right в
         # define_interval) - фиксируем его как "устоявшийся". Иначе после
-        # POST/Redirect/GET (main_llm_web.py:analyses) последующий GET той же
+        # POST/Redirect/GET (main_ohi_web.py:analyses) последующий GET той же
         # страницы повторно вызовет filter_date БЕЗ button_to_left/right в
         # request.form, попадёт в ветку ниже (не change_switch) и пересчитает
         # относительный период заново от уже сдвинутой даты - отменяя только
