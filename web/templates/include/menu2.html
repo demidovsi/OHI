@@ -64,6 +64,10 @@
     </div>
 </nav>
 
+<!-- Не внутри #sidebar - у неё overflow-y:auto, который обрезал бы сплиттер
+     (он торчит за правый край панели, чтобы легче было попасть курсором). -->
+<div id="sidebar_splitter" class="sidebar-splitter" title="Потянуть, чтобы изменить ширину панели"></div>
+
 <script>
     var loadingIcon = document.querySelector('#loadingIcon');
     function change_menu() {
@@ -92,6 +96,65 @@
                 window.toggle_sidebar(true);
             }
         } catch (e) {}
+
+        // Сплиттер ширины панели - виден и активен только пока панель
+        // закреплена (sidebar.open). Ширина хранится в той же CSS-переменной
+        // --ohi-sidebar-width, которую использует и push (body.with-sidebar
+        // padding-left) - потянув сплиттер, сразу меняется и ширина панели,
+        // и отступ у контента.
+        var WIDTH_KEY = 'ohi_web_sidebar_width';
+        var MIN_WIDTH = 200, MAX_WIDTH = 600;
+        var splitter = document.getElementById('sidebar_splitter');
+        var root = document.documentElement;
+
+        function setSidebarWidth(px) {
+            px = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, px));
+            root.style.setProperty('--ohi-sidebar-width', px + 'px');
+            try { localStorage.setItem(WIDTH_KEY, String(px)); } catch (e) {}
+        }
+
+        try {
+            var savedWidth = parseInt(localStorage.getItem(WIDTH_KEY), 10);
+            if (savedWidth) { setSidebarWidth(savedWidth); }
+        } catch (e) {}
+
+        var dragging = false;
+
+        function dragMove(clientX) {
+            // .sidebar всегда начинается у левого края (left:0), поэтому
+            // clientX курсора и есть желаемая ширина панели.
+            setSidebarWidth(clientX);
+        }
+
+        function dragEnd() {
+            if (!dragging) return;
+            dragging = false;
+            splitter.classList.remove('dragging');
+            document.body.classList.remove('sidebar-resizing');
+            document.body.style.userSelect = '';
+        }
+
+        splitter.addEventListener('mousedown', function (e) {
+            dragging = true;
+            splitter.classList.add('dragging');
+            document.body.classList.add('sidebar-resizing');
+            document.body.style.userSelect = 'none';
+            e.preventDefault();
+        });
+        document.addEventListener('mousemove', function (e) {
+            if (dragging) dragMove(e.clientX);
+        });
+        document.addEventListener('mouseup', dragEnd);
+
+        splitter.addEventListener('touchstart', function (e) {
+            dragging = true;
+            splitter.classList.add('dragging');
+            document.body.classList.add('sidebar-resizing');
+        }, {passive: true});
+        document.addEventListener('touchmove', function (e) {
+            if (dragging && e.touches[0]) dragMove(e.touches[0].clientX);
+        }, {passive: true});
+        document.addEventListener('touchend', dragEnd);
 
         var GROUP_KEY_PREFIX = 'ohi_web_menu_group_';
         var groups = Array.prototype.slice.call(document.querySelectorAll('.sidebar-group-items'));

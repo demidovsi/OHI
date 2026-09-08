@@ -95,12 +95,45 @@ header.topbar {
     transform: translateX(0);
 }
 
+/* Сплиттер ширины панели - отдельный элемент (не внутри .sidebar, у которой
+   overflow-y:auto обрезал бы всё, что торчит за её правый край), позиционирован
+   через ту же --ohi-sidebar-width, поэтому всегда стоит ровно на границе
+   панели. Виден только когда панель закреплена (.sidebar.open) - селектор
+   через ~, т.к. это соседний элемент сразу после </nav>. Половина ширины
+   сидит левее границы, чтобы легче было попасть курсором. */
+.sidebar-splitter {
+    display: none;
+    position: fixed;
+    top: 50px;
+    bottom: 0;
+    left: calc(var(--ohi-sidebar-width) - 3px);
+    width: 6px;
+    cursor: col-resize;
+    z-index: 196;
+    touch-action: none;
+}
+
+.sidebar.open ~ .sidebar-splitter {
+    display: block;
+}
+
+.sidebar-splitter:hover,
+.sidebar-splitter.dragging {
+    background: rgba(128, 128, 128, 0.45);
+}
+
 /* Панель закреплена - выталкиваем контент вправо на её ширину. Затрагивает
    все страницы разом: .container/.nb-page/.container-fluid и т.п. - обычные
    потомки body в потоке документа, сдвигаются вместе с ним через padding. */
 body.with-sidebar {
     padding-left: var(--ohi-sidebar-width);
     transition: padding-left 0.25s ease;
+}
+
+/* Во время перетаскивания сплиттера transition отключаем - иначе push
+   заметно отстаёт от курсора вместо мгновенного отклика. */
+body.sidebar-resizing.with-sidebar {
+    transition: none;
 }
 
 .sidebar-group {
