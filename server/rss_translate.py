@@ -122,7 +122,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                 app_code=config.schema_name, where=where))
         if not is_ok:
             common.write_log_db(
-                '❌error', SRC, f"load_list_translator\nОшибка {ans}", law_id=self.source)
+                '❌error', SRC, f"load_list_translator\nОшибка: {ans}", law_id=self.source)
             return False
         self.list_complete = json.loads(ans)
         # FIX: было len(ans) — длина сырой JSON-строки (всегда > 0 для "[]")
@@ -228,7 +228,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
             ans, is_ok, status = common.send_rest('v3/entity', 'PUT', params=params, token_user=self.token)
             if not is_ok:
                 common.write_log_db(
-                    '❌error', SRC, f"make_translate\nОшибка {ans}\n id={values['id']}", law_id=self.source)
+                    '❌error', SRC, f"make_translate\nОшибка: {ans}\n id={values['id']}", law_id=self.source)
             return True, ''
         else:
             return False, 'Ошибка перевода'
@@ -247,7 +247,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                     if not is_ok:
                         self.global_error += 1
                         common.write_log_db(
-                            '⚠️warning', SRC, f"Ошибка {er}\n id={data['id']}", law_id=self.source, page=j+1, td=time.time() - t0)
+                            '⚠️warning', SRC, f"Ошибка: {er}\n id={data['id']}", law_id=self.source, page=j+1, td=time.time() - t0)
                     else:
                         # FIX: global_new не инкрементировался при успехе
                         self.global_new += 1
@@ -257,7 +257,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                 except Exception as er:
                     self.global_error += 1
                     common.write_log_db(
-                        '❌error', SRC, f"work\nОшибка {er}\n id={data['id']}", law_id=self.source, page=j+1, td=time.time() - t0)
+                        '❌error', SRC, f"work\nОшибка: {er}\n id={data['id']}", law_id=self.source, page=j+1, td=time.time() - t0)
             self.list_complete = []  # освобождаем список после обработки
             self.finish_text += 'Трансляция статей новостей:\nВсего пропусков={global_count}\n' \
                                 'Добавлено={global_new}\nОшибок={global_error}'.format(

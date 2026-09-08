@@ -20,7 +20,7 @@ from requests.exceptions import HTTPError
 
 from ohi_shared.text_utils import decode, encode, str1000, get_duration  # noqa: F401
 
-SRC = 'llm-server'
+SRC = 'ohi-server'
 
 # Персистентная HTTP-сессия для REST-запросов к серверу.
 # Переиспользует TCP-соединения и connection pool вместо создания нового Session на каждый запрос.
