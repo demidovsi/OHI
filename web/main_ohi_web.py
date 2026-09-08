@@ -357,7 +357,7 @@ def handle_internal_error(e):
     # исходную ошибку в БД (как остальные события в приложении), но не даём
     # сбою самого логирования превратить это в повторную 500-ю.
     try:
-        common.write_log_db('ERROR-500', 'llm_web', 'Внутренняя ошибка сервера: ' + str(e) +
+        common.write_log_db('ERROR-500', 'ohi_web', 'Внутренняя ошибка сервера: ' + str(e) +
                             ' [' + request.method + ' ' + request.path + ']')
     except Exception:
         pass
@@ -384,7 +384,7 @@ ip = socket.gethostbyname(socket.gethostname())
 country, city, is_ok = common.define_guest(ip)
 st = '\n({country}, {city})'.format(country=country, city=city) if is_ok and country else ''
 common.write_log_db('START WEB', 'Старт сайта', socket.gethostname() + '\n' + common.get_inform_about_os(),
-                    law_id='LLM-web', file_name='IP=' + ip + st)
+                    law_id='OHI-web', file_name='IP=' + ip + st)
 language.load_list_languages()
 
 if __name__ == '__main__':

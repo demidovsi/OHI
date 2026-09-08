@@ -262,12 +262,12 @@ def translate(user_id, question, content, message_id):
             presence_penalty=0,
             frequency_penalty=0
         )
-        common.write_log_db('ChatGPT', 'llm_web', 'Обращение к ChatGPT от пользователя',
+        common.write_log_db('ChatGPT', 'ohi_web', 'Обращение к ChatGPT от пользователя',
                         law_id=message_id, td=time.time() - t0,
                         file_name=get(user_id, 'user_address'))
         return True, response.choices[0].message.content.strip()
     except Exception as er:
-        common.write_log_db('ChatGPT-Exception', 'llm_web', 'Ошибка обращения к ChatGPT от пользователя: ' +
+        common.write_log_db('ChatGPT-Exception', 'ohi_web', 'Ошибка обращения к ChatGPT от пользователя: ' +
                         f"{er}"[:200], law_id=message_id, td=time.time() - t0,
                         file_name=get(user_id, 'user_address'))
         return False, f"{er}"

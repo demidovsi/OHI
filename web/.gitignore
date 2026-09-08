@@ -1,6 +1,6 @@
 session.json
 static/session.json
-llm_web_venv
+ohi_web_venv
 
 # Environment variables
 .env

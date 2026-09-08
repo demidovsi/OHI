@@ -66,10 +66,10 @@
                     <p></p>
                     <script>
                         // Подставить тему, запомненную на этом браузере (static/js/theme_switch.js,
-                        // ключ llm_web_theme) - иначе форма логина всегда предлагала бы "black"
+                        // ключ ohi_web_theme) - иначе форма логина всегда предлагала бы "black"
                         // независимо от того, какую тему пользователь выбирал в прошлый раз.
                         try {
-                            var savedTheme = localStorage.getItem('llm_web_theme');
+                            var savedTheme = localStorage.getItem('ohi_web_theme');
                             if (savedTheme) {
                                 document.getElementById('theme').value = savedTheme;
                             }
@@ -112,7 +112,7 @@ document.write('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbs
         // переключателем внутри сайта, не этой формой), тут же откатывает
         // тему обратно - независимо от того, что реально выбрали при входе.
         try {
-            localStorage.setItem('llm_web_theme', document.getElementById('theme').value);
+            localStorage.setItem('ohi_web_theme', document.getElementById('theme').value);
         } catch (e) {}
     });
 </script>

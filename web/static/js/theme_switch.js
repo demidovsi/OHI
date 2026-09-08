@@ -4,7 +4,7 @@
 // объявления choose_theme()/choose_language() и переопределяет choose_theme(),
 // добавляя toggle_theme() для кнопки в include/select_language.html.
 (function () {
-    var THEME_KEY = 'llm_web_theme';
+    var THEME_KEY = 'ohi_web_theme';
 
     function applyTheme(theme) {
         document.body.dataset.theme = theme;

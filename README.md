@@ -2,14 +2,14 @@
 
 Монорепозиторий для двух независимо деплоящихся сервисов мониторинга СМИ:
 
-- **`web/`** — веб-интерфейс (Flask), бывший [LLM-web](https://github.com/demidovsi/LLM-web)
-- **`server/`** — фоновый сборщик/обработчик новостей, бывший [LLM-server](https://github.com/demidovsi/LLM-server)
+- **`web/`** — веб-интерфейс (Flask), бывший LLM-web
+- **`server/`** — фоновый сборщик/обработчик новостей, бывший LLM-server
 - **`shared/`** — пакет `ohi_shared` с кодом, который был байт-в-байт одинаковым в обоих проектах
   (`decode`/`encode`, `str1000`, `get_duration`). Вся остальная логика (REST-клиент, логирование,
   работа с облаком и т.д.) в `web` и `server` разошлась и по-прежнему живёт раздельно в каждом сервисе.
 
-История коммитов исходных репозиториев в этот монорепозиторий не переносилась — она осталась
-доступна в LLM-web и LLM-server на GitHub.
+История коммитов исходных репозиториев (LLM-web, LLM-server) в этот монорепозиторий не переносилась;
+сами репозитории после переноса удалены.
 
 ## Локальная разработка
 
@@ -35,6 +35,6 @@ cp .env.example .env             # заполнить секреты
 Оба Dockerfile рассчитаны на сборку **из корня репозитория** (нужен доступ к `shared/`):
 
 ```bash
-docker build -f web/Dockerfile -t llm-web .
-docker build -f server/Dockerfile -t llm-server .
+docker build -f web/Dockerfile -t ohi-web .
+docker build -f server/Dockerfile -t ohi-server .
 ```
