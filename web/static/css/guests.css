@@ -7,68 +7,94 @@ body[data-theme="black"] #date_to::-webkit-calendar-picker-indicator {
     filter: invert(1);
 }
 
-/* Эта форма - жёсткая пиксельная раскладка (например .g-top ниже: min-width:
-   900px), не умеет сжиматься под push закреплённой панели меню (menu2.css:
-   body.with-sidebar добавляет padding-left) - на нешироких окнах это либо
-   обрезает контент, либо вызывает горизонтальный/вертикальный скролл.
-   Поэтому на этой странице панель просто ложится поверх формы (как было
-   до появления push), а не сдвигает её. */
-body.with-sidebar {
-    padding-left: 0;
+/* Раскладка - flex, как у rss.css/search_words.css (см. их шапки), без
+   хардкода left/top/position:absolute: не ломается ни от push закреплённой
+   панели меню, ни от размера окна. */
+form {
+    display: flex;
+    flex-direction: column;
+    /* Занимаем всю доступную высоту, за вычетом .container сверху и снизу
+       (padding-top:50px + margin:10px*2, base.css) и ещё 45px снизу под
+       #user_name (include/select_language.html, base.css: position:fixed;
+       bottom:5px; right:5px). */
+    height: calc(100vh - 70px - 45px);
 }
 
+/* .container (base.css) - overflow:auto по обеим осям. Вертикальный скролл
+   здесь не нужен (высота формы уже ограничена выше; .g-chart/.g-table
+   скроллятся сами через overflow) - оставляем только горизонтальный, для
+   .g-top ниже (её фиксированная ширина 1250px). */
+.container {
+    overflow-y: hidden;
+}
+
+#top_wrap {
+    flex: 0 0 auto;
+}
+
+/* Без фиксированной ширины (была 1250px, как в старой position:absolute
+   раскладке) - контент (кнопки режима/фильтры/карточки, guests_top.html)
+   сам переносится на новую строку через обычный inline-flex, ему не нужна
+   жёсткая ширина. С фиксированной шириной контейнер требовал лишний
+   горизонтальный скролл, даже когда реального контента для него не было. */
 .g-top {
-    position: absolute;
-    min-width: 900px;
-    width: 1250px;
-    left: 0; right: 0;
     padding: 6px 8px;
-    overflow: auto;
-    z-index: 10;
 }
 
 .bottom {
-    position: absolute;
-    top: 175px;
-    bottom: 10px;
-    left: 0;
-    right: 0;
-    overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    /* overflow:hidden здесь обрезал бы .g-chart+.data (несжимаемый минимум
+       460+300=760px) по собственной сжатой ширине .bottom при узком окне -
+       контент пропадал бы совсем, а не становился доступен через скролл.
+       Без него переполнение всплывает выше, до .container (overflow:auto,
+       base.css) - тот же приём, что и у .g-top. */
 }
 
 .g-chart {
-    position: absolute;
-    top: 0; left: 10px; bottom: 20px;
-    width: 460px;
+    flex: 0 0 460px;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 4px 8px;
+    padding: 4px 8px 20px 8px;
 }
 
+/* min-width, а не 0 - при узком окне колонка не должна схлопываться до
+   нескольких пикселей (тогда собственный горизонтальный скролл .g-table
+   ниже становится бесполезным - видимая полоска слишком узкая, чтобы там
+   что-то показать). Вместо этого при нехватке места .bottom целиком
+   выходит за пределы .container, и скроллится уже он сам (overflow:auto,
+   base.css) - тот же приём, что и у .g-top (см. выше). */
 .data {
-    position: absolute;
-    top: 0px;
-    bottom: 10px;
-    left: 470px;
-    right: 0;
+    flex: 1 1 auto;
+    min-width: 300px;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     overflow: hidden;
 }
 
 .g-table {
-    position: absolute;
-    top: 0;
-    left: 0px;
-    bottom: 70px;
-    right: 0;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     overflow-x: auto;
     padding: 0 8px;
 }
 
+/* .data - гибкая по ширине колонка (flex:1 1 auto) - кнопкам пагинации там
+   может не хватать места в одну строку. Перенос на 2-ю строку увеличивал бы
+   высоту .pages (flex:0 0 auto - не сжимается), а т.к. высота form жёстко
+   задана (form{height:calc(...)}), это выталкивало бы .data за её пределы и
+   вызывало вертикальный скролл всей формы (тот же баг и то же решение, что
+   и в rss.css/search_words.css). */
 .pages {
-    position: absolute;
-    left: 50px;
-    bottom: 30px;
+    flex: 0 0 auto;
+    padding-left: 50px;
+    overflow-x: auto;
+    white-space: nowrap;
 }
 
 .chart-wrap { position: relative; height: 400px; }
@@ -104,15 +130,21 @@ body.with-sidebar {
 
 /* border-collapse:collapse вместе с position:sticky у thead (base.css)
    давал артефакт при скролле - тонкая полоска "мусора" над залипающим
-   заголовком (тот же приём, что и в functions.css и т.д.). */
-#gTable { border-collapse: separate; border-spacing: 0; font-size: 0.85em; }
+   заголовком (тот же приём, что и в functions.css и т.д.).
+   min-width - страховка на уровне CSS в дополнение к инлайновому width в
+   guests_table.html (640px/620px у двух взаимоисключающих режимов Посетители/
+   Страницы, id="gTable" общий) - .g-table гибкая по ширине (flex:1 1 auto),
+   без min-width колонки таблицы могли бы сжаться теснее заданных в colgroup
+   px-значений (тот же приём, что у #table_rss в rss.css и #table в
+   search_words.css). */
+#gTable { border-collapse: separate; border-spacing: 0; font-size: 0.85em; min-width: 640px; }
 #gTable th, #gTable td {
     border-left: none; border-right: none;
     padding: 3px 8px; white-space: nowrap;
 }
 #gTable td.num { text-align: right; }
 
-.g-table::-webkit-scrollbar { width: 5px; height: 5px; }
-.g-table::-webkit-scrollbar-thumb { background: #aaa; border-radius: 3px; }
-.g-table::-webkit-scrollbar-track { background: transparent; }
-.g-table { scrollbar-width: thin; }
+/* Свой стиль скролла для .g-table убран - глушил тему (статичный серый)
+   и отличался размером/фоном от остальных скроллов формы (.g-chart,
+   .container и т.д.). Теперь .g-table наследует единый стиль скролла из
+   base.css - тот же, что и у остальных прокручиваемых блоков формы. */
