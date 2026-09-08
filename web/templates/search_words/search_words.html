@@ -10,10 +10,10 @@
     <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
     {% include "include/select_language.html" %}
     <input type="hidden" id="scroll" name="scroll" value="{{par['scroll']}}">
-    <button class="simple-text" name="refresh" title="{{txt[1]}}"
-            style="font-size:18px; background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});">
-        <u>{{txt[0]}}</u>
-    </button>
+<!--    <button class="simple-text" name="refresh" title="{{txt[1]}}"-->
+<!--            style="font-size:18px; background: var(&#45;&#45;color-background, {{colors['background']}}); color: var(&#45;&#45;color-red, {{colors['red']}});">-->
+<!--        <u>{{txt[0]}}</u>-->
+<!--    </button>-->
     <div class="top">
         {{txt[8]}}:
         <select name="select_theme" id="select_theme" style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}});" title="{{par['select_title']}}">
@@ -124,8 +124,10 @@
             <div class="data">
                 {% include "include/top_of_table.html" %}
                 {% include "include/sort_table.html" %}
+                <div class="detail-row">
+                <div class="list-col">
                 <div class="table_counts">
-                    <table id="table" class="table table-sm table-bordered">
+                    <table id="table_detail" class="table table-sm table-bordered">
                         <thead align="center" style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-black, {{colors['black']}});">
                             <tr>
                                 <th id="th_date" scope="col">{{txt[13]}}</th>
@@ -159,15 +161,16 @@
                         </tbody>
                     </table>
                 </div> <!-- table_counts -->
+                <div class="pages">
+                    {% include "include/pages_table.html" %}
+                </div> <!-- pages -->
+                </div> <!-- list-col -->
                 <div class="textarea">
                     <textarea
                           style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})" readonly
                           class="transcript">{{par['transcript']}}</textarea>
                 </div>
-
-                <div class="pages">
-                    {% include "include/pages_table.html" %}
-                </div> <!-- pages -->
+                </div> <!-- detail-row -->
             </div> <!-- data -->
         </div> <!-- detail -->
     {% elif par['switch'] == 'diagram' %}
@@ -253,13 +256,10 @@
     });
     document.getElementById('{{own}}').addEventListener('submit', function(event) { loadingIcon.style.display = 'block'; });
     function equalizeDivHeights() {
-      const sourceDiv = document.querySelector('.table_counts');
-      const targetDiv = document.querySelector('textarea');
-
-      // Устанавливаем высоту целевого div равной высоте
-      {% if par['switch'] == 'detail' %}
-          targetDiv.style.height = sourceDiv.offsetHeight + 'px';
-      {% endif %}
+      // Больше не нужно - .table_counts и .textarea теперь соседи в одном
+      // flex-row (.detail-row, search_words.css), высоты выравниваются сами.
+      // Раньше здесь выставлялся textarea.style.height в px вручную - это
+      // задало бы inline-стиль, который перебивал бы flex-раскладку.
     }
 
     // Вызываем при загрузке и изменении размера окна

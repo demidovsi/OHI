@@ -11,13 +11,13 @@
     {% include "include/select_language.html" %}
     <input type="hidden" id="scroll" name="scroll" value="{{par['scroll']}}">
     <div class="top">
-        <span style="color: var(--color-green, {{colors['green']}});">
-            <button name="refresh" class="simple-text"
-                  style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}}); font-size: 22px;"
-                  title="{{txt[1]}}">
-                {{txt[par['title']]}}
-            </button>
-        </span>
+<!--        <span style="color: var(&#45;&#45;color-green, {{colors['green']}});">-->
+<!--            <button name="refresh" class="simple-text"-->
+<!--                  style="background: var(&#45;&#45;color-background, {{colors['background']}}); color: var(&#45;&#45;color-blue, {{colors['blue']}}); font-size: 22px;"-->
+<!--                  title="{{txt[1]}}">-->
+<!--                {{txt[par['title']]}}-->
+<!--            </button>-->
+<!--        </span>-->
         {% include "include/top_of_table.html" %}
 
         {% include "include/sort_table.html" %}

@@ -9,86 +9,158 @@ body[data-theme="black"] #search_words input[type="date"]::-webkit-calendar-pick
     filter: invert(1);
 }
 
-/* Эта форма - жёсткая пиксельная раскладка (например .textarea ниже:
-   left:420px), не умеет сжиматься под push закреплённой панели меню
-   (menu2.css: body.with-sidebar добавляет padding-left) - на нешироких окнах
-   это либо обрезает контент, либо вызывает горизонтальный/вертикальный
-   скролл. Поэтому на этой странице панель просто ложится поверх формы (как
-   было до появления push), а не сдвигает её. */
-body.with-sidebar {
-    padding-left: 0;
+/* Раскладка - flex, как у rss.css (см. её шапку), без хардкода left/top:
+   не ломается ни от push закреплённой панели меню, ни от размера окна.
+   У этой формы 3 взаимоисключающих режима вывода (par['switch']):
+   detail/diagram/service - каждый описан отдельно ниже. */
+form {
+    display: flex;
+    flex-direction: column;
+    /* Занимаем всю доступную высоту, за вычетом .container сверху и снизу
+       (padding-top:50px + margin:10px*2, base.css) и ещё 45px снизу под
+       #user_name (include/select_language.html, base.css: position:fixed;
+       bottom:5px; right:5px) - без этого запаса контент вылезал бы из-под
+       него. */
+    height: calc(100vh - 70px - 45px);
+}
+
+/* .container (base.css) - overflow:auto по обеим осям. Вертикальный скролл
+   здесь не нужен и не должен появляться (высота формы уже ограничена выше;
+   .table_counts/.textarea/.service_nsi/.his_table у себя скроллятся сами
+   через overflow) - оставляем только горизонтальный. Без этого оставался
+   остаточный вертикальный скролл на пару пикселей (border у .table-bordered,
+   рамка плагина highlightWithinTextarea и т.п. - те же округления, что были
+   у rss.css, см. её комментарий к .container). */
+.container {
+    overflow-y: hidden;
 }
 
 #table {
     /*width: 1180px;*/
     border-collapse: collapse; /* Убираем двойные линии между ячейками */
+    /* Bootstrap .table задаёт width:100% - в режиме service .his_table живёт
+       в гибкой по ширине .service_his (flex:1 1 auto) и при нехватке места
+       сжимал бы колонки вместо горизонтального скролла (тот же баг, что был
+       у rss.css - см. её комментарий к #table_rss). */
+    min-width: 500px;
 }
+
+#th_source { min-width: 250px; }
 
 .top {
-    position: absolute;
+    flex: 0 0 auto;
     width: 1100px;
-    top: 100px;
     margin-top: 5px;
     margin-bottom: 10px;
-
 }
 
+/* ── Режим "detail" ─────────────────────────────────────────────────── */
 .detail {
-    /*border: 1px solid #7a7b7e; /* Параметры рамки */
-    position: absolute;
-    top: 160px;
-    bottom: 40px;
-    width: 1100px;
-    _border: 3px solid #7a7b7e; /* Параметры рамки */
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.data {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* .table_counts (список+пагинация) и .textarea (транскрипт) - две колонки
+   рядом; .table_counts и .pages внутри неё - сама колонка. */
+.detail-row {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+}
+
+.list-col {
+    flex: 0 0 550px;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .table_counts {
-    position: absolute;
-    top: 90px;
-    _border: 1px solid red; /* Параметры рамки */
-    width: 400px;
-    bottom: 60px;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
     overflow: auto;
 }
 
-.pages{
-    position: absolute;
+/* .list-col фиксированной ширины (400px) - кнопкам пагинации там может не
+   хватать места в одну строку. Перенос на 2-ю строку увеличивал бы высоту
+   .pages (flex:0 0 auto - не сжимается), а т.к. высота form жёстко задана
+   (form{height:calc(...)}), это выталкивало бы .list-col за её пределы и
+   вызывало вертикальный скролл всей формы. Вместо переноса - горизонтальный
+   скролл, как у самой таблицы. */
+.pages {
+    flex: 0 0 auto;
     padding-left: 0px;
-    bottom: 10px;
-    _border: 3px solid red; /* Параметры рамки */
     border: none; /* Убирает рамку */
+    overflow-x: auto;
+    white-space: nowrap;
 }
 
-.textarea
-{
-    position: absolute;
-    top: 90px;
-    left: 420px;
-    width: 750px;
-    bottom: 70px;
+/* position:relative - точка отсчёта для textarea ниже (position:absolute;
+   inset:0), это надёжнее чем textarea{height:100%}: высота у <textarea> -
+   replaced-элемента с собственной intrinsic-логikой (rows/cols) - через %
+   иногда не резолвится предсказуемо между браузерами. */
+.textarea {
+    flex: 1 1 auto;
+    min-height: 0;
+    position: relative;
 }
 
-textarea
-{
-    width: 740px;
-    border: none;
-    overflow: auto;
+/* В режиме detail static/js/jquery.highlight.js (highlightWithinTextarea)
+   оборачивает <textarea class="transcript"> в свой <div class="hwt-container">
+   и сам через JS выставляет textarea position:relative внутри него (перебивая
+   правило ниже инлайн-стилем) - без явного размера у .hwt-container (плагин
+   о нашей раскладке не знает) контейнер схлопывается по контенту, а не по
+   высоте .textarea. */
+.textarea .hwt-container {
+    width: 100%;
     height: 100%;
+}
+
+/* Только транскрипт (внутри .textarea) - .nsi_textarea (режим service)
+   должны остаться в обычном потоке со своими явными width/height.
+   width/height:100% (не position:absolute) - у highlightWithinTextarea
+   (static/js/jquery.highlight.js) сама textarea получает класс .hwt-input с
+   position:relative!important (static/css/highlight.css) - переопределить
+   !important нельзя, а inset:0 без position:absolute ничего не даёт. Проценты
+   же нормально резолвятся под position:relative, раз у .hwt-container (её
+   прямого родителя после оборачивания плагином) высота теперь определена
+   правилом выше. */
+.textarea textarea {
+    width: 100%;
+    height: 100%;
+    box-sizing: border-box;
+    border: none;
+    /* Браузер по умолчанию ставит textarea{padding:2px} - у подложки плагина
+       highlightWithinTextarea (.hwt-highlights/.hwt-backdrop, highlight.css)
+       padding:0. Из-за расхождения текст в textarea начинался на 2px правее/
+       ниже, чем считает подложка - подсветка съезжала (заметнее при скролле
+       длинного текста, т.к. 2px по ширине сдвигают ещё и точки переноса строк). */
+    padding: 0;
+    overflow: auto;
     /*font-family: "Courier New";*/
 }
 
-.diagram_interval{
-    position: absolute;
-    top: 180px;
-    left: 25px;
+/* ── Режим "diagram" ────────────────────────────────────────────────── */
+.diagram_interval {
+    flex: 0 0 auto;
 }
 
 .diagram {
-    position: absolute;
-    top: 250px;
-    left: 50px;
-    width: 750px;
-    bottom: 0px;
+    flex: 1 1 auto;
+    min-height: 0;
     overflow: auto;
     /*border: 1px solid #7a7b7e; /* Параметры рамки */
 }
@@ -108,20 +180,20 @@ textarea
   background-color: blue;
 }
 
+/* ── Режим "service" ────────────────────────────────────────────────── */
 .service {
-    /*border: 1px solid #7a7b7e; /* Параметры рамки */
-     position: absolute;
-    top: 160px;
-    bottom: 00px;
-    width: 1100px;
-    /*border: 3px solid #7a7b7e; /* Параметры рамки */
-
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+}
 
 .service_nsi {
+    flex: 0 0 350px;
+    min-height: 0;
+    overflow: auto;
     padding-left: 10px;
-    /*border: 3px solid #7a7b7e; /* Параметры рамки */
-    _height: 690px;
-    width: 350px;
     border: none;
 }
 
@@ -131,12 +203,10 @@ textarea
 }
 
 .service_his {
-    position: absolute;
-    /*border: 3px solid red; /* Параметры рамки */
-    top: 0px;
-    bottom: 20px;
-    left: 360px;
-    width: 800px;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .nsi_textarea {
@@ -153,28 +223,27 @@ textarea
 .counts {padding-top: 5px;}
 
 .his_top {
-    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+    flex: 0 0 auto;
     margin: 5px;
 }
 
 .his_interval {
-    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+    flex: 0 0 auto;
 }
 
 .his_table {
-    position: absolute;
-    top: 110px;
-    width: 590px;
-    bottom: 80px;
+    flex: 1 1 auto;
+    min-height: 0;
     border: none;
-    overflow:auto;
+    overflow: auto;
     /*border: 1px solid #7a7b7e; /* Параметры рамки */
 }
 
 .his_pages {
-    position: absolute;
+    flex: 0 0 auto;
     padding-left: 50px;
-    bottom: 40px;
     /*border: 1px solid #7a7b7e; /* Параметры рамки */
+    overflow-x: auto;
+    white-space: nowrap;
 }
 
