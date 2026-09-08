@@ -9,6 +9,16 @@ body[data-theme="black"] #search_words input[type="date"]::-webkit-calendar-pick
     filter: invert(1);
 }
 
+/* Эта форма - жёсткая пиксельная раскладка (например .textarea ниже:
+   left:420px), не умеет сжиматься под push закреплённой панели меню
+   (menu2.css: body.with-sidebar добавляет padding-left) - на нешироких окнах
+   это либо обрезает контент, либо вызывает горизонтальный/вертикальный
+   скролл. Поэтому на этой странице панель просто ложится поверх формы (как
+   было до появления push), а не сдвигает её. */
+body.with-sidebar {
+    padding-left: 0;
+}
+
 #table {
     /*width: 1180px;*/
     border-collapse: collapse; /* Убираем двойные линии между ячейками */

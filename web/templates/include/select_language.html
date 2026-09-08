@@ -14,9 +14,8 @@
         {% endfor %}
     </select>
   {% endif %}
+    <!-- Кнопка переключения темы перенесена в topbar (include/menu2.html) -
+         здесь остаётся только скрытое поле, синхронизирующее текущую тему
+         с формой этой страницы (см. common.py: 'select_theme_form' in request.form). -->
     <input type="hidden" name="select_theme_form" id="select_theme_form" value="{{upr['select_theme']}}">
-    <button type="button" id="theme_toggle_btn" class="theme-toggle-btn"
-            title="{{menu_txt[39]}}"
-            style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}})"
-            onclick="toggle_theme()">{% if upr['select_theme'] == 'black' %}☀️{% else %}🌙{% endif %}</button>
 </div>

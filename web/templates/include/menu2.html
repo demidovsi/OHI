@@ -1,37 +1,118 @@
-<header>
-    <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
-    <div class="dws_menu">
-    <nav class="dws-menu">
-        <ul>
-            <li class="level-0"><a href="#">{{menu_txt[0]}}</a>
-                <ul>
-                    <li onclick="change_menu()"><a href="{{url_for('news_board', user_id=upr['user_id'])}}">{{menu_txt[1]}}</a></li>
-                    <li onclick="change_menu()"><a href="{{url_for('analyses', user_id=upr['user_id'])}}">Аналитика</a></li>
-                </ul>
-            </li>
-                <li class="level-0"><a href="#">{{menu_txt[2]}}</a>
-                    <ul>
-            {% if upr['admin'] %}
-                        <li onclick="change_menu()"><a href="{{url_for('logs', user_id=upr['user_id'])}}">📝 {{menu_txt[3]}}</a></li>
-                        <li onclick="change_menu()"><a href="{{url_for('guests', user_id=upr['user_id'])}}">{{menu_txt[31]}}</a></li>
-                        <li onclick="change_menu()"><a href="{{url_for('functions', user_id=upr['user_id'])}}">⚙️{{menu_txt[4]}}</a></li>
-            {% endif %}
-                        <li onclick="change_menu()"><a href="{{url_for('chat_logs', user_id=upr['user_id'])}}">Лог чата</a></li>
-                        <li onclick="change_menu()"><a href="{{url_for('search_words', user_id=upr['user_id'])}}">{{menu_txt[32]}}</a></li>
-                        <li onclick="change_menu()"><a href="{{url_for('rss', user_id=upr['user_id'])}}">{{menu_txt[38]}}</a></li>
-                    </ul>
-                </li>
-            <li class="level-0"><a href="{{url_for('login')}}">Login</a></li>
-        </ul>
-    </nav>
-    </div>
-
-    <script>
-        var loadingIcon = document.querySelector('#loadingIcon');
-      function change_menu() {
-            loadingIcon.style.display = 'block';
-        }
-
-    </script>
+{% set current = namespace(group='', item='') %}
+{% if request.endpoint == 'news_board' %}
+    {% set current.group, current.item = menu_txt[0], menu_txt[1] %}
+{% elif request.endpoint == 'analyses' %}
+    {% set current.group, current.item = menu_txt[0], 'Аналитика' %}
+{% elif request.endpoint == 'logs' %}
+    {% set current.group, current.item = menu_txt[2], menu_txt[3] %}
+{% elif request.endpoint == 'guests' %}
+    {% set current.group, current.item = menu_txt[2], menu_txt[31] %}
+{% elif request.endpoint == 'functions' %}
+    {% set current.group, current.item = menu_txt[2], menu_txt[4] %}
+{% elif request.endpoint == 'chat_logs' %}
+    {% set current.group, current.item = menu_txt[2], 'Лог чата' %}
+{% elif request.endpoint == 'search_words' %}
+    {% set current.group, current.item = menu_txt[2], menu_txt[32] %}
+{% elif request.endpoint == 'rss' %}
+    {% set current.group, current.item = menu_txt[2], menu_txt[38] %}
+{% endif %}
+<header class="topbar">
+    <button type="button" id="sidebar_toggle_btn" class="sidebar-toggle-btn" title="Меню" onclick="toggle_sidebar()">☰</button>
+    <span class="topbar-title">📰 OHI{% if current.item %} — {{current.group}} / {{current.item}}{% endif %}</span>
+    <button type="button" id="theme_toggle_btn" class="theme-toggle-btn topbar-theme-btn"
+            title="Переключить цветовую тему"
+            onclick="toggle_theme()">{% if upr['select_theme'] == 'black' %}☀️{% else %}🌙{% endif %}</button>
 </header>
+
+<div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
+
+<nav id="sidebar" class="sidebar">
+    <div class="sidebar-group">
+        <button type="button" class="sidebar-group-title" onclick="toggle_group(this)">
+            <span class="sidebar-group-arrow">▾</span> {{menu_txt[0]}}
+        </button>
+        <ul class="sidebar-group-items">
+            <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'news_board' else '' }}"
+                   href="{{url_for('news_board', user_id=upr['user_id'])}}">📊{{menu_txt[1]}}</a></li>
+            <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'analyses' else '' }}"
+                   href="{{url_for('analyses', user_id=upr['user_id'])}}">Аналитика</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-group">
+        <button type="button" class="sidebar-group-title" onclick="toggle_group(this)">
+            <span class="sidebar-group-arrow">▾</span> {{menu_txt[2]}}
+        </button>
+        <ul class="sidebar-group-items">
+        {% if upr['admin'] %}
+            <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'logs' else '' }}"
+                   href="{{url_for('logs', user_id=upr['user_id'])}}">📝 {{menu_txt[3]}}</a></li>
+            <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'guests' else '' }}"
+                   href="{{url_for('guests', user_id=upr['user_id'])}}">{{menu_txt[31]}}</a></li>
+            <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'functions' else '' }}"
+                   href="{{url_for('functions', user_id=upr['user_id'])}}">⚙️{{menu_txt[4]}}</a></li>
+        {% endif %}
+            <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'chat_logs' else '' }}"
+                   href="{{url_for('chat_logs', user_id=upr['user_id'])}}">Лог чата</a></li>
+            <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'search_words' else '' }}"
+                   href="{{url_for('search_words', user_id=upr['user_id'])}}">{{menu_txt[32]}}</a></li>
+            <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'rss' else '' }}"
+                   href="{{url_for('rss', user_id=upr['user_id'])}}">{{menu_txt[38]}}</a></li>
+        </ul>
+    </div>
+    <div class="sidebar-group sidebar-group-flat">
+        <a class="sidebar-group-title sidebar-link-flat" href="{{url_for('login')}}">Login</a>
+    </div>
+</nav>
+
+<script>
+    var loadingIcon = document.querySelector('#loadingIcon');
+    function change_menu() {
+        loadingIcon.style.display = 'block';
+    }
+
+    (function () {
+        // Гамбургер - бинарный переключатель: панель либо закреплена слева
+        // (и тогда сама выделяет себе полосу шириной --ohi-sidebar-width,
+        // "выталкивая" контент через padding-left на body), либо полностью
+        // убрана - и вся ширина возвращается формам. Состояние сохраняется
+        // между страницами через localStorage (переход по ссылке = обычная
+        // навигация, скрипт на новой странице сам восстановит закрепление).
+        var SIDEBAR_KEY = 'ohi_web_sidebar_pinned';
+        var sidebar = document.getElementById('sidebar');
+
+        window.toggle_sidebar = function (force) {
+            var pinned = force !== undefined ? force : !sidebar.classList.contains('open');
+            sidebar.classList.toggle('open', pinned);
+            document.body.classList.toggle('with-sidebar', pinned);
+            try { localStorage.setItem(SIDEBAR_KEY, pinned ? '1' : '0'); } catch (e) {}
+        };
+
+        try {
+            if (localStorage.getItem(SIDEBAR_KEY) === '1') {
+                window.toggle_sidebar(true);
+            }
+        } catch (e) {}
+
+        var GROUP_KEY_PREFIX = 'ohi_web_menu_group_';
+        var groups = Array.prototype.slice.call(document.querySelectorAll('.sidebar-group-items'));
+        groups.forEach(function (ul, i) {
+            var hasActive = ul.querySelector('a.active') !== null;
+            var collapsed = false;
+            try { collapsed = !hasActive && localStorage.getItem(GROUP_KEY_PREFIX + i) === '1'; } catch (e) {}
+            if (collapsed) {
+                ul.classList.add('collapsed');
+                var btn = ul.previousElementSibling;
+                if (btn) btn.classList.add('collapsed');
+            }
+        });
+
+        window.toggle_group = function (btn) {
+            var ul = btn.nextElementSibling;
+            var collapsed = ul.classList.toggle('collapsed');
+            btn.classList.toggle('collapsed', collapsed);
+            var idx = groups.indexOf(ul);
+            try { localStorage.setItem(GROUP_KEY_PREFIX + idx, collapsed ? '1' : '0'); } catch (e) {}
+        };
+    })();
+</script>
 <link rel="stylesheet" type="text/css" href="/static/css/menu2.css">

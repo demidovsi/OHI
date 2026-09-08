@@ -103,7 +103,7 @@ input[type=checkbox]{transform:scale(1.2); margin:0px 0px 0px;}
     top: 100px;
     left: 100px;
     width: 500px;
-    z-index: 100;
+    z-index: 210; /* выше закреплённой .sidebar (195) из menu2.css */
 }
 
 thead {  /* для всех таблиц фиксируем заголовок */
@@ -159,11 +159,12 @@ thead th {
     z-index: 100;
 }
 
+/* .topbar/.sidebar (menu2.css) сами фиксируют себя относительно viewport -
+   обёртка .menu больше не должна позиционироваться/создавать свой
+   stacking context, иначе элементы с более высоким z-index на странице
+   (например .container-flash) могут перекрыть панель. */
 .menu {
-    position: absolute;
-    float: top;
-    top: 0px;
-    height: 50px;
+    position: static;
 }
 
 body {

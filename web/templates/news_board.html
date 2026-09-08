@@ -31,10 +31,7 @@
         <div class="nb-toolbar" style="background: var(--color-background, {{colors['background']}});">
             <span class="nb-title">📰 <b>Новости</b></span>
 
-            <button type="button" id="theme_toggle_btn" class="theme-toggle-btn"
-                    title="Переключить цветовую тему"
-                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
-                    onclick="toggle_theme()">{% if upr['select_theme'] == 'black' %}☀️{% else %}🌙{% endif %}</button>
+            <!-- Кнопка переключения темы перенесена в topbar (include/menu2.html) -->
 
             <span class="nb-group">
                 <button type="button" id="nb_prev" class="nb-btn" title="Предыдущий день">◀</button>

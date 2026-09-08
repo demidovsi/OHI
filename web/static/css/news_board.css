@@ -55,11 +55,10 @@ body {
     margin: 0;
 }
 
+/* см. комментарий к .menu в base.css - обёртка больше не позиционируется,
+   реальную панель/topbar рисуют .topbar/.sidebar из menu2.css. */
 .menu {
-    position: absolute;
-    top: 0;
-    height: 50px;
-    z-index: 20;
+    position: static;
 }
 
 .container-flash {
