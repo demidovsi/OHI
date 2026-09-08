@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% block title %}Гости сайта{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" type="text/css" href="/static/css/guests.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<form method="post" name="{{own}}" id="{{own}}" data-ajax-form data-api-url="{{url_for('api_guests_data', user_id=user_id)}}">
+<button type="submit" style="display:none"></button>
+<div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
+<input type="hidden" id="scroll" name="scroll" value="{{par['scroll']}}">
+<input type="hidden" name="view_mode" id="view_mode" value="{{par['view_mode']}}">
+
+{# ── Верхняя панель (обновляется целиком через AJAX) ── #}
+<div id="top_wrap">
+    {% include "include/guests_top.html" %}
+</div>
+
+{# ── Тело ── #}
+<div class="bottom">
+
+    {# ── Диаграмма (перерисовывается через Chart.js в guests.js, не через innerHTML) ── #}
+    <div class="g-chart">
+        <div id="chartTitle" style="font-size:0.88em;font-weight:bold;color:#4e73df;margin-bottom:4px;{% if not par.get('chart_json') or par['chart_json'] == '{}' %}display:none;{% endif %}">
+            {{par.get('chart_title','')}}
+        </div>
+        <div class="chart-wrap" id="chartWrap" style="{% if not par.get('chart_json') or par['chart_json'] == '{}' %}display:none;{% endif %}">
+            <canvas id="mainChart"></canvas>
+        </div>
+    </div>
+
+    {# ── Таблица ── #}
+    <div class="data">
+    <div class="g-table" id="table_wrap">
+        {% include "include/guests_table.html" %}
+    </div>
+    <div class="pages" id="pages_wrap">
+        {% include "include/pages_table.html" %}
+    </div>
+    </div> <!-- data -->
+</div>{# /bottom #}
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.GUESTS_INITIAL_CHART_JSON = {{ par.get('chart_json', '{}') | tojson }};
+    window.GUESTS_INITIAL_CHART_TITLE = {{ par.get('chart_title', '') | tojson }};
+</script>
+<script src="/static/js/guests.js"></script>
+{% endblock %}

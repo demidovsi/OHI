@@ -1,0 +1,27 @@
+.git
+.github
+.idea
+.claude
+.venv
+__pycache__/
+*.pyc
+*.py[cod]
+
+# web
+web/.env
+web/.env.local
+web/.env.development
+web/static/session.json
+
+# server
+server/.env
+server/venv_win/
+server/debug_html/
+server/out/
+server/ffmpeg/
+server/*.json
+server/*.csv
+server/*.jsonl
+server/*.log
+server/*.db
+server/*.sqlite3

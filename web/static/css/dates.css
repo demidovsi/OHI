@@ -1,0 +1,12 @@
+#start {
+    height: 30px;
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+}
+
+/* Нативная иконка календаря у input[type=date] всегда тёмная и не
+   подстраивается под тему сама - в тёмной теме сливалась с тёмным фоном
+   поля (background у #start следует за темой, см. include/dates.html).
+   Тот же приём, что и в search_words.css/moves_laws.css. */
+body[data-theme="black"] #start::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}

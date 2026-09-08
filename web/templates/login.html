@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+
+    <head>
+    <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <!-- Bootstrap CSS -->
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css"
+              integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+        <link rel="shortcut icon" href="/static/star_david.png" >
+        <title>Login</title>
+    <style>
+        @keyframes blink {
+            0% { opacity: 1; }
+            10% { opacity: 0; }
+            100% { opacity: 1; }
+        }
+
+        .blinking-button {
+            animation: blink 1s infinite;
+        }
+    </style>
+    <style>
+        .loading-icon {
+            display: none;
+            position: fixed;
+            top: 10%;
+            left: 10%;
+            transform: translate(-50%, -50%);
+            font-size: 2rem;
+            color: #000;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+  </head>
+        <!-- вывести все ошибки анализа ввода -->
+        {% for message in get_flashed_messages(with_categories=True) %}
+        <div class="alert alert-{{ message[0] }}">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            {{ message[1] }}
+        </div>
+        {% endfor %}
+        <div class="container" style="background: lightblue; color: black;">
+            <form method="post" id="login">
+                <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="64" height="64"></div>
+                <div>
+                    <link rel="stylesheet" type="text/css" href="/static/css/login.css">
+                    <a class="text">User name:</a>
+                    <input id="user_name" name="user_name" class="form-control"
+                           placeholder="Input user name">
+                    <a class="text"></a> Password: </a>
+                    <input type="password" id="password" name="password"
+                           class="form-control" placeholder="Input password">
+                    <p></p>
+
+                    <a class="text"></a> Theme:
+                    <select class="combo" name="select_theme" id="theme" value="{{black}}">
+                        <option value="black" selected>black - темный фон</option>
+                        <option value="white">white - светлый фон</option>
+                    </select>
+                    <p></p>
+                    <script>
+                        // Подставить тему, запомненную на этом браузере (static/js/theme_switch.js,
+                        // ключ llm_web_theme) - иначе форма логина всегда предлагала бы "black"
+                        // независимо от того, какую тему пользователь выбирал в прошлый раз.
+                        try {
+                            var savedTheme = localStorage.getItem('llm_web_theme');
+                            if (savedTheme) {
+                                document.getElementById('theme').value = savedTheme;
+                            }
+                        } catch (e) {}
+                    </script>
+
+                    <a class="text"></a> Language:
+                    <select class="combo" name="select_language" id="language">
+                        {% for lang in languages %}
+                            {% if lang['key'] == select_language %}
+                                <option value="{{lang['key']}}" selected>{{lang['name']}}</option>
+                            {% else %}
+                                <option value="{{lang['key']}}">{{lang['name']}}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                    <p></p>
+                    <p>
+                    <button type="submit" class="btn" value="Принять"> Submit</button>
+                    </p>
+                </div>
+        <div class="time_now">
+            <input name="time_now" id="time_now" value="" hidden>
+        </div>
+            </form>
+        </div>
+<script>
+    var z = document.getElementById("time_now");
+    z.value = Date();
+document.write('&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; {{user_agent}} &nbsp;&nbsp;&nbsp; LLM-web &nbsp;[{{version}}]<br>' +
+               '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ' + z.value);
+</script>
+<script>
+    document.getElementById('login').addEventListener('submit', function(event) {
+        var loadingIcon = document.querySelector('#loadingIcon');
+        loadingIcon.style.display = 'block';
+        // Без этого выбор темы прямо на форме логина "не действовал" бы:
+        // theme_switch.js на следующей же странице читает localStorage и,
+        // если там ещё лежит СТАРОЕ значение (обновляется только кнопкой-
+        // переключателем внутри сайта, не этой формой), тут же откатывает
+        // тему обратно - независимо от того, что реально выбрали при входе.
+        try {
+            localStorage.setItem('llm_web_theme', document.getElementById('theme').value);
+        } catch (e) {}
+    });
+</script>
+</html>
+

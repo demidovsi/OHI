@@ -1,0 +1,28 @@
+<!--st_date - символьное изображение даты в формате дд.мм.гггг    -->
+<link rel="stylesheet" type="text/css" href="/static/css/dates.css">
+    <button name="left" value="-1" class="button_lr" style="background: var(--color-background, {{colors['background']}});" title="{{menu_txt[21]}}">
+        <img src="/static/arrow-left.png" width="18" height="18">
+    </button>
+    <span style="color: var(--color-black, {{colors['black']}});">{{menu_txt[26]}}:</span>
+    <input type="date" id="start" name="dt_start" value="{{par['st_date']}}" required
+           style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+    <button name="right" value="+1" class="button_lr" style="background: var(--color-background, {{colors['background']}});" title="{{menu_txt[22]}}">
+        <img src="/static/arrow-right.png" width="18" height="18">
+    </button>
+    <button name="current_day" class="simple-text" value="current_day"
+            style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});">
+        <u>{{menu_txt[25]}}</u>
+    </button>
+{% if par['page'] == 1 and par['is_today'] %}
+    {% if par['do_update'] and par['page'] == 1 %}
+        <input type="checkbox" name="do_update" value="Обновлять" class="checkbox" id="do_update" checked
+               title="{{menu_txt[23]}}"
+               style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+        <span style="color: var(--color-black, {{colors['black']}});" title="{{menu_txt[23]}}">{{menu_txt[27]}}</span>
+    {% else %}
+        <input type="checkbox" name="do_update" value="Без обновления" class="checkbox" id="do_update"
+               title="{{menu_txt[24]}}"
+               style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+        <span style="color: var(--color-black, {{colors['black']}});" title="{{menu_txt[24]}}">{{menu_txt[27]}}</span>
+    {% endif %}
+{% endif %}

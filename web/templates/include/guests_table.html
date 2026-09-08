@@ -1,0 +1,76 @@
+{# ── Таблица формы "Гости" (переиспользуется и при первой загрузке, и в AJAX-ответе) ── #}
+{% if par['view_mode'] == 'guests' %}
+{# ────────────── ТАБЛИЦА ПОСЕТИТЕЛЕЙ  (140+160+120+70+150 = 640px) ── #}
+<table id="gTable" class="table table-sm table-condensed"
+       style="width:640px;table-layout:fixed;">
+    <colgroup>
+        <col style="width:140px;">
+        <col style="width:160px;">
+        <col style="width:120px;">
+        <col style="width:70px;">
+        <col style="width:150px;">
+    </colgroup>
+    <thead style="background: var(--color-select-background, {{colors['select_background']}}); color: var(--color-select-color, {{colors['select_color']}});">
+        <tr>
+            <th>IP-адрес</th>
+            <th>Страна</th>
+            <th>Город</th>
+            <th style="text-align:right;">Визитов</th>
+            <th>Последний визит</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in par.get('data', []) %}
+    <tr style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});">
+        <td style="color:var(--color-blue, {{colors['blue']}});font-family:monospace;overflow:hidden;text-overflow:ellipsis;">{{r['sh_name'] or '—'}}</td>
+        <td style="overflow:hidden;text-overflow:ellipsis;">{{r['country'] or '—'}}</td>
+        <td style="overflow:hidden;text-overflow:ellipsis;">{{r['city'] or '—'}}</td>
+        <td class="num" style="font-weight:bold;text-align:right;">{{r['visits'] or 0}}</td>
+        <td style="font-size:0.82em;color:#888;">
+            {% if r['last_visit'] %}
+                {{(r['last_visit'][:16] if r['last_visit']|string|length > 15 else r['last_visit'])|string|replace('T', ' ')}}
+            {% else %}—{% endif %}
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" style="color:#aaa;padding:20px;text-align:center;">Нет данных</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+{% else %}
+{# ────────────── ТАБЛИЦА СТРАНИЦ  (300+80+90+150 = 620px) ── #}
+<table id="gTable" class="table table-sm table-condensed"
+       style="width:620px;table-layout:fixed;">
+    <colgroup>
+        <col style="width:300px;">
+        <col style="width:80px;">
+        <col style="width:90px;">
+        <col style="width:150px;">
+    </colgroup>
+    <thead style="background: var(--color-select-background, {{colors['select_background']}}); color: var(--color-select-color, {{colors['select_color']}});">
+        <tr>
+            <th>Страница</th>
+            <th style="text-align:right;">Посещений</th>
+            <th style="text-align:right;">Гостей</th>
+            <th>Последнее</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for r in par.get('data', []) %}
+    <tr style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});">
+        <td style="color:var(--color-blue, {{colors['blue']}});overflow:hidden;text-overflow:ellipsis;">{{r['value'] or '—'}}</td>
+        <td class="num" style="font-weight:bold;text-align:right;">{{r['visits'] or 0}}</td>
+        <td class="num" style="text-align:right;">{{r['unique_guests'] or 0}}</td>
+        <td style="font-size:0.82em;color:#888;">
+            {% if r['last_visit'] %}
+                {{(r['last_visit'][:16] if r['last_visit']|string|length > 15 else r['last_visit'])|string|replace('T', ' ')}}
+            {% else %}—{% endif %}
+        </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" style="color:#aaa;padding:20px;text-align:center;">Нет данных</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endif %}

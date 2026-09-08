@@ -1,0 +1,29 @@
+-e ../shared
+requests
+httpx
+python-dotenv
+lxml
+lxml-html-clean
+bs4
+google-cloud-storage
+google-auth
+py7zr
+deep-translator
+newspaper3k
+trafilatura
+readability-lxml
+playwright
+playwright-stealth
+python-docx
+pdf2docx
+pymupdf
+comtypes
+pywin32
+python-dateutil
+certifi
+curl_cffi
+
+#beautifulsoup4
+
+#После установки основных библиотек нужно также инициализировать Playwright:
+#playwright install chromium

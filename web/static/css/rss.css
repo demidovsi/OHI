@@ -1,0 +1,91 @@
+.top {
+    width: 850px;
+    min-width: 850px;
+    _border: 3px solid gray; /* Параметры рамки */
+}
+
+.left {
+    position: absolute;
+    left: 20px;
+    top: 240px;
+    width: 950px;
+    bottom: 50px;
+    _border: 3px solid gray; /* Параметры рамки */
+    _overflow: auto; /* Добавляем скроллбар, если контент не помещается */
+}
+
+.data {
+    position: absolute;
+    left: 0px;
+    top: 10px;
+    width: 950px;
+    bottom: 45px;
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    overflow: auto; /* Добавляем скроллбар, если контент не помещается */
+}
+
+.pages{
+    position: absolute;
+    bottom: 0px;
+    padding-top: 10px;
+    padding-left: 30px;
+}
+
+.right {
+    position: absolute;
+    left: 1000px;
+    top: 100px;
+    width: 420px;
+    _height: 750px;
+    bottom: 50px;
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    overflow: auto;
+}
+
+#table_rss {
+    border-collapse: collapse; /* Убираем двойные линии между ячейками */
+    _border: 1px solid #7a7b7e; /* Параметры рамки */
+}
+
+#th_id { width: 70px;}
+#th_name { width: 150px;}
+#th_url { width: 200px;}
+#th_lang { width: 50px;}
+#th_type { width: 70px;}
+#th_article { width: 70px;}
+#th_categories { width: 100px; }
+
+.upr {
+    position: absolute;
+    padding: 5px;
+    z-index: 1;
+}
+
+.param {
+    padding: 5px;
+    position: absolute;
+    top: 30px;
+    bottom: 0px;
+    padding: 10px;
+    overflow: auto;
+}
+
+#sh_name {width: 350px;}
+#type_rss {width: 220px;}
+#th_lang {width: 60px;}
+.textarea {width: 350px; height: 60px;}
+textarea {margin: 5px;}
+input {margin: 5px;}
+
+.table_rss {
+    position: relative;
+    width: 830px;
+    overflow: auto;
+    border: none;
+}
+
+.table_rss thead {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}

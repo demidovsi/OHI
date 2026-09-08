@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>📰 Новости — дашборд</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="/static/css/news_board.css">
+    <link rel="shortcut icon" href="/static/star_david.png" >
+</head>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<body data-theme="{{upr['select_theme']}}" data-user-id="{{upr['user_id']}}"
+      style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+    <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="96" height="96"></div>
+    <div class="menu">
+        <input type="hidden" name="user_id" value="{{upr['user_id']}}">
+        {% include "include/menu2.html" %}
+    </div> <!-- menu -->
+    <div class="container-flash" id="nb_flash">
+        {% for message in get_flashed_messages(with_categories=True) %}
+            <div class="alert alert-{{ message[0] }} alert-dismissible fade show">
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+                {{ message[1] }}
+            </div>
+        {% endfor %}
+    </div> <!-- container-flash -->
+
+    <input type="hidden" id="select_theme_form" value="{{upr['select_theme']}}">
+
+    <div class="nb-page">
+        <div class="nb-toolbar" style="background: var(--color-background, {{colors['background']}});">
+            <span class="nb-title">📰 <b>Новости</b></span>
+
+            <button type="button" id="theme_toggle_btn" class="theme-toggle-btn"
+                    title="Переключить цветовую тему"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                    onclick="toggle_theme()">{% if upr['select_theme'] == 'black' %}☀️{% else %}🌙{% endif %}</button>
+
+            <span class="nb-group">
+                <button type="button" id="nb_prev" class="nb-btn" title="Предыдущий день">◀</button>
+                <input type="date" id="nb_date" class="nb-date" value="{{par['st_date']}}">
+                <button type="button" id="nb_next" class="nb-btn" title="Следующий день">▶</button>
+                <button type="button" id="nb_today" class="nb-btn" title="Сегодня">Сегодня</button>
+            </span>
+
+            <input type="search" id="nb_search" class="nb-search" placeholder="🔍 Поиск по заголовку, описанию, автору, каналу...">
+
+            <select id="nb_channel" class="nb-select" title="Канал">
+                <option value="">Все каналы</option>
+                {% for rss in par['list_rss'] %}
+                    {% if rss['sh_name'] %}<option value="{{rss['sh_name']}}">{{rss['sh_name']}}</option>{% endif %}
+                {% endfor %}
+            </select>
+
+            <select id="nb_theme" class="nb-select" title="Тема">
+                <option value="">Все темы</option>
+                {% for theme in par['themes'] %}
+                    {% if theme['sh_name'] %}<option value="{{theme['sh_name']}}">{{theme['sh_name']}}</option>{% endif %}
+                {% endfor %}
+            </select>
+
+            <select id="nb_lang" class="nb-select" title="Язык отображения">
+                <option value="ru">RU</option>
+                <option value="en">EN</option>
+                <option value="he">HE</option>
+            </select>
+
+            <button type="button" id="nb_refresh" class="nb-btn" title="Обновить">🔄</button>
+
+            <span id="nb_summary" class="nb-summary"></span>
+        </div> <!-- nb-toolbar -->
+
+        <!-- Шапка вынесена в отдельную нескроллящуюся таблицу над прокручиваемой
+             областью - position:sticky на <thead>/<th> внутри overflow:auto
+             давал в Edge при скролле колесом артефакт ("мусор": фрагмент
+             строки тела таблицы проступал над шапкой), стандартные обходы
+             (contain, GPU-слои, отказ от классов Bootstrap) не помогли, а
+             "замороженная" шапка вне скролла от этого класса багов защищена
+             в принципе - ей никогда не нужно перепозиционироваться. Ширины
+             колонок синхронизированы через одинаковый <colgroup> в обеих
+             таблицах. -->
+        <div class="nb-table-head-wrap">
+            <table id="nb_table_head">
+                <colgroup>
+                    <col style="width:130px;">
+                    <col style="width:170px;">
+                    <col> <!-- Заголовок/описание - занимает всё оставшееся место -->
+                    <col style="width:150px;">
+                    <col style="width:60px;">
+                    {% if upr['admin'] %}<col style="width:40px;">{% endif %}
+                </colgroup>
+                <thead>
+                    <tr>
+                        <th data-sort="sort_time" class="nb-sortable">Дата/время</th>
+                        <th data-sort="name_rss" class="nb-sortable">Канал / автор</th>
+                        <th data-sort="title" class="nb-sortable">Заголовок / описание</th>
+                        <th data-sort="themes" class="nb-sortable">Темы</th>
+                        <th data-sort="lang" class="nb-sortable">Язык</th>
+                        {% if upr['admin'] %}<th></th>{% endif %}
+                    </tr>
+                </thead>
+            </table>
+        </div> <!-- nb-table-head-wrap -->
+        <div class="nb-table-wrap">
+            <table id="nb_table">
+                <colgroup>
+                    <col style="width:130px;">
+                    <col style="width:170px;">
+                    <col>
+                    <col style="width:150px;">
+                    <col style="width:60px;">
+                    {% if upr['admin'] %}<col style="width:40px;">{% endif %}
+                </colgroup>
+                <tbody id="nb_tbody"></tbody>
+            </table>
+            <div id="nb_empty" class="nb-empty" hidden>Нет новостей за выбранный день / по заданным фильтрам</div>
+        </div> <!-- nb-table-wrap -->
+    </div> <!-- nb-page -->
+
+    <!-- Модальное окно новости - открывается по клику на заголовок вместо
+         перехода на отдельную страницу /new/ (main_llm_web.py:api_new_board
+         оборачивает ту же new.py:prepare_form в JSON, так что вся логика -
+         перевод, сохранение, восстановление, дозагрузка статьи - работает
+         без переписывания). Обычная ссылка на /new/ оставлена в href, чтобы
+         Ctrl/средний клик по-прежнему открывали статью в новой вкладке. -->
+    <div class="modal fade" id="nbm_modal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content nbm-modal-content" style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+                <div class="modal-header">
+                    <div class="nbm-header-left">
+                        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Закрыть</button>
+                        <button type="button" id="nbm_theme_toggle_btn" class="theme-toggle-btn"
+                                title="Переключить цветовую тему"
+                                style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                                onclick="toggle_theme()">{% if upr['select_theme'] == 'black' %}☀️{% else %}🌙{% endif %}</button>
+                    </div>
+                    <h5 class="modal-title" style="margin-left: 24px;">Информация по новости <span id="nbm_id" style="opacity:.6;"></span></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="nbm_loading">Загрузка...</div>
+                    <div id="nbm_content" hidden>
+                        <div class="nbm-toolbar">
+                            <span>Язык для вывода текста новости=</span>
+                            <select id="nbm_select_lang" class="nb-select"></select>
+                            <button type="button" id="nbm_translate_ru" class="nb-btn" style="color: var(--color-green, {{colors['green']}});" title="Перевести на русский язык" hidden>RU</button>
+                            <button type="button" id="nbm_translate_en" class="nb-btn" style="color: var(--color-blue, {{colors['blue']}});" title="Перевести на английский язык" hidden>EN</button>
+                            <button type="button" id="nbm_translate_he" class="nb-btn" style="color: var(--color-red, {{colors['red']}});" title="Перевести на иврит" hidden>HE</button>
+                            <button type="button" id="nbm_need_article" class="nb-btn" title="Заново прочитать статью с сайта (только для админа)" hidden>Статья</button>
+                        </div>
+                        <div class="nbm-columns">
+                            <div class="nbm-left">
+                                <p>Источник: <span id="nbm_name_rss" class="nbm-accent"></span> (Время: <span id="nbm_public_date"></span>)</p>
+                                <p>Тема: <span id="nbm_name_theme" class="nbm-accent"></span></p>
+                                <textarea id="nbm_title" class="nbm-field nbm-title-field" rows="2"></textarea>
+                                <textarea id="nbm_description" class="nbm-field nbm-desc-field" rows="4"></textarea>
+                                <p>Сайт: <a id="nbm_url" href="#" target="_blank" rel="noopener">Переход на страницу сайта с новостью</a></p>
+                                <p><img id="nbm_meta_img" class="nbm-photo" hidden></p>
+                                <p id="nbm_author_wrap" hidden>Автор: <span id="nbm_author" class="nbm-accent"></span></p>
+                                <p>Длина текста=<span id="nbm_file" class="nbm-accent"></span>,
+                                    исходный язык [<span id="nbm_lang" class="nbm-accent"></span>]
+                                    <button type="button" id="nbm_load_file" class="nb-btn" title="Загрузить файл в исходном языке">📥</button>
+                                </p>
+                            </div>
+                            <div class="nbm-right">
+                                <textarea id="nbm_full" class="nbm-field nbm-full-field"></textarea>
+                            </div>
+                        </div> <!-- nbm-columns -->
+                    </div> <!-- nbm_content -->
+                </div> <!-- modal-body -->
+                <div class="modal-footer">
+                    <button type="button" id="nbm_refresh" class="btn btn-outline-secondary btn-sm" hidden>Восстановить</button>
+                    <button type="button" id="nbm_save" class="btn btn-primary btn-sm" hidden>Сохранить</button>
+                </div>
+            </div>
+        </div>
+    </div> <!-- nbm_modal -->
+
+    <script>
+        window.NEWS_BOARD_INITIAL = {{ par['data'] | tojson }};
+        window.NEWS_BOARD_DATE = {{ par['st_date'] | tojson }};
+        window.NEWS_BOARD_USER_ID = {{ upr['user_id'] | tojson }};
+        window.NEWS_BOARD_ADMIN = {{ (upr['admin'] or false) | tojson }};
+        window.NEWS_BOARD_LANG = {{ (upr['select_language'] or 'ru') | tojson }};
+        window.NEWS_BOARD_DATA_URL = {{ url_for('api_news_board_data', user_id=upr['user_id']) | tojson }};
+        window.NEWS_BOARD_DELETE_URL = {{ url_for('api_news_board_delete', user_id=upr['user_id'], news_id=0) | tojson }};
+        window.NEWS_BOARD_ARTICLE_URL = {{ url_for('new', user_id=upr['user_id'], new_id=0) | tojson }};
+        window.NEWS_BOARD_ARTICLE_API_URL = {{ url_for('api_new_board', user_id=upr['user_id'], new_id=0) | tojson }};
+    </script>
+    <script src="/static/js/theme_switch.js"></script>
+    <script src="/static/js/news_board.js"></script>
+</body>
+</html>

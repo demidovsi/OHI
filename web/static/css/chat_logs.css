@@ -1,0 +1,51 @@
+    .filters-container {
+        margin-top: 5px;
+        width: 1200px;
+    }
+
+    .filters-container label {
+        margin-left: 10px;
+        font-weight: bold;
+    }
+    .filter-row {
+        margin: 5px 0;
+    }
+
+
+.top {
+    position: absolute;
+    top: 60px;
+    width: 1200px;
+    min-width: 800px;
+    }
+
+#th_id { width: 80px; }
+#th_at_date_time { width: 100px; }
+#th_ip { width: 130px; }
+#th_country { width: 90px; }
+#th_city { width: 90px; }
+#th_type_message { width: 80px; }
+#th_td { width: 70px; }
+#th_message { width: 200px; }
+#th_email1 { width: 80px; }
+
+.message { width: 200px; border: none; height1: 60px; display: inline-table; }
+.answer { width: 300px; border: none; height: 60px; }
+
+
+.datas {
+    position: absolute;
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    border: none;
+    width: 1300px;
+    top: 240px;
+    bottom: 55px;
+    min-height: 100px;
+    overflow:auto;
+}
+
+.pages {
+    position: absolute;
+    bottom: 15px;
+    padding-left: 100px;
+}

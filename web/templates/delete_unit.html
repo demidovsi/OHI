@@ -1,0 +1,77 @@
+<html lang="ru">
+  <head>
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Bootstrap CSS -->
+    <link rel="shortcut icon" href="/static/star_david.png" >
+
+    <title>Удаление</title>
+  </head>
+
+<!-- Кнопка активации -->
+<label class="btn" id="openDelete" for="modal-delete_app"></label>
+<!-- Модальное окно -->
+<form method="post" name="form-delete_app">
+<div class="modal">
+  <link rel="stylesheet" type="text/css" href="/static/css/delete_unit.css">
+
+  <input class="modal-open" id="modal-delete_app" type="checkbox" hidden>
+
+  <div class="modal-wrap" aria-hidden="true" role="dialog">
+    <label class="modal-overlay" for="modal-delete_app"></label>
+    <input type="hidden" name="user_id" value="{{user_id}}">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2>{{confirmation_text}}</h2>
+        <label class="btn-close" for="modal-delete_app" aria-hidden="true">×</label>
+      </div>
+      <div class="modal-body">
+    <p style="text-align: center; color: red;">{{question_text}}</p>
+      </div>
+      <div class="modal-footer">
+          <form action="/delete_unit/{{user_id}}/" method="POST">
+              <!-- скрытый параметр -->
+              <input type="hidden" name="indexYes" class="result">
+              <input type="submit" class="btn btn-primary" value="Да">
+          </form>
+          <p></p>
+          <form action="/delete_unit/{{user_id}}/" method="POST">
+              <!-- скрытый параметр -->
+              <input type="hidden" name="indexNo" class="result">
+              <input type="submit" class="btn btn-primary" value="Нет">
+          </form>
+      </div>
+    </div>
+  </div>
+</div>
+</form>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+<script>
+    $(function ()
+    {
+        $(document).ready(function () {
+            var els = document.querySelector("#openDelete");
+            els.click();
+        });
+
+       $('.btn-close').click(function (e) {
+            var els = document.querySelector(".result");
+            els.value = null;
+            console.log('btn-close.click');
+            $(this).removeClass('result');
+            document.forms['form-delete_app'].submit();
+       });
+
+       $('.modal').mouseup(function (e) {
+          let modalContent = $(".modal__content");
+          if (!modalContent.is(e.target) && modalContent.has(e.target).length === 0) {
+            $(this).removeClass('modal_active');
+            $('body').removeClass('hidden');
+          }
+       });
+    });
+</script>

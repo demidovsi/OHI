@@ -1,0 +1,37 @@
+<header>
+    <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
+    <div class="dws_menu">
+    <nav class="dws-menu">
+        <ul>
+            <li class="level-0"><a href="#">{{menu_txt[0]}}</a>
+                <ul>
+                    <li onclick="change_menu()"><a href="{{url_for('news_board', user_id=upr['user_id'])}}">{{menu_txt[1]}}</a></li>
+                    <li onclick="change_menu()"><a href="{{url_for('analyses', user_id=upr['user_id'])}}">Аналитика</a></li>
+                </ul>
+            </li>
+                <li class="level-0"><a href="#">{{menu_txt[2]}}</a>
+                    <ul>
+            {% if upr['admin'] %}
+                        <li onclick="change_menu()"><a href="{{url_for('logs', user_id=upr['user_id'])}}">📝 {{menu_txt[3]}}</a></li>
+                        <li onclick="change_menu()"><a href="{{url_for('guests', user_id=upr['user_id'])}}">{{menu_txt[31]}}</a></li>
+                        <li onclick="change_menu()"><a href="{{url_for('functions', user_id=upr['user_id'])}}">⚙️{{menu_txt[4]}}</a></li>
+            {% endif %}
+                        <li onclick="change_menu()"><a href="{{url_for('chat_logs', user_id=upr['user_id'])}}">Лог чата</a></li>
+                        <li onclick="change_menu()"><a href="{{url_for('search_words', user_id=upr['user_id'])}}">{{menu_txt[32]}}</a></li>
+                        <li onclick="change_menu()"><a href="{{url_for('rss', user_id=upr['user_id'])}}">{{menu_txt[38]}}</a></li>
+                    </ul>
+                </li>
+            <li class="level-0"><a href="{{url_for('login')}}">Login</a></li>
+        </ul>
+    </nav>
+    </div>
+
+    <script>
+        var loadingIcon = document.querySelector('#loadingIcon');
+      function change_menu() {
+            loadingIcon.style.display = 'block';
+        }
+
+    </script>
+</header>
+<link rel="stylesheet" type="text/css" href="/static/css/menu2.css">

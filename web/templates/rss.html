@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {{txt[0]}}
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" type="text/css" href="/static/css/rss.css">
+<form method="post" name="{{own}}" id="{{own}}">
+    <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
+    {% include "include/select_language.html" %}
+    <input type="hidden" id="scroll" name="scroll" value="{{par['scroll']}}">
+    <div class="top">
+        <span style="color: var(--color-green, {{colors['green']}});">
+            <button name="refresh" class="simple-text"
+                  style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}}); font-size: 22px;"
+                  title="{{txt[1]}}">
+                <u>{{txt[par['title']]}}</u>
+            </button>
+        </span>
+        {% include "include/top_of_table.html" %}
+
+        {% include "include/sort_table.html" %}
+        <div>
+            <span style="color: var(--color-blue, {{colors['blue']}});"> {{txt[23]}}</span> = <span style="color: var(--color-green, {{colors['green']}});">{{par['count_stop']}} </span>
+            <span style="color: var(--color-black, {{colors['black']}})">{{txt[16]}}=</span>
+
+            <select name="filter_language" style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}});" id="filter_language" title="{{txt[17]}}">
+                {% for value in par['languages'] %}
+                    {% if value == par['filter_language'] %}
+                        <option value="{{value}}" selected>{{value}} </option>
+                    {% else %}
+                        <option value="{{value}}">{{value}} </option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        </div>
+    </div>  <!-- top -->
+    <div class="left">
+            <div class="data">
+                    <table id="table_rss" class="table table-sm table-bordered">
+                        <thead align="center" style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-black, {{colors['black']}});">
+                            <tr>
+                                <th id="th_id" scope="col">{{txt[3]}}</th>
+                                <th id="th_name" scope="col">{{txt[4]}}</th>
+                                <th id="th_url" scope="col">{{txt[5]}}</th>
+                                <th id="th_lang" scope="col">{{txt[6]}}</th>
+                                <th id="th_description" scope="col">{{txt[7]}}</th>
+                                <th id="th_type" scope="col">{{txt[8]}}</th>
+                                <th id="th_article" scope="col">{{txt[25]}}</th>
+                                <th id="th_categories" scope="col">Категории</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in par['data'] %}
+                            <tr  style="background: {{ ('var(--color-select-background, ' ~ colors['select_background'] ~ ')') if data['id'] == par['select_id'] else ('var(--color-background, ' ~ colors['background'] ~ ')') }};
+                                        color: {{ ('var(--color-select-color, ' ~ colors['select_color'] ~ ')') if data['id'] == par['select_id'] else ('var(--color-black, ' ~ colors['black'] ~ ')') }};">
+                                <td>
+                                    {{data['id']}}
+                                    {% if upr['admin'] %}
+                                        <button name="del_obj_{{data['id']}}" class="simple-text"
+                                                 style="background: {{ ('var(--color-select-background, ' ~ colors['select_background'] ~ ')') if data['id'] == par['select_id'] else ('var(--color-background, ' ~ colors['background'] ~ ')') }};"
+                                                title="{{txt[9]}}">
+                                            🗑️
+                                        </button>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if upr['admin'] %}
+                                        <button name="corr_obj_{{data['id']}}" class="simple-text"
+                                                style="background: {{ ('var(--color-select-background, ' ~ colors['select_background'] ~ ')') if data['id'] == par['select_id'] else ('var(--color-background, ' ~ colors['background'] ~ ')') }};
+                                                color: {{ ('var(--color-select-color, ' ~ colors['select_color'] ~ ')') if data['id'] == par['select_id'] else ('var(--color-blue, ' ~ colors['blue'] ~ ')') }};"
+                                                title="Поместить данные в правую часть для коррекции">
+                                            <u>{{data['sh_name']}}</u>
+                                        </button>
+                                    {% else %}
+                                        {{data['sh_name']}}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if data['stop'] %}
+                                    <span style="color: var(--color-yellow, {{colors['yellow']}});"> <s>{{data['url']}}</s> </span>
+                                    {% else %}
+                                        {{data['url']}}
+                                    {% endif %}
+                                </td>
+                                <td>{{data['lang']}}</td>
+                                <td>
+                                    <div class="truncate-text">
+                                        <span style="color: var(--color-green, {{colors['green']}})">{{data['description']}}</span>
+                                    </div>
+                                </td>
+                                <td>{{data['type_rss']}}</td>
+                                <td>
+                                    {% if data['type_article'] %}
+                                        {{data['type_article']}}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if data['categories'] %}
+                                        {{data['categories']}}
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+            </div>  <!-- data -->
+            <div class="pages">
+                {% include "include/pages_table.html" %}
+            </div> <!-- pages -->
+    </div>  <!-- left -->
+    {% if upr['admin'] %}
+        <div class="right">
+            <div class="upr">
+                <button type="submit" name="new_object" class="simple-text" title="{{txt[22]}}"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-green, {{colors['green']}});">
+                    <img src="/static/add.png" width="18" height="18">
+                    <u>{{txt[11]}}</u>
+                </button>
+
+                <button class="simple-text" name="nsi_save" id="nsi_save" title="{{txt[20]}}"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}}); visibility: hidden;">
+                    <img src="/static/write_db.png" width="18" height="18">
+                    <u>{{txt[12]}}</u>
+                </button>
+
+                <button type="button" class="simple-text" name="nsi_refresh" id="nsi_refresh" title="{{txt[21]}}"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-green, {{colors['green']}}); visibility: hidden;"
+                        onclick="nsi_refresh_func()">
+                    <img src="/static/refresh.png" width="18" height="18">
+                    <u>{{txt[13]}}</u>
+                </button>
+            </div> <!-- upr -->
+            <div class="param">
+                <p>
+                    {% if par['unit']['id'] %}
+                        <span style="color: var(--color-red, {{colors['red']}});">{{txt[3]}}={{par['unit']['id']}}</span>
+                    {% endif %}
+                </p>
+                <p><span style="color: var(--color-red, {{colors['red']}})"> {{txt[14]}}:</span>
+                <input type="text" name="sh_name" value="{{par['unit']['sh_name']}}" id="sh_name" style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});" title="{{txt[24]}}">
+                <input type="text" value="{{par['unit']['sh_name_init']}}" id="sh_name_init" hidden>
+                </p>
+                <p><span style="color: var(--color-red, {{colors['red']}})">{{txt[15]}}:</span>
+                <textarea name="url" class="textarea" id="url"  title="{{txt[24]}}"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                        onkeydown="if(event.keyCode===9){var v=this.value,s=this.selectionStart,e=this.selectionEnd;
+                            this.value=v.substring(0, s)+'\t'+v.substring(e);
+                            this.selectionStart=this.selectionEnd=s+1; return false;}">{{par['unit']['url']}}</textarea>
+                <textarea id="url_init" class="textarea" hidden>{{par['unit']['url_init']}}</textarea>
+                </p>
+                <p><span style="color: var(--color-blue, {{colors['blue']}})">{{txt[16]}}=</span>
+                <select name="lang" style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}});" id="lang" title="{{txt[17]}}">
+                    {% for value in par['languages'] %}
+                        {% if value == par['unit']['lang'] %}
+                            <option value="{{value}}" selected>{{value}} </option>
+                        {% else %}
+                            <option value="{{value}}">{{value}} </option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+                <input type="text" value="{{par['unit']['lang_init']}}" id="lang_init" hidden>
+                </p>
+                <p><span style="color: var(--color-blue, {{colors['blue']}})">{{txt[18]}}:</span>
+                <textarea name="description" class="textarea" id="description"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                        onkeydown="if(event.keyCode===9){var v=this.value,s=this.selectionStart,e=this.selectionEnd;
+                            this.value=v.substring(0, s)+'\t'+v.substring(e);
+                            this.selectionStart=this.selectionEnd=s+1; return false;}">{{par['unit']['description']}}</textarea>
+                <textarea id="description_init" class="textarea" hidden>{{par['unit']['description_init']}}</textarea>
+                </p>
+                <p><span style="color: var(--color-blue, {{colors['blue']}})">{{txt[19]}}:</span>
+                    <input type="text" name="type_rss" value="{{par['unit']['type_rss']}}" id="type_rss" style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+                    <input type="text" value="{{par['unit']['type_rss_init']}}" id="type_rss_init" hidden>
+                </p>
+
+                <p><span style="color: var(--color-blue, {{colors['blue']}})">Категории:</span>
+                <textarea name="categories" class="textarea" id="categories"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                          title="Перечень категорий новостей через запятую"
+                        onkeydown="if(event.keyCode===9){var v=this.value,s=this.selectionStart,e=this.selectionEnd;
+                            this.value=v.substring(0, s)+'\t'+v.substring(e);
+                            this.selectionStart=this.selectionEnd=s+1; return false;}">{{par['unit']['categories']}}</textarea>
+                <textarea id="categories_init" class="textarea" hidden>{{par['unit']['categories_init']}}</textarea>
+                </p>
+
+                <p><span style="color: var(--color-blue, {{colors['blue']}})">{{txt[25]}}:</span>
+                    <input type="text" name="type_article" value="{% if par['unit']['type_article'] %} {{par['unit']['type_article']}} {% else %}  {% endif %}" id="type_article"
+                           style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+                    <input type="text" value="{% if par['unit']['type_article_init'] %} {{par['unit']['type_article_init']}} {% else %}  {% endif %}" id="type_article_init" hidden>
+                </p>
+                <p>
+                    <input type="checkbox" name="stop" id="stop" {% if par['unit']['stop'] %}checked{% endif %}>
+                            <span style="color: var(--color-blue, {{colors['blue']}});">{{txt[23]}}</span>
+
+                    <input type="checkbox" id="stop_init" {% if par['unit']['stop_init'] %}checked{% endif %} hidden>
+                </p>
+            </div> <!-- param -->
+        </div>  <!-- right -->
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+        const scroller = document.querySelector('.data');
+        const scroll = document.querySelector("#scroll")
+        var loadingIcon = document.querySelector('#loadingIcon');
+    {% if upr['admin'] %}
+        var sh_name = document.querySelector('#sh_name');
+        var sh_name_init = document.querySelector('#sh_name_init');
+        var url = document.querySelector('#url');
+        var url_init = document.querySelector('#url_init');
+        var lang = document.querySelector('#lang');
+        var lang_init = document.querySelector('#lang_init');
+        var description = document.querySelector('#description');
+        var description_init = document.querySelector('#description_init');
+        var categories = document.querySelector('#categories');
+        var categories_init = document.querySelector('#categories_init');
+        var type_rss = document.querySelector('#type_rss');
+        var type_rss_init = document.querySelector('#type_rss_init');
+        var type_article = document.querySelector('#type_article');
+        var type_article_init = document.querySelector('#type_article_init');
+        var stop = document.querySelector('#stop');
+        var stop_init = document.querySelector('#stop_init');
+
+        function nsi_refresh_func() {
+            if (sh_name && sh_name_init) sh_name.value = sh_name_init.value;
+            if (url && url_init) url.value = url_init.value;
+            if (lang && lang_init) lang.value = lang_init.value;
+            if (description && description_init) description.value = description_init.value;
+            if (categories && categories_init) categories.value = categories_init.value;
+            if (type_rss && type_rss_init) type_rss.value = type_rss_init.value;
+            if (type_article && type_article_init) type_article.value = type_article_init.value;
+            if (stop && stop_init) stop.checked = stop_init.checked;
+            calc_change();
+        }
+
+        function calc_change() {
+            var count = 0;
+            if (sh_name && sh_name_init && sh_name.value.trim() !== sh_name_init.value.trim()) { count += 1; }
+            if (url && url_init && url.value.trim() !== url_init.value.trim()) { count += 1; }
+            if (lang && lang_init && lang.value.trim() !== lang_init.value.trim()) { count += 1; }
+            if (description && description_init && description.value.trim() !== description_init.value.trim()) { count += 1; }
+            if (categories && categories_init && categories.value.trim() !== categories_init.value.trim()) { count += 1;}
+            if (type_rss && type_rss_init && type_rss.value.trim() !== type_rss_init.value.trim()) { count += 1; }
+            if (type_article && type_article_init && type_article.value.trim() !== type_article_init.value.trim()) { count += 1; }
+            if (stop && stop_init && stop.checked !== stop_init.checked) { count += 1; }
+            if (count > 0 && sh_name.value.trim() !== '' && url.value.trim() !== '')
+                { nsi_save.style.visibility = 'visible'; nsi_refresh.style.visibility = 'visible'; }
+            else
+                {
+                    nsi_save.style.visibility = 'hidden'; nsi_refresh.style.visibility = 'hidden';
+                };
+        };
+    {% endif %}
+
+    $(function() {
+        $(document).ready(function () {
+          $('.number').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+          $('#page_number').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+          $('#sort_table').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+          $('#filter_language').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+
+          {% if upr['admin'] %}
+              $('#sh_name').on('input', function() { calc_change(); });
+              $('#url').on('input', function() { calc_change(); });
+              $('#lang').on('input', function() { calc_change(); });
+              $('#description').on('input', function() { calc_change(); });
+              $('#categories').on('input', function() { calc_change(); });
+              $('#type_rss').on('input', function() { calc_change(); });
+              $('#type_article').on('input', function() { calc_change(); });
+              $('#stop').on('input', function() { calc_change(); });
+          {% endif %}
+
+          $(function () {
+              {% if upr['admin'] %}
+                  calc_change();
+              {% endif %}
+              $('body').show();
+              scroller.scrollTop=scroll.value;
+          }); // end ready
+
+        scroller.addEventListener("scroll", (event) => {
+            scroll.value = scroller.scrollTop;
+                });
+        });
+    });
+    document.getElementById('{{own}}').addEventListener('submit', function(event) { loadingIcon.style.display = 'block'; });
+
+
+    function truncateText(selector, maxLength) {
+        const elements = document.querySelectorAll(selector);
+
+        elements.forEach(element => {
+            const text = element.textContent;
+            if (text.length > maxLength) {
+                element.textContent = text.substring(0, maxLength) + '...';
+                // Сохраняем полный текст как атрибут для возможности показа при наведении
+                element.setAttribute('title', text);
+            }
+        });
+    }
+
+    // Вызовите функцию после загрузки страницы
+    document.addEventListener('DOMContentLoaded', function() {
+        truncateText('.truncate-text', 200);
+    });
+
+</script>
+{% endblock %}

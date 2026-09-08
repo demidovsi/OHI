@@ -1,0 +1,68 @@
+{# ── Верхняя панель формы "Гости" (переиспользуется и при первой загрузке, и в AJAX-ответе) ── #}
+<div class="g-top" style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});">
+    {% include "include/select_language.html" %}
+
+    <span style="font-size:17px;font-weight:bold;color:var(--color-blue, {{colors['blue']}});">{{par['title']}}</span>
+
+    {# ── Режим отображения ── #}
+    <span style="margin-left:20px;">
+        <button type="button" class="mode-btn {% if par['view_mode']=='guests' %}active{% endif %}"
+                id="btn_guests"
+                style="background:var(--color-background, {{colors['background']}});color:var(--color-blue, {{colors['blue']}});">
+            Посетители
+        </button>
+        <button type="button" class="mode-btn {% if par['view_mode']=='pages' %}active{% endif %}"
+                id="btn_pages"
+                style="background:var(--color-background, {{colors['background']}});color:var(--color-blue, {{colors['blue']}});">
+            Страницы
+        </button>
+    </span>
+
+    {# ── Фильтры ── #}
+    <span style="margin-left:18px;display:inline-flex;align-items:center;gap:8px;">
+        С:&nbsp;<span style="display:inline-flex;">
+            <input type="date" name="date_from" id="date_from" value="{{par.get('date_from','')}}"
+                   style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});border:1px solid #aaa;border-right:none;border-radius:4px 0 0 4px;padding:2px 5px;width:120px;">
+            <span onclick="document.getElementById('date_from').showPicker()"
+                  style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});border:1px solid #aaa;border-left:none;border-radius:0 4px 4px 0;padding:2px 6px;cursor:pointer;">📅</span>
+        </span>
+        По:&nbsp;<span style="display:inline-flex;">
+            <input type="date" name="date_to" id="date_to" value="{{par.get('date_to','')}}"
+                   style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});border:1px solid #aaa;border-right:none;border-radius:4px 0 0 4px;padding:2px 5px;width:120px;">
+            <span onclick="document.getElementById('date_to').showPicker()"
+                  style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});border:1px solid #aaa;border-left:none;border-radius:0 4px 4px 0;padding:2px 6px;cursor:pointer;">📅</span>
+        </span>
+    </span>
+    <span style="margin-left:12px;">
+        <input type="search" name="search" id="search" value="{{par.get('search','')}}"
+               placeholder="Поиск..." maxlength="60"
+               style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});border:1px solid #aaa;border-radius:4px;padding:2px 8px;width:180px;">
+    </span>
+    <button type="submit" class="simple-text" style="background:var(--color-background, {{colors['background']}}); color:#fff; margin-left:6px;">
+        🔍
+    </button>
+
+    {# ── Сводные карточки ── #}
+    {% set s = par.get('summary', {}) %}
+    {% if s %}
+    <div style="margin-top:6px;">
+        <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
+            Всего гостей: <b>{{s.get('total_guests', '—')}}</b>
+        </span>
+        <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
+            Активных: <b>{{s.get('active_guests', '—')}}</b>
+        </span>
+        <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
+            Всего посещений: <b>{{s.get('total_visits', '—')}}</b>
+        </span>
+        <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
+            Уникальных страниц: <b>{{s.get('total_pages', '—')}}</b>
+        </span>
+        {% if par.get('count') is not none %}
+        <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
+            Записей в таблице: <b>{{par['count']}}</b>
+        </span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>

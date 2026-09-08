@@ -1,0 +1,53 @@
+/*
+table tbody tr:nth-child(even) {background: #F7F7F7;}
+table tbody tr:nth-child(odd) {background: #fff;}
+*/
+
+table {
+    border-collapse:separate;
+    border-spacing:0 0px;
+    width: 1400px;
+    overflow:auto;
+}
+
+thead th { /* фиксация заголовка сверху */
+  position: -webkit-sticky; /* for Safari */
+  position: sticky;
+  top: 0;
+}
+
+table, td, th {
+    border: 1px solid lightgray;
+    font-family: Verdana;
+    font-size: 14px;
+    word-break: break-word;
+}
+
+table {
+    line-height: 1;
+}
+
+.button_radius {
+    /*background: #E0FFFF; /* Цвет фона */
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    width: 30px; /* Ширина кнопки */
+    height: 25px; /* Высота */
+    border-radius: 25px;
+}
+
+.now {
+   /*background-color: lightgreen;
+   color: black;*/
+    -moz-border-radius:  10px; /* Firefox */
+    -webkit-border-radius:  10px; /* Safari 4 */
+    border-radius:  10px; /* IE 9, Safari 5, Chrome */
+    padding-left: 10px;
+    padding-right: 10px;
+    vertical-align: middle;
+}
+
+.search {
+    width: 250px;
+    height: 30px;
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+}

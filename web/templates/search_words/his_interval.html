@@ -1,0 +1,38 @@
+
+            <button class="button_lr" name="left_history"
+                    title="{{txt[32]}}"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});">
+                <img src="/static/arrow-left.png" width="18" height="16">
+            </button>
+            {{txt[33]}}=<input type="date" class="date" name="date_begin"
+                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                     title="{{txt[34]}}"
+                     value="{{par['date_begin']}}">
+            {{txt[35]}}=<input type="date" class="date" name="date_end"
+                      style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                      title="{{txt[36]}}"
+                      value="{{par['date_end']}}">
+            <button class="button_lr" name="right_history"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                    title="{{txt[37]}}">
+                <img src="/static/arrow-right.png" width="18" height="16">
+            </button>
+
+
+            <button name="current_month" class="simple-text"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                    title="{{txt[38]}}">
+                <u>{{txt[39]}}</u>
+            </button>
+            <button class="simple-text" name="previous_month"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                    title="{{txt[40]}}">
+                <u>{{txt[41]}}</u>
+            </button>
+            <button class="simple-text" name="his_all"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
+                    title="{{txt[42]}}">
+                <img src="/static/calendar.png" width="18" height="16">
+                <u>{{txt[43]}}</u>
+            </button>
+

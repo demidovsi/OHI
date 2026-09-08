@@ -1,0 +1,31 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="trafilatura" />
+          <option value="readability-lxml" />
+          <option value="playwright" />
+          <option value="requests" />
+          <option value="discord.py" />
+          <option value="python-dotenv" />
+          <option value="flask" />
+          <option value="deep_translator" />
+          <option value="pandas" />
+          <option value="plotly" />
+          <option value="xlsxwriter" />
+          <option value="python-dateutil" />
+          <option value="gensim" />
+          <option value="nltk" />
+          <option value="webdriver-manager" />
+          <option value="Pillow" />
+          <option value="pytesseract" />
+          <option value="python-docx" />
+          <option value="selenium" />
+          <option value="docx" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>

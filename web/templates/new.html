@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {{txt[14]}}
+{% endblock %}
+
+{% block content %}
+
+<link rel="stylesheet" type="text/css" href="/static/css/new.css">
+<form method="post" name="{{own}}" id="{{own}}">
+    <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
+    {% include "include/select_language.html" %}
+    <div class="row1" style="font-size:18px; color: var(--color-green, {{colors['green']}});">
+        {% if par['page_for_return'] %}
+            <button type="submit" id="button_return" name="back" class="btn btn-primary btn-sm"
+                    title="{{txt[par['text_for_return']]}}">
+                {{txt[par['text_for_return']]}}
+            </button>
+        {% endif %}
+        {{txt[0]}}
+        <span style="color: var(--color-black, {{colors['black']}});">{{txt[1]}}=</span>
+        <select name="select_lang" id="select_lang"
+                title="{{txt[3]}}"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}});">
+            {% for lang in par['languages'] %}
+                {% if lang == par['select_lang'] %}
+                    <option value="{{lang}}" selected>{{lang}}</option>
+                {% else %}
+                    <option value="{{lang}}">{{lang}}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+        <span style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">ID={{par['new_id']}}</span>
+        {% if par['unit']['lang'] != 'ru' and upr['admin'] %}
+            <button class="simple-text" name="translate_ru"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-green, {{colors['green']}});"
+                    title="Перевести на русский язык">
+                <u>RU</u>
+            </button>
+        {% endif %}
+        {% if par['unit']['lang'] != 'en' and upr['admin'] %}
+            <button class="simple-text" name="translate_en"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                    title="Перевести на английский язык">
+                <u>EN</u>
+            </button>
+        {% endif %}
+        {% if par['unit']['lang'] != 'he' and upr['admin'] %}
+            <button class="simple-text" name="translate_he"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
+                    title="Перевести на иврит">
+                <u>HE</u>
+            </button>
+        {% endif %}
+        <button class="simple-text" name="need_article"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                title="Заново прочитать статью с сайта (только для админа)"
+                {% if not upr['admin'] %} disabled {% endif %}>
+            <u>Статья</u>
+        </button>
+    </div> <!-- row1 -->
+    <div class="bottom">
+        {% if upr['admin'] %}
+            <button type="submit" name="refresh" class="simple-text" id="refresh"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-green, {{colors['green']}});">
+                <img src="/static/refresh.png" width="18" height="18">
+                <u>{{txt[4]}}</u>
+            </button>
+            <button type="submit" name="save" class="simple-text" id="save"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});">
+                <img src="/static/write_db.png" width="18" height="18">
+                <u>{{txt[5]}}</u>
+            </button>
+        {% endif %}
+
+        <textarea id="title_init" hidden> {{par['unit']['title_init']}} </textarea>
+        <textarea id="description_init" hidden> {{par['unit']['description_init']}} </textarea>
+        <textarea id="full_init" hidden> {{par['unit']['full_init']}} </textarea>
+
+        <div class="left" style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+            <p>{{txt[6]}}: <span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['name_rss']}}</span>
+                ({{txt[7]}}: {{par['unit']['public_date']}})</p>
+            <p>{{txt[8]}}: <span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['name_theme']}}</span> </p>
+                  <textarea style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});" id="title" name="title"
+                            class="comment_short" {{ 'readonly' if not upr['admin'] }}>{{par['unit']['title']}}</textarea>
+                  <textarea style="background: var(--color-background, {{colors['background']}}); color: var(--color-green, {{colors['green']}});" id="description"
+                            name="description" class="comment_long" {{ 'readonly' if not upr['admin'] }}>{{par['unit']['description']}}</textarea>
+            <p></p>
+            <p> {{txt[9]}}:
+                <a href="{{par['unit']['url']}}" title="{{txt[10]}}" target="_blank">
+                    <u><span style="color: var(--color-blue, {{colors['blue']}})">{{par['unit']['url']}}</span></u>
+                </a>
+            </p>
+            {% if par['unit']['meta_img'] %}
+                <p>
+                    <img src="{{par['unit']['meta_img']}}" height="350px" width="600px" class="photo">
+                </p>
+            {% endif %}
+            {% if par['unit']['author'] %}
+                <p class="text">Автор: <span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['author']}}</span></p>
+            {% endif %}
+            <p class="text">{{txt[11]}}=
+                <span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['file']}}</span>
+            </p>
+            <p class="text">{{txt[12]}} [<span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['lang']}}</span>]
+                <button class="simple-text" name="load_file"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                        title="Загрузить файл в исходном языке">
+                    <img src="/static/load_cloud.png" width="18" height="18">
+                </button>
+
+            </p>
+        </div> <!-- left_bottom -->
+        <div class="right">
+            <textarea style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});" id="full"
+                      name="full" class="comment_text" {% if not upr['admin'] %} readonly {% endif %}>
+                {{par['unit']['full']}}</textarea>
+        </div> <!-- right -->
+    </div> <!-- bottom -->
+</form>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+        {% if upr['admin'] %}
+            var title = document.querySelector('#title');
+            var title_init = document.querySelector('#title_init');
+            var description = document.querySelector('#description');
+            var description_init = document.querySelector('#description_init');
+            var full = document.querySelector('#full');
+            var full_init = document.querySelector('#full_init');
+
+            var refresh = document.querySelector('#refresh');
+            var save = document.querySelector('#save');
+        {% endif %}
+        var loadingIcon = document.querySelector('#loadingIcon');
+
+    $(function() {
+        $(document).ready(function () {
+          $('select').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+          $('textarea').on('input', function() { calc_change(); });
+
+          $(function () {
+              {% if upr['admin'] %}
+                  calc_change();
+              {% endif %}
+              $('body').show();
+          }); // end ready
+
+        {% if upr['admin'] %}
+          function calc_change() {
+            var count = 0;
+            if (title.value.trim() !== title_init.value.trim()) {count += 1;}
+            if (description.value.trim() !== description_init.value.trim()) {count += 1;}
+            if (full.value.trim() !== full_init.value.trim()) {count += 1;}
+            if (count > 0)
+                { save.style.visibility = 'visible'; refresh.style.visibility = 'visible'; }
+            else
+                { save.style.visibility = 'hidden'; refresh.style.visibility = 'hidden'; };
+          };
+          {% endif %}
+
+        });
+    });
+    document.getElementById('{{own}}').addEventListener('submit', function(event) {
+        loadingIcon.style.display = 'block'; });
+  </script>
+
+{% endblock %}

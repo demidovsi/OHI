@@ -1,0 +1,486 @@
+/* Страница самостоятельная (не наследует base.html, свой Bootstrap 5.3.3) -
+   не подключает static/css/base.css, поэтому дублируем набор CSS-переменных
+   темы (значения из colors.py) и стиль .theme-toggle-btn - тот же приём,
+   что в analyses.css. */
+body[data-theme="white"] {
+    --color-background: white;
+    --color-black: black;
+    --color-black2: black;
+    --color-green: green;
+    --color-red: red;
+    --color-blue: blue;
+    --color-yellow: brown;
+    --color-lightgray: #F0F8FF;
+    --color-dark-violet: #9400D3;
+    --color-salmon: salmon;
+    --color-light-blue: lightblue;
+    --color-select-background: MediumSeaGreen;
+    --color-select-color: white;
+    --color-color-combobox: black;
+    --color-color-select: black;
+}
+
+body[data-theme="black"] {
+    --color-background: black;
+    --color-black: white;
+    --color-black2: black;
+    --color-green: lightgreen;
+    --color-red: Wheat;
+    --color-blue: lightblue;
+    --color-yellow: yellow;
+    --color-lightgray: #696969;
+    --color-dark-violet: cyan;
+    --color-salmon: salmon;
+    --color-light-blue: lightblue;
+    --color-select-background: DarkSlateGray;
+    --color-select-color: white;
+    --color-color-combobox: yellow;
+    --color-color-select: white;
+}
+
+html[data-theme="white"] { background: white; }
+html[data-theme="black"] { background: black; }
+
+.theme-toggle-btn {
+    height: 34px;
+    border: 1px solid #7a7b7e;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 8px;
+}
+
+body {
+    margin: 0;
+}
+
+.menu {
+    position: absolute;
+    top: 0;
+    height: 50px;
+    z-index: 20;
+}
+
+.container-flash {
+    position: fixed;
+    top: 55px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 600px;
+    max-width: 90vw;
+    z-index: 200;
+}
+
+.nb-page {
+    padding-top: 55px;
+    height: 100vh;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.nb-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-bottom: 1px solid #7a7b7e;
+}
+
+.nb-title {
+    font-size: 18px;
+    margin-right: 6px;
+}
+
+.nb-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nb-btn {
+    height: 34px;
+    border: 1px solid #7a7b7e;
+    border-radius: 7px;
+    cursor: pointer;
+    padding: 2px 10px;
+    background: var(--color-background, white);
+    color: var(--color-black, black);
+}
+
+.nb-date {
+    height: 34px;
+    border: 1px solid #7a7b7e;
+    border-radius: 7px;
+    padding: 2px 6px;
+    background: var(--color-background, white);
+    color: var(--color-black, black);
+}
+
+.nb-search {
+    height: 34px;
+    min-width: 260px;
+    flex: 1 1 260px;
+    border: 1px solid #7a7b7e;
+    border-radius: 7px;
+    padding: 2px 10px;
+    background: var(--color-background, white);
+    color: var(--color-black, black);
+}
+
+.nb-select {
+    height: 34px;
+    border: 1px solid #7a7b7e;
+    border-radius: 7px;
+    padding: 2px 6px;
+    background: var(--color-background, white);
+    color: var(--color-color-combobox, black);
+    max-width: 180px;
+}
+
+.nb-summary {
+    margin-left: auto;
+    font-size: 0.85em;
+    opacity: 0.8;
+    white-space: nowrap;
+}
+
+.nb-table-head-wrap {
+    padding: 8px 24px 0;
+}
+
+.nb-table-wrap {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 0 24px 24px;
+    position: relative;
+    /* Резервирует место под вертикальный скроллбar всегда (не только когда
+       он реально нужен) - иначе колонки прокручиваемой таблицы плавали бы
+       на ширину скроллбара относительно неподвижной шапки выше. */
+    scrollbar-gutter: stable;
+}
+
+/* Стиль скролла, принятый в проекте (см. static/css/base.css) - страница
+   самостоятельная и base.css не подключает, поэтому дублируем как и
+   остальные переменные темы выше. */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #23262e;
+}
+::-webkit-scrollbar-thumb {
+    background: #555a66;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #7a8090;
+}
+body[data-theme="white"] ::-webkit-scrollbar-track {
+    background: #d1d5db;
+}
+body[data-theme="white"] ::-webkit-scrollbar-thumb {
+    background: #8fbbe6;
+}
+body[data-theme="white"] ::-webkit-scrollbar-thumb:hover {
+    background: #6fa3d8;
+}
+
+#nb_table_head,
+#nb_table {
+    width: 100%;
+    table-layout: fixed; /* соблюдать ширины <col> из <colgroup> - без этого
+                             браузер растягивает колонки по содержимому, и
+                             "Канал/автор" распухает от длинных имён каналов */
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.92em;
+}
+
+/* Bootstrap 5 красит фон/текст на уровне каждой <td>/<th> через свои
+   --bs-table-bg/--bs-table-color (не на уровне <tr>) - обычный inline-style
+   на строке эту специфичность не перебивает (сравнивается по каждому
+   элементу отдельно, а не по родителю), поэтому таблица оставалась светлой
+   в тёмной теме. !important здесь оправдан - это единственный надёжный
+   способ перебить переменные самого Bootstrap, а не полагаться на то, что
+   их точный селектор угадан правильно. */
+#nb_table > :not(caption) > * > * {
+    background-color: var(--color-background, white) !important;
+    color: var(--color-black, black) !important;
+}
+
+#nb_table_head th {
+    padding: 8px 10px;
+    white-space: nowrap;
+    background-color: var(--color-select-background, MediumSeaGreen) !important;
+    color: var(--color-select-color, white) !important;
+}
+
+#nb_table td {
+    padding: 6px 10px;
+    vertical-align: top;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.25);
+    overflow-wrap: break-word; /* иначе длинные названия каналов/слова без
+                                   пробелов распирали бы фиксированную ширину
+                                   колонки (table-layout: fixed) */
+}
+
+/* Раньше висели классы Bootstrap table/table-sm/table-hover - Bootstrap 5.3
+   красит и подсвечивает ячейки через box-shadow: inset ... 9999px (а не
+   background-color), и это в паре со sticky <th> и давало артефакт при
+   скролле колесом в Edge ("мусор" над шапкой) - contain/transform-хаки не
+   помогали, потому что причина не в компоновке слоёв, а в самом Bootstrap.
+   Подсветку строки при наведении и компактные отступы (были в table-sm)
+   воспроизводим вручную, без этих классов. */
+#nb_table > tbody > tr:hover > td {
+    background-color: var(--color-lightgray, #F0F8FF) !important;
+}
+
+/* Подсветка новости, из которой пользователь вернулся со страницы статьи
+   (new.py: back_to=news_board -> ?select_id=... в URL). Специфичность
+   селектора нарочно выше, чем у #nb_table > :not(caption) > * > * выше -
+   иначе тот правило (тоже с !important) выигрывало бы по ID-селектору
+   независимо от порядка объявления. */
+#nb_table > tbody > tr.nb-row-return > td {
+    background-color: var(--color-select-background, MediumSeaGreen) !important;
+    color: var(--color-select-color, white) !important;
+}
+
+.nb-sortable {
+    cursor: pointer;
+    user-select: none;
+}
+
+.nb-sortable:hover {
+    text-decoration: underline;
+}
+
+.nb-sort-arrow {
+    font-size: 0.8em;
+    margin-left: 3px;
+    opacity: 0.7;
+}
+
+.nb-row-datetime {
+    white-space: nowrap;
+    font-size: 0.85em;
+    opacity: 0.85;
+}
+
+.nb-row-id {
+    font-family: monospace;
+    font-size: 0.85em;
+    opacity: 0.5;
+}
+
+.nb-row-title {
+    display: block;
+    font-weight: 600;
+    cursor: pointer;
+    color: inherit;
+    text-decoration: none;
+}
+
+.nb-row-title:hover {
+    text-decoration: underline;
+}
+
+.nb-row-desc {
+    font-size: 0.88em;
+    opacity: 0.85;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.nb-row-desc.nb-expanded {
+    -webkit-line-clamp: unset;
+}
+
+.nb-theme-badge {
+    display: inline-block;
+    background: var(--color-select-background, MediumSeaGreen);
+    color: var(--color-select-color, white);
+    border-radius: 10px;
+    padding: 1px 8px;
+    font-size: 0.8em;
+    margin: 1px 2px 1px 0;
+    white-space: nowrap;
+}
+
+.nb-lang-badge {
+    display: inline-block;
+    padding: 0 6px;
+    font-size: 0.78em;
+    text-transform: uppercase;
+}
+
+.nb-delete-btn {
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    font-size: 1em;
+    opacity: 0.7;
+}
+
+.nb-delete-btn:hover {
+    opacity: 1;
+}
+
+.nb-empty {
+    text-align: center;
+    padding: 40px;
+    opacity: 0.6;
+    font-size: 1.1em;
+}
+
+/* Модальное окно новости (см. templates/news_board.html) - максимально
+   близко к разметке/стилям new.css (.left/.right/.comment_*), но в рамках
+   Bootstrap-модалки вместо position:absolute на всю страницу. */
+
+/* "Выпуклая" модалка - плоская тень Bootstrap по умолчанию (0 2px 4px) почти
+   не видна на тёмном/светлом фоне страницы; более широкая и мягкая тень
+   плюс лёгкая обводка дают эффект приподнятой над страницей карточки. */
+.nbm-modal-content {
+    border: 1px solid rgba(128, 128, 128, 0.4);
+    border-radius: 12px;
+    /* !important - у Bootstrap 5 .modal-content своя box-shadow через
+       переменную --bs-modal-box-shadow (по умолчанию none) с той же
+       специфичностью класса, порядок подключения иначе не гарантирует
+       победу нашего правила. */
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* В тёмной теме чёрная тень на уже чёрном фоне страницы не видна ни при
+   какой интенсивности - вместо тени даём светлое свечение по краю, чтобы
+   модалка визуально отделялась от фона. */
+body[data-theme="black"] .nbm-modal-content {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Причина, по которой тень/свечение модалки было почти не видно - не сама
+   модалка, а то, что стандартный чёрный backdrop Bootstrap (полупрозрачный
+   чёрный поверх страницы) в тёмной теме ложится на уже чёрную страницу и
+   визуально ничего не меняет. В светлой теме тот же чёрный backdrop поверх
+   белой страницы даёт серый фон, на котором белая модалка хорошо видна -
+   в тёмной теме backdrop делаем светлым, чтобы получить тот же эффект
+   (страница вокруг сереет, а чёрная модалка на этом фоне выделяется). */
+body[data-theme="black"] .modal-backdrop.show {
+    background-color: #d0d0d0 !important;
+    opacity: 0.2 !important;
+}
+
+#nbm_loading {
+    padding: 20px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+.nbm-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.modal-body {
+    display: flex;
+    flex-direction: column;
+}
+
+#nbm_content {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.nbm-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.nbm-accent {
+    color: var(--color-green, green);
+}
+
+.nbm-columns {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+.nbm-left {
+    flex: 1 1 480px;
+    min-width: 320px;
+    overflow-y: auto;
+}
+
+.nbm-right {
+    flex: 1 1 480px;
+    min-width: 320px;
+    display: flex;
+    flex-direction: column;
+    min-height: 320px; /* если .nbm-left окажется выше (флекс без wrap - редко) */
+}
+
+.nbm-field {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--color-background, white);
+    color: var(--color-black, black);
+    border: 1px solid #7a7b7e;
+    border-radius: 4px;
+    padding: 6px 8px;
+    margin-bottom: 8px;
+    font-family: inherit;
+}
+
+.nbm-title-field {
+    /* rows=2 в разметке задаёт стартовую высоту в 2 строки - resize:vertical
+       позволяет вручную растянуть поле, если текст не помещается. */
+    resize: vertical;
+    color: var(--color-red, red) !important;
+    font-weight: 600;
+}
+
+.nbm-desc-field {
+    /* rows=4 в разметке. */
+    resize: vertical;
+    color: var(--color-green, green) !important;
+}
+
+.nbm-full-field {
+    /* Тянется до конца модалки - .nbm-right/.nbm-columns/#nbm_content выше
+       все flex-контейнеры, растягивающие оставшуюся высоту вплоть до
+       .modal-body (у Bootstrap он сам flex:1 1 auto в modal-content).
+       resize:none - ручное изменение высоты конфликтовало бы с этим
+       автоматическим растягиванием. */
+    flex: 1 1 auto;
+    min-height: 200px;
+    resize: none;
+}
+
+.nbm-photo {
+    max-width: 100%;
+    max-height: 350px;
+}
+
+.loading-icon {
+    display: none;
+    position: fixed;
+    top: 25%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+}

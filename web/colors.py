@@ -1,0 +1,38 @@
+colors = {
+    'white': {
+        'background': 'white',
+        'color_combobox': 'black',
+        'color_select': 'black',
+        'blue': 'blue',
+        'green': 'green',
+        'black': 'black',
+        'black2': 'black',
+        'lightgray': '#F0F8FF',
+        'red': 'red',
+        'yellow': 'brown',
+        'dark_violet': '#9400D3',
+        'salmon': 'salmon',
+        'light_blue': 'lightblue',
+        'select_background': 'MediumSeaGreen',
+        'select_color': 'white',
+    },
+    'black': {
+        'background': 'black',
+        'color_combobox': 'yellow',
+        'color_select': 'white',
+        'blue': 'lightblue',
+        'green': 'lightgreen',
+        'black': 'white',
+        'black2': 'black',
+        'lightgray': '#696969',
+        # 'red': 'salmon',
+        # 'red': 'SandyBrown',
+        'red': 'Wheat',
+        'yellow': 'yellow',
+        'dark_violet': 'cyan',
+        'salmon': 'salmon',
+        'light_blue': 'lightblue',
+        'select_background': 'DarkSlateGray',
+        'select_color': 'white'
+    }
+}

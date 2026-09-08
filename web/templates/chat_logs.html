@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    Логи чат-сообщений
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" type="text/css" href="/static/css/chat_logs.css">
+<style>
+    .filters-container {
+        background: var(--color-background, {{colors['background']}});
+        color: var(--color-black, {{colors['black']}});
+        padding: 8px;
+        margin-bottom: 10px;
+        border: 1px solid var(--color-lightgray, {{colors['lightgray']}});
+        border-radius: 5px;
+        font-size: 12px;       /* основной уменьшенный размер шрифта */
+        line-height: 1.2;
+    }
+
+    /* Плотнее выравниваем строки фильтров */
+    .filters-container .filter-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    /* Меньше поля ввода, селекты и кнопки */
+    .filters-container label {
+        font-size: 12px;
+        margin-right: 4px;
+    }
+
+    .filters-container input,
+    .filters-container select,
+    .filters-container button {
+        background: var(--color-background, {{colors['background']}});
+        color: var(--color-black, {{colors['black']}});
+        border: 1px solid var(--color-lightgray, {{colors['lightgray']}});
+        padding: 4px 6px;      /* уменьшенные отступы */
+        font-size: 12px;
+        border-radius: 3px;
+        height: auto;
+    }
+
+    /* Специальные кнопки */
+    .filters-container .btn-clear-filters {
+        background: var(--color-lightgray, {{colors['lightgray']}});
+        color: var(--color-black, {{colors['black']}});
+        border: 1px solid var(--color-black, {{colors['black']}});
+        padding: 4px 10px;
+        font-size: 12px;
+        border-radius: 3px;
+        cursor: pointer;
+    }
+
+    .filters-container .btn-clear-filters:hover {
+        background: var(--color-green, {{colors['green']}});
+        color: white;
+    }
+</style>
+<form method="post" name="{{own}}" id="{{own}}">
+    {% include "include/select_language.html" %}
+    <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="64" height="64"></div>
+    <input type="hidden" id="timezone" name="user_id" value="">
+    <input type="hidden" id="scroll" name="scroll" value="{{par['scroll']}}">
+    <div class="top">
+        <div class="top1" style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+            <span style="font-size:18px; font-weight: bold; color: var(--color-green, {{colors['green']}});"> {{par['title']}} </span>
+            {% for switch, label, color in [
+                            ('all_days', 'Вся информация', 'var(--color-green, ' ~ colors['green'] ~ ')'),
+                            ('one_day', 'Выбранные сутки', 'var(--color-green, ' ~ colors['green'] ~ ')')
+                        ] %}
+                <button name="{{ switch }}"
+                        class="{% if par['switch'] == switch %}btn-menu-active{% else %}btn-menu{% endif%}"
+                        title="Информация {{ 'всего лога' if switch == 'all_days' else 'за выбранные сутки' }}"
+                        style="background: {{ ('var(--color-lightgray, ' ~ colors['lightgray'] ~ ')') if par['switch'] == switch else ('var(--color-background, ' ~ colors['background'] ~ ')') }};
+                               color: {{ color if par['switch'] == switch else ('var(--color-black, ' ~ colors['black'] ~ ')') }}">
+                    {% if par['switch'] == switch %}<b>{% endif %}{{ label }}{% if par['switch'] == switch %}</b>{% endif %}
+                </button>
+            {% endfor %}
+            {% if par['switch'] == 'one_day' %}
+                {% include "include/dates.html" %}
+            {% endif %}
+        </div>
+
+        <!-- Фильтры -->
+        <div class="filters-container">
+            <div class="filter-row">
+                <label for="filter_ip">IP:</label>
+                <input type="search" id="filter_ip" name="filter_ip" value="{{par['filter_ip']}}" placeholder="Фильтр по IP">
+
+                <label for="filter_country">Страна:</label>
+                <input type="search" id="filter_country" name="filter_country" value="{{par['filter_country']}}" placeholder="Фильтр по стране">
+
+                <label for="filter_city">Город:</label>
+                <input type="search" id="filter_city" name="filter_city" value="{{par['filter_city']}}" placeholder="Фильтр по городу">
+            </div>
+            <div class="filter-row">
+                <label for="filter_type_message">Тип сообщения:</label>
+                <select name="filter_type_message" id="filter_type_message"
+                        title="Фильтр по типу запроса"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}});">
+                    {% for typ in par['types_message'] %}
+                        {% if typ == par['filter_type_message'] %}
+                            <option value="{{typ}}" selected>{{typ}}</option>
+                        {% else %}
+                            <option value="{{typ}}">{{typ}}</option>
+                        {% endif %}
+                    {% endfor %}
+                </select>
+
+                <label for="filter_email">Email:</label>
+                <input type="search" id="filter_email" name="filter_email" value="{{par['filter_email']}}" placeholder="Фильтр по email">
+
+                <button type="submit" name="apply_filters" class="simple-text"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                        title="Применить фильтры">✅</button>
+                <button type="submit" name="clear_filters" class="simple-text"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                        title="Очистить фильтры">✖️</button>
+            </div>
+        </div>
+
+        <div class="upr_table">
+            {% include "include/top_of_table.html" %}
+        </div>
+    </div>
+    <div class="datas">
+        <table id="chatLogsTable" class="table table-striped table-bordered table-condensed">
+            <thead align="center" style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-black, {{colors['black']}});">
+                <tr>
+                    <th id="th_id" scope="col">ID</th>
+                    <th id="th_at_date_time" scope="col">Дата/Время</th>
+                    <th id="th_ip" scope="col">IP</th>
+                    <th id="th_country" scope="col">Страна</th>
+                    <th id="th_city" scope="col">Город</th>
+                    <th id="th_type_message" scope="col">Тип запроса</th>
+                    <th id="th_message" scope="col">Запрос</th>
+                    <th id="th_answer" scope="col">Ответ</th>
+                    <th id="th_td" scope="col">TD</th>
+                    <th id="th_email" scope="col">Email</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for data in par['data'] %}
+                    <tr style="color: var(--color-black, {{colors['black']}});">
+                        <td>{{data['id']}}</td>
+                        <td>{{moment(data['at_date_time']).format(par['format_dt'])}}</td>
+                        <td>{{data['ip']}}</td>
+                        <td>{{data['country'] or ''}}</td>
+                        <td>{{data['city'] or ''}}</td>
+                        <td>{{data['type_message']}}</td>
+                        <td>
+                            <textarea style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                                      readonly class="message">{{data['message']}}</textarea>
+                        </td>
+                        <td>
+                            <textarea style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                                      readonly class="answer">{{data['answer'] if data['answer'] else ''}}</textarea>
+                        </td>
+                        <td>
+                            <div align="right">
+                                {% if data['td'] %}
+                                    {{data['td']}}
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td>{{data['email'] or ''}}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="pages"> {% include "include/pages_table.html" %} </div>
+</form>
+
+<!-- Модальное окно для просмотра полного текста ответа -->
+<div id="answerModal" style="display:none; position:fixed; inset:0; z-index:9999;
+     background:rgba(0,0,0,0.5); align-items:center; justify-content:center;">
+    <div style="background:var(--color-background, {{colors['background']}}); color:var(--color-black, {{colors['black']}});
+                border:1px solid var(--color-lightgray, {{colors['lightgray']}}); border-radius:6px;
+                max-width:80vw; max-height:80vh; width:700px;
+                display:flex; flex-direction:column; box-shadow:0 4px 24px rgba(0,0,0,0.3);">
+        <div style="display:flex; justify-content:space-between; align-items:center;
+                    padding:8px 12px; border-bottom:1px solid var(--color-lightgray, {{colors['lightgray']}});">
+            <span style="font-weight:bold; font-size:14px;">Ответ</span>
+            <button id="answerModalClose" type="button"
+                    style="background:none; border:none; font-size:18px; cursor:pointer;
+                           color:var(--color-black, {{colors['black']}}); line-height:1;">✕</button>
+        </div>
+        <div id="answerModalText"
+             style="flex:1; margin:12px; padding:8px; overflow:auto;
+                    background:var(--color-background, {{colors['background']}}); color:var(--color-black, {{colors['black']}});
+                    border:1px solid var(--color-lightgray, {{colors['lightgray']}}); border-radius:4px;
+                    font-size:13px; font-family:monospace; min-height:300px;
+                    white-space:pre-wrap; word-wrap:break-word;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+    {{super()}}
+    {{ moment.include_moment()}}
+    {{ moment.lang('ru') }}
+    <script>
+        const scroller = document.querySelector('.datas');
+        const scroll = document.querySelector("#scroll")
+        var loadingIcon = document.querySelector('#loadingIcon');
+
+        $(function() {
+            $(document).ready(function () {
+                $('#do_update').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+                $('#start').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+
+                // Автоотправка при изменении фильтров
+                $('#filter_ip, #filter_country, #filter_city, #filter_type_message, #filter_email').on('change', function() {
+                    loadingIcon.style.display = 'block';
+                    document.forms['{{own}}'].submit();
+                });
+
+                $('select').on('change', function() {
+                    loadingIcon.style.display = 'block';
+                    document.forms['{{own}}'].submit();
+                });
+
+                $(function () {
+                    $('body').show();
+                    scroller.scrollTop=scroll.value;
+                    setHeight();
+                });
+
+                {% if par['do_update'] %}
+                    startAutoRefresh();
+                {% endif %}
+            });
+
+            scroller.addEventListener("scroll", (event) => {
+                scroll.value = scroller.scrollTop;
+            });
+        });
+
+        document.getElementById('{{own}}').addEventListener('submit', function(event) {
+            const submitter = event.submitter;
+            loadingIcon.style.display = 'block';
+        });
+
+        function setHeight() {
+            loadingIcon.style.display = 'none';
+        };
+
+        window.onload = function() {
+            setHeight();
+            window.addEventListener('resize', setHeight);
+        };
+
+        var autoRefreshTimer = null;
+
+        function startAutoRefresh() {
+            autoRefreshTimer = setTimeout(function() {
+                loadingIcon.style.display = 'block';
+                document.forms['{{own}}'].submit();
+            }, 30 * 1000);
+        }
+
+        function stopAutoRefresh() {
+            if (autoRefreshTimer) {
+                clearTimeout(autoRefreshTimer);
+                autoRefreshTimer = null;
+            }
+        }
+
+        // Модальное окно для .answer
+        (function() {
+            var modal = document.getElementById('answerModal');
+            var modalText = document.getElementById('answerModalText');
+
+            function escapeHtml(s) {
+                return s.replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
+            }
+
+            function openModal(text) {
+                stopAutoRefresh();
+                var normalized = text.replace(/^"|"$/g, '')
+                    .replace(/\\r\\n/g, '\n')
+                    .replace(/\\r/g, '\n')
+                    .replace(/\\n/g, '\n')
+                    .replace(/\\t/g, '\t')
+                    .replace(/\r\n/g, '\n')
+                    .replace(/\r/g, '\n');
+                var escaped = escapeHtml(normalized);
+                var formatted = escaped
+                    .replace(/^##(.*)$/gm, '<strong style="color:var(--color-red, {{colors["red"]}})">$1</strong>')
+                    .replace(/\*\*(.+?)\*\*/gs, '<strong style="color:var(--color-blue, {{colors["blue"]}})">$1</strong>');
+                modalText.innerHTML = formatted;
+                modal.style.display = 'flex';
+            }
+            function closeModal() {
+                modal.style.display = 'none';
+                {% if par['do_update'] %}startAutoRefresh();{% endif %}
+            }
+
+            document.addEventListener('dblclick', function(e) {
+                var el = e.target.closest('.answer');
+                if (el) {
+                    e.preventDefault();
+                    openModal(el.value);
+                }
+            });
+
+            document.getElementById('answerModalClose').addEventListener('click', closeModal);
+
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) closeModal();
+            });
+
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') closeModal();
+            });
+        })();
+    </script>
+{% endblock %}

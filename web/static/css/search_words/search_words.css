@@ -1,0 +1,170 @@
+
+/* Нативная иконка календаря у input[type=date] всегда тёмная и не
+   подстраивается под тему сама - в тёмной теме сливалась с тёмным фоном
+   поля (background у .date следует за темой, см. his_interval.html).
+   #search_words - скоуп по id формы (own), не голый input[type="date"] -
+   иначе затронуло бы вообще все формы сайта (например analyses/filter.html,
+   где input[type=date] всегда на белом фоне Bootstrap .form-control). */
+body[data-theme="black"] #search_words input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+#table {
+    /*width: 1180px;*/
+    border-collapse: collapse; /* Убираем двойные линии между ячейками */
+}
+
+.top {
+    position: absolute;
+    width: 1100px;
+    top: 100px;
+    margin-top: 5px;
+    margin-bottom: 10px;
+
+}
+
+.detail {
+    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+    position: absolute;
+    top: 160px;
+    bottom: 40px;
+    width: 1100px;
+    _border: 3px solid #7a7b7e; /* Параметры рамки */
+}
+
+.table_counts {
+    position: absolute;
+    top: 90px;
+    _border: 1px solid red; /* Параметры рамки */
+    width: 400px;
+    bottom: 60px;
+    overflow: auto;
+}
+
+.pages{
+    position: absolute;
+    padding-left: 0px;
+    bottom: 10px;
+    _border: 3px solid red; /* Параметры рамки */
+    border: none; /* Убирает рамку */
+}
+
+.textarea
+{
+    position: absolute;
+    top: 90px;
+    left: 420px;
+    width: 750px;
+    bottom: 70px;
+}
+
+textarea
+{
+    width: 740px;
+    border: none;
+    overflow: auto;
+    height: 100%;
+    /*font-family: "Courier New";*/
+}
+
+.diagram_interval{
+    position: absolute;
+    top: 180px;
+    left: 25px;
+}
+
+.diagram {
+    position: absolute;
+    top: 250px;
+    left: 50px;
+    width: 750px;
+    bottom: 0px;
+    overflow: auto;
+    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+}
+
+#th_date {width: 100px;}
+#th_number {width: 80px;}
+
+.hwt-content mark.red {
+  background-color: red;
+}
+
+.hwt-content mark.blue_white {
+  background-color: lightgreen;
+}
+
+.hwt-content mark.blue_black {
+  background-color: blue;
+}
+
+.service {
+    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+     position: absolute;
+    top: 160px;
+    bottom: 00px;
+    width: 1100px;
+    /*border: 3px solid #7a7b7e; /* Параметры рамки */
+
+
+.service_nsi {
+    padding-left: 10px;
+    /*border: 3px solid #7a7b7e; /* Параметры рамки */
+    _height: 690px;
+    width: 350px;
+    border: none;
+}
+
+.service_upr {
+    padding-top: 2px;
+    padding-bottom: 2px;
+}
+
+.service_his {
+    position: absolute;
+    /*border: 3px solid red; /* Параметры рамки */
+    top: 0px;
+    bottom: 20px;
+    left: 360px;
+    width: 800px;
+}
+
+.nsi_textarea {
+    margin-top: 10px;
+    height: 150px;
+    width: 340px;
+    padding: 10px;
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    /*border: none;*/
+    /*display: block;*/
+}
+
+.number {width: 50px;}
+.counts {padding-top: 5px;}
+
+.his_top {
+    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+    margin: 5px;
+}
+
+.his_interval {
+    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+}
+
+.his_table {
+    position: absolute;
+    top: 110px;
+    width: 590px;
+    bottom: 80px;
+    border: none;
+    overflow:auto;
+    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+}
+
+.his_pages {
+    position: absolute;
+    padding-left: 50px;
+    bottom: 40px;
+    /*border: 1px solid #7a7b7e; /* Параметры рамки */
+}
+

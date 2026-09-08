@@ -1,0 +1,265 @@
+/* Цветовая тема - переключается атрибутом data-theme на <body> без submit
+   (static/js/theme_switch.js). Значения дублируют colors.py; стили, переведённые
+   на этот механизм, используют var(--color-x, {{colors['x']}}) с фолбэком на
+   серверный рендер для мест, ещё не переведённых. */
+body[data-theme="white"] {
+    --color-background: white;
+    --color-black: black;
+    --color-black2: black;
+    --color-green: green;
+    --color-red: red;
+    --color-blue: blue;
+    --color-yellow: brown;
+    --color-lightgray: #F0F8FF;
+    --color-dark-violet: #9400D3;
+    --color-salmon: salmon;
+    --color-light-blue: lightblue;
+    --color-select-background: MediumSeaGreen;
+    --color-select-color: white;
+    --color-color-combobox: black;
+    --color-color-select: black;
+}
+
+body[data-theme="black"] {
+    --color-background: black;
+    --color-black: white;
+    --color-black2: black;
+    --color-green: lightgreen;
+    --color-red: Wheat;
+    --color-blue: lightblue;
+    --color-yellow: yellow;
+    --color-lightgray: #696969;
+    --color-dark-violet: cyan;
+    --color-salmon: salmon;
+    --color-light-blue: lightblue;
+    --color-select-background: DarkSlateGray;
+    --color-select-color: white;
+    --color-color-combobox: yellow;
+    --color-color-select: white;
+}
+
+/* Фон <html> - отдельно от --color-background выше (та объявлена на body,
+   вверх по дереву к html не наследуется). theme_switch.js зеркалит data-theme
+   и на html, чтобы фон не залипал на теме первой отрисовки. */
+html[data-theme="white"] { background: white; }
+html[data-theme="black"] { background: black; }
+
+/* Единый вид скроллбаров по всему проекту (тот же стиль, что в sozd_web) -
+   тонкая тёмная полоса по умолчанию, светлая - на белой теме. Глобальный
+   селектор, а не по отдельным классам - на сайте слишком много разных
+   прокручиваемых контейнеров (.datas, .bottom, textarea и т.п.), чтобы
+   перечислять каждый. Отдельные контейнеры (например .g-table в guests.css)
+   могут переопределить своим более специфичным селектором. */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+::-webkit-scrollbar-track {
+    background: #23262e;
+}
+::-webkit-scrollbar-thumb {
+    background: #555a66;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #7a8090;
+}
+body[data-theme="white"] ::-webkit-scrollbar-track {
+    background: #d1d5db;
+}
+body[data-theme="white"] ::-webkit-scrollbar-thumb {
+    background: #8fbbe6;
+}
+body[data-theme="white"] ::-webkit-scrollbar-thumb:hover {
+    background: #6fa3d8;
+}
+
+.theme-toggle-btn {
+    height: 30px;
+    border: 1px solid #7a7b7e;
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 2px 8px;
+}
+
+input {
+    accent-color: auto;
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+}
+
+input{accent-color: rebeccapurple;}
+input:not(:checked){opacity: 0.9;}
+input[type=checkbox]{transform:scale(1.2); margin:0px 0px 0px;}
+
+.simple-text {
+    border: none;
+    padding-top: 5px;
+}
+
+.container-flash {
+    position: absolute;
+    top: 100px;
+    left: 100px;
+    width: 500px;
+    z-index: 100;
+}
+
+thead {  /* для всех таблиц фиксируем заголовок */
+  position: -webkit-sticky;
+  position: -moz-sticky;
+  position: -ms-sticky;
+  position: -o-sticky;
+  position: sticky;
+  top: -0px;
+}
+
+.thead_black{
+    background: #696969;
+    color: white;
+  position: -webkit-sticky;
+  position: -moz-sticky;
+  position: -ms-sticky;
+  position: -o-sticky;
+  position: sticky;
+  top: 0px;
+  z-index: 1;
+}
+
+/* Для лучшей визуализации границ при фиксированном заголовке */
+thead th {
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.15);
+}
+
+.thead_white{
+    background: #F0F8FF;
+    color: black;
+  position: -webkit-sticky;
+  position: -moz-sticky;
+  position: -ms-sticky;
+  position: -o-sticky;
+  position: sticky;
+  top: 0px;
+  z-index: 1;
+}
+
+.container {
+    padding-top: 50px;
+    margin: 10px;
+    overflow:auto;
+}
+
+#user_name {
+    position: fixed;
+    bottom: 5px;
+    right: 5px;
+    padding-top: 10px;
+    padding-right: 10px;
+    z-index: 100;
+}
+
+.menu {
+    position: absolute;
+    float: top;
+    top: 0px;
+    height: 50px;
+}
+
+body {
+    display: none;
+}
+
+table {
+    line-height: 1;
+    border-collapse: collapse; /* Убираем двойные линии между ячейками */
+    border-color: #a0a0a0 !important;
+    /*box-shadow: 2px 2px gray;*/
+}
+/* Базовое изменение цвета границ для всех таблиц */
+table, th, td {
+    border-color: #a0a0a0 !important;
+}
+
+p {
+    line-height: 1;
+}
+
+select {
+    background: white;
+    border-radius: 7px;
+    height: 30px; /* Высота */
+}
+
+.btn-show {
+   /*background-color: yellow;*/
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    border-radius: 7px;
+    height: 30px; /* Высота */
+    padding-left: 10px;
+    padding-right: 10px;
+    box-shadow: 2px 2px gray;
+}
+
+button:hover {
+    background-color: yellow; /* Цвет фона */
+    color: blue;
+}
+
+.button_radius {
+    background: white; /* Цвет фона */
+    background: #E0FFFF; /* Цвет фона */
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    width: 30px; /* Ширина кнопки */
+    height: 35px; /* Высота */
+    border-radius: 25px;
+    filter: sepia(100%);
+    -webkit-filter: sepia(100%);
+}
+
+.button_lr {
+    background: #E0FFFF; /* Цвет фона */
+    background: white; /* Цвет фона */
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    width: 30px; /* Ширина кнопки */
+    height: 30px; /* Высота */
+    border-radius: 25px;
+    box-shadow: 2px 2px gray;
+}
+/* ---------------------------*/
+
+.btn-menu {
+    border: none;
+    border: 1px solid #808080;
+    height: 30px;
+}
+
+.btn-menu-active {
+    border: 1px solid green;
+    height: 30px;
+}
+
+#select_language {
+    border: none;
+}
+
+#select_theme_form {
+    border: none;
+}
+
+.loading-icon {
+    display: none;
+    position: fixed;
+    top: 25%;
+    left: 25%;
+    transform: translate(-50%, -50%);
+    font-size: 2rem;
+    color: #000;
+    animation: spin 1s linear infinite;
+    z-index: 1000;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

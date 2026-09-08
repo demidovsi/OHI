@@ -1,0 +1,351 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {{txt[27]}}
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" type="text/css" href="/static/css/search_words/search_words.css">
+<form method="post" name="{{own}}" id="{{own}}">
+    <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
+    {% include "include/select_language.html" %}
+    <input type="hidden" id="scroll" name="scroll" value="{{par['scroll']}}">
+    <button class="simple-text" name="refresh" title="{{txt[1]}}"
+            style="font-size:18px; background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});">
+        <u>{{txt[0]}}</u>
+    </button>
+    <div class="top">
+        {{txt[8]}}:
+        <select name="select_theme" id="select_theme" style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}});" title="{{par['select_title']}}">
+            {% for theme in par['themes'] %}
+                {% if theme['id'] == par['select_theme'] %}
+            <option value="{{theme['id']}}" selected title="{{theme['value']}}">
+                {% if theme['stop'] %}
+                    - {{theme['sh_name']}}
+                {% else %}
+                    {{theme['sh_name']}}
+                {% endif %}
+            </option>
+                {% else %}
+                    <option value="{{theme['id']}}" title="{{theme['value']}}">
+                        {% if theme['stop'] %}
+                            - {{theme['sh_name']}}
+                        {% else %}
+                            {{theme['sh_name']}}
+                        {% endif %}
+                    </option>
+                {% endif %}
+            {% endfor %}
+        </select>
+        {% if par['switch'] == 'diagram' %}
+            <button class="btn-menu-active" name="diagram"
+                    title="{{txt[2]}}"
+                    style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-green, {{colors['green']}})">
+                <b>{{txt[3]}}</b>
+            </button>
+            <button class="btn-menu" name="detail"
+                    title="{{txt[4]}}"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                {{txt[5]}}
+            </button>
+            {% if upr['admin'] %}
+                <button class="btn-menu" name="service"
+                        title="{{txt[6]}}"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                    {{txt[7]}}
+                </button>
+            {% endif %}
+        {% elif par['switch'] == 'detail' %}
+            <button class="btn-menu" name="diagram"
+                    title="{{txt[2]}}"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                {{txt[3]}}
+            </button>
+            <button class="btn-menu-active" name="detail"
+                    title="{{txt[4]}}"
+                    style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-green, {{colors['green']}})">
+                <b>{{txt[5]}}</b>
+            </button>
+            {% if upr['admin'] %}
+                <button class="btn-menu" name="service"
+                        title="{{txt[6]}}"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                    {{txt[7]}}
+                </button>
+            {% endif %}
+            <span style="color: var(--color-black, {{colors['black']}});" title="{{txt[9]}}">{{txt[44]}}=</span>
+            <select name="select_lang" id="select_lang"
+                    title="{{txt[9]}}"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}});">
+                {% for lang in par['languages'] %}
+                    {% if lang == par['select_lang'] %}
+                        <option value="{{lang}}" selected>{{lang}}</option>
+                    {% else %}
+                        <option value="{{lang}}">{{lang}}</option>
+                    {% endif %}
+                {% endfor %}
+            </select>
+        {% else %}
+            <button class="btn-menu" name="diagram"
+                    title="{{txt[2]}}"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                {{txt[3]}}
+            </button>
+            <button class="btn-menu" name="detail"
+                    title="{{txt[4]}}"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                {{txt[5]}}
+            </button>
+            {% if upr['admin'] %}
+                <button class="btn-menu-active" name="service"
+                        title="{{txt[6]}}"
+                        style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-green, {{colors['green']}})">
+                    <b>{{txt[7]}}</b>
+                </button>
+            {% endif %}
+        {% endif %}
+        <p class="counts">
+            {% if par['switch'] == 'detail' and par['global_count'] %}
+            {{txt[10]}}=
+                <span style="color: var(--color-green, {{colors['green']}})"> {{par['global_count']}}</span>
+            {% endif %}
+            {% if par['switch'] == 'diagram' %}
+            {{txt[11]}}=
+                <span style="color: var(--color-green, {{colors['green']}})"> {{par['count']}}</span>
+            {% endif %}
+            {% if par['switch'] == 'detail' and par['transcript'] %}
+            {{txt[12]}}=
+                <span style="color: var(--color-green, {{colors['green']}})">{{par['len_transcript']}}</span>
+            {% endif %}
+        </p>
+    </div> <!-- top -->
+    {% if par['switch'] == 'detail' %}
+        <div class="detail">
+            <div class="data">
+                {% include "include/top_of_table.html" %}
+                {% include "include/sort_table.html" %}
+                <div class="table_counts">
+                    <table id="table" class="table table-sm table-bordered">
+                        <thead align="center" style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-black, {{colors['black']}});">
+                            <tr>
+                                <th id="th_date" scope="col">{{txt[13]}}</th>
+                                <th id="th_number" scope="col">{{txt[14]}}</th>
+                                <th id="th_source" scope="col">{{txt[15]}}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for data in par['data'] %}
+                            {% if par['select_id'] == data['rss_history_id'] %}
+                                <tr style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-black, {{colors['black']}});">
+                                    <td>{{data['public_date']}}</td>
+                                    <td><div align="right"> {{data['rss_history_id']}}</div></td>
+                                    <td><div align="center"> {{data['source_name']}}</div></td>
+                                </tr>
+                            {% else %}
+                                <tr style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+                                    <td><div align="right"> {{data['public_date']}}</div></td>
+                                    <td>
+                                        <div align="right">
+                                            <button style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});" class="simple-text"
+                                                    name="show_{{data['rss_history_id']}}">
+                                                <u>{{data['rss_history_id']}}</u>
+                                            </button>
+                                        </div>
+                                    </td>
+                                    <td><div align="center"> {{data['source_name']}}</div></td>
+                                </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div> <!-- table_counts -->
+                <div class="textarea">
+                    <textarea
+                          style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})" readonly
+                          class="transcript">{{par['transcript']}}</textarea>
+                </div>
+
+                <div class="pages">
+                    {% include "include/pages_table.html" %}
+                </div> <!-- pages -->
+            </div> <!-- data -->
+        </div> <!-- detail -->
+    {% elif par['switch'] == 'diagram' %}
+        <div class="diagram_interval">
+            {{txt[16]}}:
+            {% include "search_words/his_interval.html" %}
+        </div> <!-- diagram_interval -->
+        <div class="diagram">
+            <canvas id="Chart_data"></canvas>
+        </div> <!-- diagram -->
+    {% else %}
+        <div class="service">
+             {% include "search_words/search_service.html" %}
+        </div> <!-- service -->
+    {% endif %}
+</form>
+{% endblock %}
+
+{% block scripts %}
+{% if par['switch'] == 'diagram' %}
+    <script src='/static/js/Chart.js'></script>
+{% endif %}
+<script>
+        const scroller = document.querySelector('.table_counts');
+        const scroll = document.querySelector("#scroll")
+        var loadingIcon = document.querySelector('#loadingIcon');
+    {% if par['switch'] == 'service' %}
+        var nsi_sh_name = document.querySelector('#nsi_sh_name');
+        var nsi_last_date = document.querySelector('#nsi_last_date');
+        var nsi_value = document.querySelector('#nsi_value');
+        var nsi_exception = document.querySelector('#nsi_exception');
+        var nsi_sh_name_init = document.querySelector('#nsi_sh_name_init');
+        var nsi_last_date_init = document.querySelector('#nsi_last_date_init');
+        var nsi_value_init = document.querySelector('#nsi_value_init');
+        var nsi_exception_init = document.querySelector('#nsi_exception_init');
+        var nsi_refresh = document.querySelector('#nsi_refresh');
+        var nsi_save = document.querySelector('#nsi_save');
+        var stop = document.querySelector('#stop');
+        var stop_init = document.querySelector('#stop_init');
+    {% endif %}
+
+    $(function() {
+        $(document).ready(function () {
+          $('select').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+          $('.number').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+          $('.date').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+          $('#page_number').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+
+          $(function () {
+            {% if par['switch'] == 'service' %}
+                calc_change();
+            {% endif %}
+            $('body').show();
+            equalizeDivHeights();
+            scroller.scrollTop=scroll.value;
+          }); // end ready
+
+        scroller.addEventListener("scroll", (event) => {
+            scroll.value = scroller.scrollTop;
+                });
+
+        });
+
+        {% if par['switch'] == 'service' %}
+            $('input').on('input', function() { calc_change(); });
+            $('textarea').on('input', function() { calc_change(); });
+            function calc_change() {
+                var count = 0;
+                if (nsi_sh_name && nsi_sh_name_init && nsi_sh_name.value.trim() !== nsi_sh_name_init.value.trim()) { count += 1; }
+                if (nsi_last_date && nsi_last_date_init && nsi_last_date.value.trim() !== nsi_last_date_init.value.trim()) { count += 1; }
+                if (nsi_value && nsi_value_init && nsi_value.value.trim() !== nsi_value_init.value.trim()) { count += 1; }
+                if (nsi_exception && nsi_exception_init && nsi_exception.value.trim() !== nsi_exception_init.value.trim()) { count += 1; }
+                if (stop && stop_init && stop.checked !== stop_init.checked) { count += 1; }
+                if (count > 0)
+                    { nsi_save.style.visibility = 'visible'; nsi_refresh.style.visibility = 'visible'; }
+                else
+                    {
+                        nsi_save.style.visibility = 'hidden'; nsi_refresh.style.visibility = 'hidden';
+                    };
+            };
+        {% endif %}
+
+    });
+    document.getElementById('{{own}}').addEventListener('submit', function(event) { loadingIcon.style.display = 'block'; });
+    function equalizeDivHeights() {
+      const sourceDiv = document.querySelector('.table_counts');
+      const targetDiv = document.querySelector('textarea');
+
+      // Устанавливаем высоту целевого div равной высоте
+      {% if par['switch'] == 'detail' %}
+          targetDiv.style.height = sourceDiv.offsetHeight + 'px';
+      {% endif %}
+    }
+
+    // Вызываем при загрузке и изменении размера окна
+    window.addEventListener('load', equalizeDivHeights);
+    window.addEventListener('resize', equalizeDivHeights);
+</script>
+{% if par['switch'] == 'detail' %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+        <script src="/static/js/jquery.highlight.js"></script>
+        <link href="/static/css/highlight.css" rel="stylesheet">
+        <script>
+                $('.transcript').highlightWithinTextarea({
+                  highlight: [
+                  {% for data in par['highlight_text'] %}
+                    {
+                      highlight: '{{data}}',
+                      {% if upr['theme'] == 'black' %}
+                          className: 'blue_black'
+                       {% else %}
+                          className: 'blue_white'
+                       {% endif %}
+                    },
+                  {% endfor %}
+                  ]
+                });
+        </script>
+{% endif %}
+{% if par['switch'] == 'diagram' %}
+    <!--  График  -->
+    <script>
+        var chart_data = {
+            fill: true,
+            backgroundColor: 'green',
+            borderColor: 'rgba(0, 99, 132, 1)',
+            data : [ {% for item in par['values'] %} {{item}}, {% endfor %} ]
+        }
+        var chartData = {
+            labels : [{% for item in par['labels'] %} "{{item}}", {% endfor %} ],
+            datasets : [chart_data]
+        }
+
+        var Chart_data = null;
+
+        // Chart.js рисует на canvas, а не через CSS - var(--color-x) там не
+        // резолвится, поэтому цвета осей/сетки не подстраивались бы под тему
+        // при мгновенном переключении (static/js/theme_switch.js), только
+        // при обычной перезагрузке страницы. Пересоздаём график с
+        // актуальными цветами и по событию theme-changed, которое
+        // theme_switch.js рассылает при каждом переключении.
+        function drawSearchWordsChart() {
+            var isWhite = document.body.dataset.theme === 'white';
+            var tickColor = getComputedStyle(document.body).color;
+            var gridColor = isWhite ? undefined : '#696969';
+            var optionsData = {
+                scales: {
+                    x: {
+                        ticks: { fontColor: tickColor },
+                        gridLines: gridColor ? { color: gridColor } : {}
+                    },
+                    y: {
+                        beginAtZero: true,
+                        ticks: { fontColor: tickColor },
+                        gridLines: gridColor ? { color: gridColor } : {}
+                    }
+                },
+                legend: {
+                    display: false
+                }
+            };
+
+            if (Chart_data) {
+                Chart_data.destroy();
+            }
+            var ctx_data = document.getElementById("Chart_data").getContext("2d");
+            Chart_data = new Chart(
+                ctx_data, {
+                        responsive: false,
+                        type: 'bar',
+                        data: chartData,
+                        options: optionsData,
+                     }
+                );
+        }
+
+        drawSearchWordsChart();
+        window.addEventListener('theme-changed', drawSearchWordsChart);
+    </script>
+{% endif %}
+{% endblock %}

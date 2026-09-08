@@ -1,0 +1,101 @@
+            <!-- Offcanvas Sidebar -->
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="filterSidebar" aria-labelledby="filterSidebarLabel"
+            style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-black, {{colors['black']}});">
+        <div class="offcanvas-header">
+            <h5 class="offcanvas-title" id="filterSidebarLabel">Настройка (Фильтры) - {{par['switch']}}</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Закрыть"></button>
+        </div> <!-- offcanvas-header -->
+        <div class="offcanvas-body">
+            {% if par['switch'] in ['channels', 'participation'] %}
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="channel_type" id="message_channels" value="message_channels"
+                           {% if par['channel_type'] == 'message_channels' %}checked{% endif %}>
+                    <label for="message_channels">Сообщения в каналах</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="channel_type" id="message_count" value="message_count"
+                           {% if par['channel_type'] == 'message_count' %}checked{% endif %}>
+                    <label for="message_count">Сообщения всего</label>
+                </div>
+
+                <div class="mb-3" id="param-period">
+                    <label for="type_period" class="form-label">Группировка:</label>
+                    <select class="form-select" name="period_type" id="type_period">
+                        <option value="day" {% if par['period_type'] == 'day' %}selected{% endif %}>По суточно</option>
+                        <option value="week" {% if par['period_type'] == 'week' %}selected{% endif %}>По недельно</option>
+                        <option value="month" {% if par['period_type'] == 'month' %}selected{% endif %}>По месячно</option>
+                    </select>
+                </div> <!-- mb-3 -->
+            {% endif %}
+
+            {% if par['switch'] in ['channels', 'participation'] %}
+                <div class="mb-3" id="param-channel">
+                    <label for="channel" class="form-label">Канал</label>
+                    <select id="channel" name="selected_channel" class="form-select">
+                        {% for channel in par['list_channels'] %}
+                        <option value="{{ channel }}" {% if channel == par['selected_channel'] %}selected{% endif %}>{{ channel }}</option>
+                        {% endfor %}
+                    </select>
+                </div> <!-- mb-3 -->
+            {% endif %}
+            {% if par['switch'] in ['channels', 'participation'] %}
+                <div class="mb-3" id="param-theme">
+                    <label for="theme" class="form-label">Тема</label>
+                    <select id="theme" name="selected_theme" class="form-select">
+                        {% for theme in par['list_themes'] %}
+                        <option value="{{ theme['id'] }}" {% if theme['id'] == par['selected_theme'] %}selected{% endif %}>{{ theme['sh_name'] }}</option>
+                        {% endfor %}
+                    </select>
+                </div> <!-- mb-3 -->
+            {% endif %}
+            {% if par['switch'] in ['participation', 'channels'] %}
+                <div class="mb-3">
+                    <label class="form-label">Тип фильтра по дате</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="date_filter_type" id="custom" value="custom"
+                        {% if par['date_filter_type'] == 'custom' %}checked{% endif %}>
+                        <label class="form-check-label" for="custom">Произвольный период</label>
+                        <button class="simple-text" name="clear_date_filter" id="clear_date_filter"
+                                onclick="clear_date();" type="button"
+                                style="background: var(--color-background, {{colors['background']}});"
+                                title="Очистить фильтр по дате">
+                            <img src="/static/delete.png" width="18" height="18">
+                        </button>
+                    </div> <!-- form-check -->
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="date_filter_type" id="relative" value="relative"
+                        {% if par['date_filter_type'] == 'relative' %}checked{% endif %}>
+                        <label class="form-check-label" for="relative">Относительный период</label>
+                    </div> <!-- form-check -->
+                </div> <!- - mb-3 -->
+
+                <div class="mb-3" id="param-relative">
+                    <label for="relative_period" class="form-label">Период</label>
+                    <select class="form-select" name="relative_period" id="relative_period">
+                        <option value="7" {% if par['relative_period'] == 7 %}selected{% endif %}>Последние 7 дней (неделя)</option>
+                        <option value="30" {% if par['relative_period'] == 30 %}selected{% endif %}>Последние 30 дней (месяц)</option>
+                        <option value="90" {% if par['relative_period'] == 90 %}selected{% endif %}>Последние 90 дней (квартал)</option>
+                        <option value="180" {% if par['relative_period'] == 180 %}selected{% endif %}>Последние 180 дней (полгода)</option>
+                        <option value="365" {% if par['relative_period'] == 365 %}selected{% endif %}>Последние 365 дней (год)</option>
+                    </select>
+                </div> <!-- mb-3 -->
+
+                <div id="param-custom">
+                    <div class="mb-3">
+                        <label for="start_date" class="form-label">С даты</label>
+                        <input type="date" id="start_date" name="start_date" class="form-control"
+                               value="{{ par['start_date']}}">
+                    </div> <!-- mb-3 -->
+
+                    <div class="mb-3">
+                        <label for="end_date" class="form-label">По дату</label>
+                        <input type="date" id="end_date" name="end_date" class="form-control"
+                               value="{{ par['end_date']}}">
+                    </div> <!-- mb-3 -->
+                </div> <!-- no-relative -->
+            {% endif %}
+
+            <button type="submit" class="btn btn-primary w-100" id="make_filter">Применить</button>
+    </div> <!-- offcanvas-body -->
+</div> <!-- offcanvas -->

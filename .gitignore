@@ -1,0 +1,21 @@
+# Виртуальные окружения
+.venv/
+venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Секреты — каждый сервис хранит свой .env локально, см. */.env.example
+.env
+.env.local
+.env.development

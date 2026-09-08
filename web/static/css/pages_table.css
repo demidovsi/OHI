@@ -1,0 +1,19 @@
+
+.btn-select_color {
+   background-color: yellow;
+   color: red;
+   box-shadow: 2px 2px green;
+    -moz-border-radius:  5px; /* Firefox */
+    -webkit-border-radius:  5px; /* Safari 4 */
+    border-radius:  5px; /* IE 9, Safari 5, Chrome */
+}
+
+.btn-next {
+   background-color: white;
+   color: black;
+    -moz-border-radius:  5px; /* Firefox */
+    -webkit-border-radius:  5px; /* Safari 4 */
+    border-radius:  5px; /* IE 9, Safari 5, Chrome */
+}
+
+#page_number {width: 60px;}

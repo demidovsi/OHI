@@ -1,0 +1,49 @@
+<!--    page_count кол-во страницы в таблице -->
+<!--    page номер текущей страницы таблицы -->
+<!--    array_pages список страниц для отображения в навигаторе -->
+<link rel="stylesheet" type="text/css" href="/static/css/pages_table.css">
+    {% if 'count' in par and par['count'] > par['row_count'] %}
+          <div id="pages">
+              <span style="color: var(--color-black, {{colors['black']}})">{{menu_txt[17]}}:</span>
+              <input id="page_number" type="number" name="page" min="1" max="{{page_count}}" size="0" step="0" value="{{par['page']}}"
+                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                     title="{{menu_txt[18]}}" >
+              <button name="prev" value="-1" class="button_lr" style="background: var(--color-background, {{colors['background']}});">
+                  <img src="/static/arrow-left.png" width="18" height="18" title="{{menu_txt[19]}}">
+              </button>
+              {% if par['page'] == 1 %}
+                  <button name="page(1)" class="btn-select_color" style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});" title="{{menu_txt[20]}}"> 1 </button>
+              {% else %}
+                  <button name="page(1)" class="btn-next" style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});" title="{{menu_txt[20]}}"> 1 </button>
+              {% endif %}
+              {% for unit in par['array_pages'] %}
+                {% if unit['visible'] == True %}
+                    {% if unit['page'] == par['page'] %}
+                    <button name="{{unit['text']}}" class="btn-select_color" title="{{menu_txt[20]}}"
+                            style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"> {{unit['page']}} </button>
+                    {% else %}
+                        <button name="{{unit['text']}}" class="btn-next" title="{{menu_txt[20]}}"
+                                style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"> {{unit['page']}} </button>
+                    {% endif %}
+                {% endif %}
+              {% endfor %}
+              <button name="next" class="button_lr" title="{{menu_txt[29]}}"
+                      style="background: var(--color-background, {{colors['background']}});">
+                  <img src="/static/arrow-right.png" width="18" height="18" title="{{menu_txt[29]}}"> </button>
+          </div>
+    {% endif %}
+{% block scripts %}
+<script>
+        var loadingIcon = document.querySelector('#loadingIcon');
+        document.getElementById("page_number").addEventListener("keyup", function(e) {
+            if (e.keyCode === 13) {
+                loadingIcon.style.display = 'block';
+                document.forms['{{own}}'].requestSubmit();
+                }
+        });
+        $('#page_number').on('change', function() {
+            loadingIcon.style.display = 'block';
+            document.forms['{{own}}'].requestSubmit();
+        });
+</script>
+{% endblock %}

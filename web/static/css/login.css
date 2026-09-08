@@ -1,0 +1,81 @@
+.btn {
+    background: #F0F8FF;
+    border: #555 solid 2px;
+    border-radius: 15px;
+    cursor: pointer;
+    display: inline-block;
+    font-size: 14px;
+    padding: 8px 15px;
+    text-decoration: none;
+    text-align: center;
+    min-width: 100px; /* Ширина кнопки в пикселах */
+    left: 15%;
+    position: relative;
+    color: black;
+}
+
+#btn_new {
+    background: papayawhip;
+    border: #555 solid 1px;
+    cursor: pointer;
+    display: inline-block;
+    font-size: 14px;
+    padding: 8px 15px;
+    text-decoration: none;
+    text-align: center;
+    min-width: 200px; /* Ширина кнопки в пикселах */
+    left: 10%;
+    position: relative;
+    color: blue;
+    font-weight: bold;
+    margin-left: 140px;
+}
+
+#btn_change {
+    background: mistyrose;
+    left: 10%;
+    margin-left: 150px;
+}
+
+.btn:hover, .btn:focus {
+    background: #E0FFFF;
+    color: green;
+    transform: scale(1.2, 1.2)
+}
+
+#btn_new:hover, .btn_new:focus {
+    background: papayawhip;
+    color: green;
+    transform: scale(1.2, 1.2)
+}
+
+.text {
+    margin-left:50px;
+}
+
+#user_name { width: 300px; /* Ширина поля в пикселах */ margin-left: 50px; }
+#password { width: 300px; /* Ширина поля в пикселах */ margin-left: 50px; }
+
+
+.container {
+    margin-left: 100px;
+    margin-top: 50px;
+    margin-bottom: 50px;
+    width: 430px;
+    height: 300px;
+    padding-top: 10px;
+    border-radius: 20px;
+    box-shadow: 5px 5px gray;
+}
+
+.container-flash {
+    position: absolute;
+    top: 150px;
+    left: 160px;
+    right: 100px;
+    width: 410px;
+    z-index: 100;
+    /*box-shadow: 5px 5px red;*/
+    background: lightgreen;
+    /*border: 1px solid red; /* Параметры рамки */
+}

@@ -1,0 +1,50 @@
+            {% if par['switch_translation'] == 'native' %}
+                <button class="btn-menu" name="native"
+                        title="Вывод информации на исходном языке"
+                        style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-green, {{colors['green']}})">
+                    <b>Иврит</b>
+                </button>
+                <button class="btn-menu" name="russian"
+                        title="С переводом на русский"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                    Русский
+                </button>
+                <button class="btn-menu" name="english"
+                        title="С переводом на английский"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                    Английский
+                </button>
+            {% elif par['switch_translation'] == 'russian' %}
+                <button class="btn-menu" name="native"
+                        title="Вывод информации на исходном языке"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                    Иврит
+                </button>
+                <button class="btn-menu" name="russian"
+                        title="С переводом на русский"
+                        style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-green, {{colors['green']}})">
+                    <u>Русский</u>
+                </button>
+                <button class="btn-menu" name="english"
+                        title="С переводом на английский"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                    Английский
+                </button>
+            {% else %}
+                <button class="btn-menu" name="native"
+                        title="Вывод информации на исходном языке"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                    Иврит
+                </button>
+                <button class="btn-menu" name="russian"
+                        title="С переводом на русский"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+                    Русский
+                </button>
+                <button class="btn-menu" name="english"
+                        title="С переводом на английский"
+                        style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-green, {{colors['green']}})">
+                    <u>Английский</u>
+                </button>
+            {% endif %}
+

@@ -1,0 +1,111 @@
+.top { margin-bottom: 10px;}
+
+.bottom {
+    position: absolute;
+    width: 1010px;
+    top: 120px;
+    padding-right: 10px;
+    border-style: groove;
+    border: none;
+    margin: 20px;
+    bottom: 30px;
+    padding-left: 10px;
+    direction: rtl; /* перемещает скроллбар влево */
+}
+
+.bottom table {
+    direction: ltr; /* возвращает обычное направление для содержимого таблицы */
+    margin: 0 auto; /* Дополнительное выравнивание по центру */
+}
+
+/* border-collapse:collapse (Bootstrap-класс .table-bordered, висит на этой
+   же таблице) вместе с position:sticky у thead (base.css) давал артефакт -
+   при скролле сверху залипающего заголовка проступала тонкая полоска
+   "мусора" (границы ячеек при коллапсе частично принадлежат соседям и не
+   обрезаются чисто под sticky-элементом). border-collapse:separate убирает
+   эффект. #lawsTable (id) побеждает .table-bordered (class) по
+   специфичности независимо от порядка подключения файлов. */
+#lawsTable {
+    width: 970px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+/* Только правая/нижняя граница ячеек (не со всех сторон) - у Bootstrap
+   есть свой .table th/.table td{border-top:...} с более высокой
+   специфичностью (класс+элемент против просто элемента), который иначе
+   победил бы; при border-collapse:separate border-top/left у каждой ячейки
+   давал бы задвоенную (вдвое толще 1px) границу с соседней. */
+#lawsTable th,
+#lawsTable td {
+    border-top: none;
+    border-left: none;
+    border-right: 1px solid #a0a0a0;
+    border-bottom: 1px solid #a0a0a0;
+}
+
+p {
+    margin: 5px;
+}
+
+.text {
+    width: 300px;
+    border-radius: 10px;
+    border: none;
+}
+
+/* Комментарий/Описание (function_description~.../sh_name~..., functions_table.html) -
+   textarea без строк по умолчанию выводит одну строку с прокруткой; тот же
+   приём авто-высоты по содержимому, что и в logs.css (readonly-textarea там же) -
+   display:inline-table ломает обычную form-control логику высоты textarea в
+   пользу высоты по фактическому содержимому. resize:none - высота должна
+   подстраиваться сама, а не растягиваться вручную. textarea.text, а не
+   голый .text - класс общий с обычными <input>, которые это не должно
+   затрагивать. */
+textarea.text {
+    display: inline-table;
+    resize: none;
+    line-height: 1.2;
+}
+
+#description_function {
+    width: 600px;
+}
+
+#name_function {
+    width: 150px;
+}
+
+/* #dlg_code_parameter/#dlg_comment_parameter - реальные поля диалога
+   "Новый параметр" (functions.html). */
+#dlg_code_parameter {
+    width: 150px;
+}
+
+#dlg_comment_parameter {
+    width: 350px;
+}
+
+table {
+    line-height: 1.1;
+}
+
+#th_source {width: 150px;}
+#th_value {width: 200px;}
+#th_is_number {width: 50px;}
+#th_comment {width: 350px;}
+#th_actions {width: 80px;}
+
+#lawsTable td:first-child input {
+    text-align: right;
+}
+
+#lawsTable tr[data-row-id^="fn"] td:first-child input {
+    text-align: left;
+}
+
+.val-input { border: none;}
+
+.new_function {
+    padding-bottom: 5px;
+}

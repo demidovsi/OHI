@@ -1,0 +1,11 @@
+session.json
+static/session.json
+llm_web_venv
+
+# Environment variables
+.env
+.env.local
+.env.development
+
+__pycache__/
+*.pyc

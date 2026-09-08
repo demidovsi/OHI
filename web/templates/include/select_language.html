@@ -1,0 +1,22 @@
+<div id="user_name" title="{{upr['version']}}">
+  <span style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">{{upr['user_name']}} </span>
+  {% if languages %}
+    <select class="combo" name="select_language" id="select_language"
+            title="{{menu_txt[30]}}"
+            style="background: var(--color-background, {{colors['background']}}); color: var(--color-yellow, {{colors['yellow']}})"
+            onchange="choose_language()">
+        {% for lang in languages %}
+            {% if lang['key'] == upr['select_language'] %}
+                <option value="{{lang['key']}}" selected>{{lang['key']}}</option>
+            {% else %}
+                <option value="{{lang['key']}}">{{lang['key']}}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+  {% endif %}
+    <input type="hidden" name="select_theme_form" id="select_theme_form" value="{{upr['select_theme']}}">
+    <button type="button" id="theme_toggle_btn" class="theme-toggle-btn"
+            title="{{menu_txt[39]}}"
+            style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}})"
+            onclick="toggle_theme()">{% if upr['select_theme'] == 'black' %}☀️{% else %}🌙{% endif %}</button>
+</div>

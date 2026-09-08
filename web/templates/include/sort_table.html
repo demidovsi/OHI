@@ -1,0 +1,54 @@
+<link rel="stylesheet" type="text/css" href="/static/css/sort_table.css">
+<p class="sort" id="sort">
+    <span style="color: var(--color-black, {{colors['black']}});">{{menu_txt[33]}}:</span>
+    <select name="sort" style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}});" id="sort_table">
+        {% for unit in par['array_sort'] %}
+            {% if par['selected_sort'] == unit['id'] %}
+                <option value="{{unit['id']}}" selected>{{txt[unit['sh_name']]}}</option>
+            {% else %}
+                <option value="{{unit['id']}}">{{txt[unit['sh_name']]}}</option>
+            {% endif %}
+        {% endfor %}
+    </select>
+
+    {% if par['sort_trend'] == 0 %}
+        <button class="btn-menu-active" name="sort_trend0"
+                title="{{menu_txt[34]}}"
+                style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-green, {{colors['green']}})">
+            <b>{{menu_txt[35]}}</b>
+        </button>
+    {% else %}
+        <button class="btn-menu" name="sort_trend0"
+                title="{{menu_txt[34]}}"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+            {{menu_txt[35]}}
+        </button>
+    {% endif %}
+
+    {% if par['sort_trend'] == 1 %}
+        <button class="btn-menu-active" name="sort_trend1"
+                title="{{menu_txt[36]}}"
+                style="background: var(--color-lightgray, {{colors['lightgray']}}); color: var(--color-green, {{colors['green']}})">
+            <b>{{menu_txt[37]}}</b>
+        </button>
+    {% else %}
+        <button class="btn-menu" name="sort_trend1"
+                title="{{menu_txt[36]}}"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
+            {{menu_txt[37]}}
+        </button>
+    {% endif %}
+
+{% if par['close_sort'] != False %}
+</p>
+{% endif %}
+
+{% block scripts %}
+<script>
+    var loadingIcon = document.querySelector('#loadingIcon');
+    $('#sort').on('change', function() { loadingIcon.style.display = 'block'; document.forms['{{own}}'].submit(); });
+    document.getElementById('{{own}}').addEventListener('submit', function(event) {
+        loadingIcon.style.display = 'block';
+    });
+</script>
+{% endblock %}

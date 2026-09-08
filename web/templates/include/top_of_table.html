@@ -1,0 +1,90 @@
+<!--row_count - кол-во выводимых строк в странице таблицы-->
+<!--first - номер (с 1) первой выведенной строки-->
+<!--last - номер (с 1) последней выведенной строки-->
+<!--count - количество строк в таблице-->
+<link rel="stylesheet" type="text/css" href="/static/css/top_of_table.css">
+    <p>
+        {% if not par['no_pages'] %}
+            <span style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">{{menu_txt[5]}}:</span>
+            <select id="row_count" name="row_count" title="{{menu_txt[12]}}"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+                {% if par['row_count'] == 5 %}
+                    <option value="5" selected>5</option>
+                {% else %}
+                    <option value="5">5</option>
+                {% endif %}
+                {% if par['row_count'] == 10 %}
+                    <option value="10" selected>10</option>
+                {% else %}
+                    <option value="10">10</option>
+                {% endif %}
+                {% if par['row_count'] == 25 %}
+                    <option value="25" selected>25</option>
+                {% else %}
+                    <option value="25">25</option>
+                {% endif %}
+                {% if par['row_count'] == 50 %}
+                    <option value="50" selected>50</option>
+                {% else %}
+                    <option value="50">50</option>
+                {% endif %}
+                {% if par['row_count'] == 100 %}
+                    <option value="100" selected>100</option>
+                {% else %}
+                    <option value="100">100</option>
+                {% endif %}
+            </select>
+        {% endif %}
+         <span style="color: var(--color-black, {{colors['black']}});" title="{{menu_txt[13]}}">
+            {% if not par['no_pages'] %}
+                {{menu_txt[6]}} {{menu_txt[7]}} {{par['first']}} {{menu_txt[8]}} {{par['last']}}
+             {% endif %}
+            ({{menu_txt[9]}}={{par['count']}})
+         </span>
+        {% if not par['no_refresh'] %}
+        <button type="submit" name="refresh_table" class="simple-text"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})"
+                title="{{menu_txt[40]}}">
+                    <img src="/static/lupa.png" width="24" height="24">
+        </button>
+        {% endif %}
+        {% if not par['no_search'] %}
+            <label title="{{menu_txt[15]}}">
+            <span style="color: var(--color-black, {{colors['black']}});">{{menu_txt[11]}}: </span>
+            <input type="search" name="search" size="50" value="{{par['search']}}" class="search" id="search_in_table"
+                   style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                   title="{{menu_txt[28] if par['title_search'] else menu_txt[16]}} {{par['title_search'] if par['title_search'] else ''}}"
+                   onkeydown="return event.key != 'Enter';">
+        {% endif %}
+        {% if par['close_top_tables'] != False %}
+    </p>
+        {% endif %}
+
+{% block scripts %}
+<script>
+    var loadingIcon = document.querySelector('#loadingIcon');
+    document.getElementById("search_in_table").addEventListener("keyup", function(e) {
+        if (e.keyCode === 13) {
+            loadingIcon.style.display = 'block';
+            document.forms['{{own}}'].submit();
+        }
+    });
+
+    function onClear(event) {
+        loadingIcon.style.display = 'block';
+        document.forms['{{own}}'].submit();
+    }
+
+    document.getElementById("search_in_table").addEventListener("search", onClear, function(e) {
+        if (e.keyCode === 13) {
+            loadingIcon.style.display = 'block';
+            document.forms['{{own}}'].submit();
+        }
+    });
+
+    $('#row_count').on('change', function() {
+        loadingIcon.style.display = 'block';
+        document.forms['{{own}}'].submit();
+    });
+</script>
+{% endblock %}

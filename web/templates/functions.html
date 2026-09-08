@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+
+{% block title %}
+    {{txt[0]}}
+{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" type="text/css" href="/static/css/functions.css" xmlns="http://www.w3.org/1999/html">
+<form method="post" name="{{own}}" id="{{own}}" data-ajax-form data-api-url="{{url_for('api_functions_data', user_id=user_id)}}">
+    {% include "include/select_language.html" %}
+    <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>
+    <input type="hidden" id="scroll" name="scroll" value="{{par['scroll']}}">
+    <div class="top">
+        <font size="4">
+            <b><span style="color: var(--color-black, {{colors['black']}});">Управление </span>
+                <button type="submit" class="simple-text" name="refresh" id="btn_refresh"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                        title="Все заново перечитать (с потерей не записанных изменений)">
+                    <u><span style="color: var(--color-green, {{colors['green']}});">Параметры микросервисов </span></u>
+                </button>
+            </b>
+        </font>
+        <button type="submit" class="simple-text" name="save" id="save_all"
+                style="display:none; background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
+                title="Записать информацию в базу данных">
+            <img src="/static/write_db.png" width="18" height="16">
+            <span style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"><u>Записать</u></span>
+        </button>
+        <button type="button" class="simple-text" id="refresh_all"
+                style="display:none; background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                title="Отменить все сделанные изменения">
+            <span style="background: var(--color-background, {{colors['background']}}); color: var(--color-green, {{colors['green']}});"><u>Восстановить</u></span>
+        </button>
+    </div>
+    <div class="new_function">
+        <button type="button" class="simple-text" id="btn_open_new_function"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                title="Создать новую функцию">
+            ➕ Новая функция
+        </button>
+        &nbsp;
+        <button type="button" class="simple-text" id="btn_open_new_parameter"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                title="Создать новый параметр функции">
+            ➕ Новый параметр
+        </button>
+    </div> <!-- new_function -->
+
+    <style>
+        #dlg_new_function::backdrop {
+            background: rgba(0, 0, 0, 0.6);
+        }
+        #dlg_new_function {
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7);
+        }
+    </style>
+    <dialog id="dlg_new_function"
+            style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});
+                   border: 1px solid var(--color-black, {{colors['black']}}); border-radius: 8px; padding: 20px; min-width: 400px;">
+        <b style="display:block; margin-bottom: 12px;">Новая функция</b>
+        <label style="display:block; margin-bottom: 8px;">
+            Ident:
+            <input id="name_function" name="name_function" type="search"
+                   value="{{par['name_function']}}" onkeydown="return event.key != 'Enter';"
+                   style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}}) !important; -webkit-text-fill-color: var(--color-black, {{colors['black']}}) !important; margin-left: 6px;">
+        </label>
+        <label style="display:block; margin-bottom: 16px;">
+            Description:
+            <input id="description_function" name="description_function" type="search"
+                   value="{{par['description_function']}}" onkeydown="return event.key != 'Enter';"
+                   style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}}) !important; -webkit-text-fill-color: var(--color-black, {{colors['black']}}) !important; margin-left: 6px; width: 250px;">
+        </label>
+        <div style="display:flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" class="simple-text" id="btn_cancel_new_function"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">Отмена</button>
+            <button type="submit" name="create_function" id="btn_create_function" class="simple-text" disabled
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}}); opacity: 0.4;"
+                    title="Записать функцию">💾 Сохранить</button>
+        </div>
+    </dialog>
+    <dialog id="dlg_new_parameter"
+            style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});
+                   border: 1px solid var(--color-black, {{colors['black']}}); border-radius: 8px; padding: 20px; min-width: 420px;">
+        <style>
+            #dlg_new_parameter::backdrop { background: rgba(0, 0, 0, 0.6); }
+            #dlg_new_parameter { box-shadow: 0 4px 24px rgba(0, 0, 0, 0.7); }
+        </style>
+        <b style="display:block; margin-bottom: 12px;">Новый параметр</b>
+        <label style="display:block; margin-bottom: 8px;">
+            Функция:
+            <select id="dlg_select_function" name="dlg_select_function"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-color-combobox, {{colors['color_combobox']}}); margin-left: 6px;">
+                {% include "include/functions_options.html" %}
+            </select>
+        </label>
+        <label style="display:block; margin-bottom: 8px;">
+            Code:
+            <input id="dlg_code_parameter" name="dlg_code_parameter" type="search"
+                   value="" onkeydown="return event.key != 'Enter';"
+                   style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}}) !important; -webkit-text-fill-color: var(--color-black, {{colors['black']}}) !important; margin-left: 6px;">
+        </label>
+        <label style="display:block; margin-bottom: 8px;">
+            Число:
+            <input id="dlg_is_number_parameter" name="dlg_is_number_parameter" type="checkbox"
+                   style="margin-left: 6px;" title="Признак: величина параметра число или строка">
+        </label>
+        <label style="display:block; margin-bottom: 16px;">
+            Комментарий:
+            <input id="dlg_comment_parameter" name="dlg_comment_parameter" type="search"
+                   value="" onkeydown="return event.key != 'Enter';"
+                   style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}}) !important; -webkit-text-fill-color: var(--color-black, {{colors['black']}}) !important; margin-left: 6px; width: 250px;">
+        </label>
+        <div style="display:flex; gap: 10px; justify-content: flex-end;">
+            <button type="button" class="simple-text" id="btn_cancel_new_parameter"
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">Отмена</button>
+            <button type="submit" name="create_parameter" id="btn_save_parameter" class="simple-text" disabled
+                    style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}}); opacity: 0.4;"
+                    title="Записать параметр">💾 Сохранить</button>
+        </div>
+    </dialog>
+    <div class="bottom" style="line-height: 1em; overflow: auto; background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
+            <table id="lawsTable" class="table table-hover table-bordered table-condensed">
+                <thead align="center" style="background: var(--color-select-background, {{colors['select_background']}}); color: var(--color-select-color, {{colors['select_color']}});">
+                    <tr>
+                        <th id="th_source" scope="col" title="Код параметра">Код</th>
+                        <th id="th_value" scope="col" title="Значение параметра">Значение</th>
+                        <th id="th_is_number" scope="col" title="Признак числового значения">Число</th>
+                        <th id="th_comment" scope="col" title="Комментарий к параметру">Комментарий</th>
+                        <th id="th_actions" scope="col" title="Действия со строкой">Действия</th>
+                        <th id="th_id" scope="col">ID</th>
+                    </tr>
+                </thead>
+                <tbody id="table_body">
+                    {% include "include/functions_table.html" %}
+                </tbody>
+            </table>
+    </div> <!-- bottom -->
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    window.FUNCTIONS_EXISTING_IDENTS = {{ par['functions'] | map(attribute='sh_name') | list | tojson }};
+</script>
+<script src="/static/js/functions.js"></script>
+{% endblock %}

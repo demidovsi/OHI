@@ -1,0 +1,90 @@
+    <div class="chart-container">
+        <p style="color: var(--color-blue, {{colors['blue']}});">История наблюдения с {{ par['min_date_channels'] }} по {{ par['max_date_channels'] }}
+            (всего сообщений: {{ par['total_messages_count'] }})</p>
+        </p>
+        <button type="button" id="resetZoomBtn" class="reset-zoom-btn"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
+                title="Сбросить зум графика">
+            ⤢ Сбросить зум
+        </button>
+        <div id="theme_engagement-chart">{{ par['chart'] | safe }}</div>
+    </div> <!-- chart-container -->
+    <script>
+        // Plotly-график собран сервером один раз (analyses.py, template=
+        // plotly_dark/plotly_white по теме НА МОМЕНТ рендера) и вставлен как
+        // готовый HTML+JS - как и Chart.js, сам не подстраивается под тему
+        // при мгновенном переключении (static/js/theme_switch.js). Вместо
+        // повторной генерации с сервера просто перекрашиваем уже
+        // нарисованный график через Plotly.relayout() цветами текущей темы
+        // сайта (а не встроенной палитрой plotly_dark) - для единообразия
+        // с остальной страницей.
+        (function () {
+            // --color-lightgray для сетки не годится: в светлой теме это
+            // почти белый #F0F8FF (задуман для лёгкого фона панелей, не для
+            // контрастной линии на белом фоне графика) - сетка становилась
+            // невидимой. Вместо него - сам цвет текста темы с прозрачностью:
+            // fg уже гарантированно контрастен фону в обеих темах (чёрный на
+            // белом / белый на чёрном), а alpha даёт нужную "лёгкость" линий.
+            function gridColorFrom(fg) {
+                var m = fg.match(/rgba?\(([^)]+)\)/);
+                if (!m) return fg;
+                var parts = m[1].split(',').slice(0, 3).join(',');
+                return 'rgba(' + parts + ', 0.25)';
+            }
+            function relayoutThemeEngagementChart() {
+                var div = document.querySelector('#theme_engagement-chart .plotly-graph-div');
+                if (!div || typeof Plotly === 'undefined') return;
+                var style = getComputedStyle(document.body);
+                var bg = style.backgroundColor;
+                var fg = style.color;
+                var grid = gridColorFrom(fg);
+                Plotly.relayout(div, {
+                    paper_bgcolor: bg,
+                    plot_bgcolor: bg,
+                    'font.color': fg,
+                    'legend.font.color': fg,
+                    'xaxis.color': fg,
+                    'yaxis.color': fg,
+                    'xaxis.gridcolor': grid,
+                    'yaxis.gridcolor': grid
+                });
+            }
+            relayoutThemeEngagementChart();
+            window.addEventListener('theme-changed', relayoutThemeEngagementChart);
+
+            // Зум - штатная возможность Plotly (выделение области мышью),
+            // ничего включать отдельно не нужно. Кнопка сброса зума мигает
+            // красным, пока график зумирован, чтобы было видно, что вид не
+            // полный - и молчит (обычный фон темы), когда зум сброшен.
+            var resetBtn = document.getElementById('resetZoomBtn');
+            var div = document.querySelector('#theme_engagement-chart .plotly-graph-div');
+            if (resetBtn && div && typeof Plotly !== 'undefined') {
+                // По умолчанию выделение мышью зумирует прямоугольник сразу по
+                // обеим осям - fixedrange на Y запрещает трогать её зумом/
+                // панорамированием, поэтому выделение области остаётся зумом
+                // только по X, а Y всегда показывает полный диапазон данных.
+                Plotly.relayout(div, {'yaxis.fixedrange': true});
+
+                div.on('plotly_relayout', function (eventData) {
+                    // Реагируем только на зум по оси X - изменения только по Y
+                    // (например, если кто-то тянет только по вертикали) кнопку
+                    // не трогают.
+                    var keys = Object.keys(eventData || {});
+                    var zoomedIn = keys.some(function (k) { return k.indexOf('xaxis.range[') !== -1; });
+                    var autoRange = keys.some(function (k) {
+                        return k.indexOf('xaxis.autorange') !== -1 && eventData[k] === true;
+                    });
+                    if (zoomedIn) {
+                        resetBtn.classList.add('reset-zoom-btn--active');
+                    } else if (autoRange) {
+                        resetBtn.classList.remove('reset-zoom-btn--active');
+                    }
+                });
+
+                resetBtn.addEventListener('click', function () {
+                    Plotly.relayout(div, {'xaxis.autorange': true, 'yaxis.autorange': true});
+                    resetBtn.classList.remove('reset-zoom-btn--active');
+                });
+            }
+        })();
+    </script>

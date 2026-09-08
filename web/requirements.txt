@@ -1,0 +1,14 @@
+-e ../shared
+flask
+flask_moment
+requests
+deep_translator
+py7zr
+google-cloud
+google-cloud-storage
+openai==0.28
+pandas
+plotly
+python-dotenv
+beautifulsoup4>=4.12
+lxml>=5.0

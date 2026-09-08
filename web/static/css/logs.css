@@ -1,0 +1,84 @@
+#logsTable {
+    width: 1400px;
+    border-collapse: collapse; /* Убираем двойные линии между ячейками */
+    border: none;
+}
+
+.top {
+    position: absolute;
+    min-height: 80px;
+    width: 1400px;
+}
+
+.top1 {
+    padding: 5px;
+}
+
+.datas {
+    position: absolute;
+    top: 160px;
+    border: none;
+    bottom: 70px;
+    overflow:auto;
+    padding-left: 10px;
+    direction: rtl; /* перемещает скроллбар влево */
+}
+
+.datas table {
+    direction: ltr; /* возвращает обычное направление для содержимого таблицы */
+    margin: 0 auto; /* Дополнительное выравнивание по центру */
+    _width: auto; /* Можно добавить, чтобы таблица занимала только нужное пространство */
+}
+
+.pages {
+    position: absolute;
+    padding-left: 100px;
+    bottom: 20px;
+    border: 1px solid #7a7b7e; /* Параметры рамки */
+    border: none; /* Убирает рамку */
+}
+
+textarea {
+    margin-top: 1px;
+    margin-bottom: 1px;
+    margin-left: 2px;
+    line-height: 1;
+    text-indent: 0em;
+    padding: 5px;
+    display: inline-table;
+}
+
+.comment_short {
+    border: none;
+    resize: none;
+    width: 600px;
+}
+
+.comment {
+    border: none;
+    resize: none;
+    width: 440px;
+}
+
+.file_name {
+    border: none;
+    resize: none;
+    width: 250px;
+}
+
+body {
+    font-family:Verdana;
+    font-size:14px;
+}
+
+.container {
+    margin: 10px;
+}
+
+#th_time {width: 140px;}
+#th_operation {width: 150px;}
+#th_source {width: 160px;}
+#th_td {width: 120px;}
+#th_page {width: 100px;}
+#th_law_id {width: 160px;}
+#th_comment {width: 290px;}

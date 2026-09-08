@@ -1,0 +1,16 @@
+<button class="{{ 'switch-menu-active' if par['switch'] == 'channels' else 'switch-menu' }}"
+        name="channels" type="submit" id="switch_channels"
+        title="Информация по сообщениям новостных каналов"
+        style="
+            background: {{ ('var(--color-lightgray, ' ~ colors['lightgray'] ~ ')') if par['switch'] == 'channels' else ('var(--color-background, ' ~ colors['background'] ~ ')') }};
+               color: {{ ('var(--color-green, ' ~ colors['green'] ~ ')') if par['switch'] == 'channels' else ('var(--color-black, ' ~ colors['black'] ~ ')') }}">
+    📢‍
+</button>
+<button class="{{ 'switch-menu-active' if par['switch'] == 'participation' else 'switch-menu' }}"
+        name="participation" type="submit" id="switch_participation"
+        title="Информация по вкладу новостных каналов в поиски по темам"
+        style="
+            background: {{ ('var(--color-lightgray, ' ~ colors['lightgray'] ~ ')') if par['switch'] == 'participation' else ('var(--color-background, ' ~ colors['background'] ~ ')') }};
+               color: {{ ('var(--color-green, ' ~ colors['green'] ~ ')') if par['switch'] == 'participation' else ('var(--color-black, ' ~ colors['black'] ~ ')') }}">
+    🧮‍
+</button>

@@ -1,0 +1,108 @@
+/* Нативная иконка календаря у input[type=date] всегда тёмная и не
+   подстраивается под тему сама - в тёмной теме сливалась с тёмным фоном
+   поля (background у #date_from/#date_to следует за темой, см.
+   include/guests_top.html). Тот же приём, что и в dates.css/search_words.css. */
+body[data-theme="black"] #date_from::-webkit-calendar-picker-indicator,
+body[data-theme="black"] #date_to::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
+.g-top {
+    position: absolute;
+    min-width: 900px;
+    width: 1250px;
+    left: 0; right: 0;
+    padding: 6px 8px;
+    overflow: auto;
+    z-index: 10;
+}
+
+.bottom {
+    position: absolute;
+    top: 175px;
+    bottom: 10px;
+    left: 0;
+    right: 0;
+    overflow: hidden;
+}
+
+.g-chart {
+    position: absolute;
+    top: 0; left: 10px; bottom: 20px;
+    width: 460px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 4px 8px;
+}
+
+.data {
+    position: absolute;
+    top: 0px;
+    bottom: 10px;
+    left: 470px;
+    right: 0;
+    overflow: hidden;
+}
+
+.g-table {
+    position: absolute;
+    top: 0;
+    left: 0px;
+    bottom: 70px;
+    right: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 0 8px;
+}
+
+.pages {
+    position: absolute;
+    left: 50px;
+    bottom: 30px;
+}
+
+.chart-wrap { position: relative; height: 400px; }
+
+.mode-btn {
+    border: 1px solid #aaa;
+    border-radius: 4px;
+    padding: 3px 12px;
+    cursor: pointer;
+    font-size: 0.88em;
+    margin-right: 4px;
+    border: none;
+}
+
+.mode-btn.active {
+    font-weight: bold;
+    border: 1px solid #aaa;
+    color: green;
+}
+
+.g-btn {
+    border: none; border-radius: 4px;
+    padding: 3px 12px; cursor: pointer;
+    font-size: 0.88em; margin-right: 4px;
+}
+
+.g-card {
+    border-radius: 6px; padding: 3px 12px;
+    margin: 2px; font-size: 0.82em;
+    display: inline-block; min-width: 110px;
+    text-align: center;
+}
+
+/* border-collapse:collapse вместе с position:sticky у thead (base.css)
+   давал артефакт при скролле - тонкая полоска "мусора" над залипающим
+   заголовком (тот же приём, что и в functions.css и т.д.). */
+#gTable { border-collapse: separate; border-spacing: 0; font-size: 0.85em; }
+#gTable th, #gTable td {
+    border-left: none; border-right: none;
+    padding: 3px 8px; white-space: nowrap;
+}
+#gTable td.num { text-align: right; }
+
+.g-table::-webkit-scrollbar { width: 5px; height: 5px; }
+.g-table::-webkit-scrollbar-thumb { background: #aaa; border-radius: 3px; }
+.g-table::-webkit-scrollbar-track { background: transparent; }
+.g-table { scrollbar-width: thin; }

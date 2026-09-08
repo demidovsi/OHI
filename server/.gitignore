@@ -1,0 +1,55 @@
+# PyCharm
+.idea/
+*.iws
+out/
+.idea_modules/
+
+# Виртуальные окружения
+venv/
+venv_win/
+env/
+ENV/
+.venv
+.env
+
+# Временные файлы Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Временные файлы
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Локальные конфигурационные файлы
+instance/
+.webassets-cache
+
+# Данные
+*.db
+*.sqlite3
+*.log
+*.json
+debug_*.html
+
+# ОС-специфичные файлы
+.DS_Store
+Thumbs.db

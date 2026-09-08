@@ -1,0 +1,57 @@
+name: Deploy web to Cloud Run
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'web/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-web.yml'
+
+env:
+  PROJECT_ID: playground-332710
+  REGION: europe-central2
+  SERVICE: llm-web
+  IMAGE: gcr.io/playground-332710/llm-web
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/16542874441/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-actions-deployer@playground-332710.iam.gserviceaccount.com
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for GCR
+        run: gcloud auth configure-docker gcr.io --quiet
+
+      - name: Build image
+        run: docker build -f web/Dockerfile -t "$IMAGE:${{ github.sha }}" -t "$IMAGE:latest" .
+
+      - name: Push image
+        run: |
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE:${{ github.sha }}" \
+            --platform managed \
+            --region "$REGION" \
+            --project "$PROJECT_ID" \
+            --allow-unauthenticated \
+            --timeout=300 \
+            --set-secrets=URL=llm-web-url:latest,KIRILL=llm-web-kirill:latest

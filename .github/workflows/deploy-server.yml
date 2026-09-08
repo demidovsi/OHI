@@ -1,0 +1,83 @@
+name: Deploy server — Build & Deploy
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'server/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-server.yml'
+
+env:
+  IMAGE: ghcr.io/demidovsi/llm-server
+
+jobs:
+  # ── 1. Сборка и публикация Docker-образа ─────────────────────────────────
+  build:
+    name: Build & push image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write            # нужно для push в ghcr.io
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.IMAGE }}:latest
+            ${{ env.IMAGE }}:${{ github.sha }}
+
+  # ── 2. Деплой на сервер по SSH ────────────────────────────────────────────
+  deploy:
+    name: Deploy to production
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}      # полное содержимое .env
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}      # PAT с правом read:packages
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: ENV_FILE,GHCR_PAT
+          script: |
+            set -e
+
+            # Записываем .env из секрета GitHub на сервер
+            mkdir -p /opt/llm-server
+            printf '%s' "$ENV_FILE" > /opt/llm-server/.env
+            chmod 600 /opt/llm-server/.env
+
+            # Авторизуемся в ghcr.io и тянем новый образ
+            echo "$GHCR_PAT" | docker login ghcr.io -u demidovsi --password-stdin
+            docker pull ghcr.io/demidovsi/llm-server:latest
+
+            # Перезапускаем контейнер
+            docker stop llm-server 2>/dev/null || true
+            docker rm   llm-server 2>/dev/null || true
+            docker run -d \
+              --name llm-server \
+              --restart unless-stopped \
+              --env-file /opt/llm-server/.env \
+              ghcr.io/demidovsi/llm-server:latest
+
+            # Удаляем устаревшие образы
+            docker image prune -f
