@@ -67,7 +67,7 @@
     <input type="hidden" id="scroll" name="scroll" value="{{par['scroll']}}">
     <div class="top">
         <div class="top1" style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">
-            <span style="font-size:18px; font-weight: bold; color: var(--color-green, {{colors['green']}});"> {{par['title']}} </span>
+<!--            <span style="font-size:18px; font-weight: bold; color: var(&#45;&#45;color-green, {{colors['green']}});"> {{par['title']}} </span>-->
             {% for switch, label, color in [
                             ('all_days', 'Вся информация', 'var(--color-green, ' ~ colors['green'] ~ ')'),
                             ('one_day', 'Выбранные сутки', 'var(--color-green, ' ~ colors['green'] ~ ')')
