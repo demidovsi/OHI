@@ -1,53 +1,61 @@
-/* Эта форма - жёсткая пиксельная раскладка (например .right ниже: left:1000px),
-   не умеет сжиматься под push закреплённой панели меню (menu2.css:
-   body.with-sidebar добавляет padding-left) - на нешироких окнах это либо
-   обрезает контент, либо вызывает горизонтальный/вертикальный скролл.
-   Поэтому на этой странице панель просто ложится поверх формы (как было
-   до появления push), а не сдвигает её. */
-body.with-sidebar {
-    padding-left: 0;
+/* Раскладка - как у logs.css (form/.datas без явного left, т.е. по обычному
+   потоку, ширина сама берётся из реально доступного места), но с сохранением
+   двух колонок (список + форма коррекции справа) - через flex, а не через
+   position:absolute с фиксированным left:1000px, как было раньше. Старый
+   вариант не подстраивался под ширину контейнера (не реагировал на push
+   закреплённой панели меню, обрезался на нешироких окнах). Теперь ширины
+   считаются от реально доступного места - не ломается ни от панели, ни от
+   размера окна. */
+form {
+    display: flex;
+    flex-direction: column;
+    /* Занимаем всю доступную высоту (как раньше - весь viewport), за вычетом
+       .container сверху и снизу (padding-top:50px + margin:10px*2, base.css)
+       и ещё 45px снизу под #user_name (include/select_language.html, base.css:
+       position:fixed; bottom:5px; right:5px) - без этого запаса .right
+       растягивался до самого низа viewport и вылезал из-под него. */
+    height: calc(100vh - 70px - 45px);
 }
 
 .top {
+    flex: 0 0 auto;
     width: 850px;
     min-width: 850px;
-    _border: 3px solid gray; /* Параметры рамки */
+}
+
+.body-row {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    min-height: 0; /* иначе flex-элементы не сжимаются и .data/.param не скроллятся, а растягивают страницу */
 }
 
 .left {
-    position: absolute;
-    left: 20px;
-    top: 240px;
-    width: 950px;
-    bottom: 50px;
-    _border: 3px solid gray; /* Параметры рамки */
-    _overflow: auto; /* Добавляем скроллбар, если контент не помещается */
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
 }
 
 .data {
-    position: absolute;
-    left: 0px;
-    top: 10px;
-    width: 950px;
-    bottom: 45px;
+    flex: 1 1 auto;
+    min-height: 0;
     border: 1px solid #7a7b7e; /* Параметры рамки */
     overflow: auto; /* Добавляем скроллбар, если контент не помещается */
 }
 
-.pages{
-    position: absolute;
-    bottom: 0px;
+.pages {
+    flex: 0 0 auto;
     padding-top: 10px;
     padding-left: 30px;
 }
 
 .right {
-    position: absolute;
-    left: 1000px;
-    top: 100px;
-    width: 420px;
-    _height: 750px;
-    bottom: 50px;
+    flex: 0 0 420px;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
     border: 1px solid #7a7b7e; /* Параметры рамки */
     overflow: auto;
 }
@@ -55,27 +63,30 @@ body.with-sidebar {
 #table_rss {
     border-collapse: collapse; /* Убираем двойные линии между ячейками */
     _border: 1px solid #7a7b7e; /* Параметры рамки */
+    /* Bootstrap .table задаёт width:100% - при узком .data (flex, гибкая
+       ширина) это сжимало бы колонки вместо горизонтального скролла.
+       min-width - тот же минимум, что раньше был жёстко на .data (950px) -
+       ниже него включается overflow:auto у .data, а не сжатие столбцов. */
+    min-width: 950px;
 }
 
 #th_id { width: 70px;}
 #th_name { width: 150px;}
 #th_url { width: 200px;}
 #th_lang { width: 50px;}
+#th_description { min-width: 220px;} /* растягивается, забирая свободное место - как было исходно */
 #th_type { width: 70px;}
 #th_article { width: 70px;}
 #th_categories { width: 100px; }
 
 .upr {
-    position: absolute;
+    flex: 0 0 auto;
     padding: 5px;
-    z-index: 1;
 }
 
 .param {
-    padding: 5px;
-    position: absolute;
-    top: 30px;
-    bottom: 0px;
+    flex: 1 1 auto;
+    min-height: 0;
     padding: 10px;
     overflow: auto;
 }
