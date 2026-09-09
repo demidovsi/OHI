@@ -8,6 +8,7 @@ from flask import flash, redirect, render_template
 
 import config
 import common
+import language
 from common import get, write_log, add
 
 # Нижняя граница по умолчанию для графиков, когда пользователь не задал
@@ -29,6 +30,18 @@ array_default = [
     {'key': 'period_type', 'value': 'day'},
     {'key': 'change_switch', 'value': False},
 ]
+
+
+def interval_phrase(days, to_lang, days_word):
+    """common.days_phrase даёт грамматически верную русскую форму (день/дня/
+    дней по числу) - для остальных языков такое согласование не воспроизвести
+    простой заменой слова через GoogleTranslator (число и слово переводятся
+    отдельно и независимо от контекста), поэтому не для 'ru' используем один
+    и тот же переведённый вариант слова независимо от числа (небольшая
+    грамматическая потеря, но корректный язык вместо всегда-русского)."""
+    if to_lang == 'ru':
+        return common.days_phrase(days)
+    return f"{days} {days_word}"
 
 
 def get_monday(date_str):
@@ -241,6 +254,8 @@ def load_list_themes(answer):
 def plot_channels_bar(answer, df, user_id, period='day'):
     if len(df) == 0:
         return
+    txt = language.get_lang(user_id, 'analyses', language.analyses)
+    to_lang = get(user_id, 'upr')['select_language']
     start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
     end_date = answer['end_date'] if answer['end_date'] else answer['max_date_channels']
     days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
@@ -249,18 +264,18 @@ def plot_channels_bar(answer, df, user_id, period='day'):
 
     if period == 'week':
         df['period'] = df['date'].dt.to_period('W').apply(lambda r: r.start_time)
-        group_label = 'По неделям'
+        group_label = txt[42]
     elif period == 'month':
         df['period'] = df['date'].dt.to_period('M').apply(lambda r: r.start_time)
-        group_label = 'По месяцам'
+        group_label = txt[43]
     else:
         df['period'] = df['date']
-        group_label = 'По дням'
+        group_label = txt[41]
 
     grouped = df.groupby('period', as_index=False)['message_count'].sum()
 
-    title = f"Активность сообщений {group_label.lower()} ({answer['messages_count']} или {answer['percent']} %)"
-    title += " ( интервал " + common.days_phrase(days) + " )"
+    title = f"{txt[40]} {group_label.lower()} ({answer['messages_count']} {txt[44]} {answer['percent']} %)"
+    title += f" ( {txt[45]} " + interval_phrase(days, to_lang, txt[53]) + " )"
     fig = px.bar(
         grouped,
         x='period',
@@ -268,7 +283,7 @@ def plot_channels_bar(answer, df, user_id, period='day'):
         title=title,
         height=600,
         template='plotly_dark' if get(user_id, 'theme') == 'black' else 'plotly_white',
-        labels={'period': group_label, 'message_count': 'Количество сообщений'},
+        labels={'period': group_label, 'message_count': txt[46]},
     )
 
     if len(df) < 7:
@@ -301,6 +316,8 @@ def plot_channels_bar(answer, df, user_id, period='day'):
 def plot_participation_bar(answer, df, user_id, period='day'):
     if len(df) == 0:
         return
+    txt = language.get_lang(user_id, 'analyses', language.analyses)
+    to_lang = get(user_id, 'upr')['select_language']
     start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
     end_date = answer['end_date'] if answer['end_date'] else answer['max_date_channels']
     days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
@@ -309,13 +326,13 @@ def plot_participation_bar(answer, df, user_id, period='day'):
 
     if period == 'week':
         df['period'] = df['date'].dt.to_period('W').apply(lambda r: r.start_time)
-        group_label = 'По неделям'
+        group_label = txt[42]
     elif period == 'month':
         df['period'] = df['date'].dt.to_period('M').apply(lambda r: r.start_time)
-        group_label = 'По месяцам'
+        group_label = txt[43]
     else:
         df['period'] = df['date']
-        group_label = 'По дням'
+        group_label = txt[41]
 
     df = df.groupby('period', as_index=False)[['count', 'message_count']].sum()
     has_theme = bool(answer['selected_theme']) and answer['selected_theme'] != 0
@@ -329,17 +346,17 @@ def plot_participation_bar(answer, df, user_id, period='day'):
                                  (df["message_count"] / df["count"] * 100.0).round(1),
                              np.nan)
         grouped = df.groupby('period', as_index=False)['percent'].sum()
-        y_col, y_label = 'percent', '% сообщений с темами'
-        title = f"Участие каналов в темах сообщений {group_label.lower()} ({answer['messages_count']} или {answer['percent']} %)"
+        y_col, y_label = 'percent', txt[48]
+        title = f"{txt[47]} {group_label.lower()} ({answer['messages_count']} {txt[44]} {answer['percent']} %)"
     else:
         # Без выбранной темы message_count (nsi_log_rss_history) не является
         # подмножеством count - это независимый счётчик, у их отношения нет
         # верхней границы в 100%, поэтому без темы показываем абсолютные
         # значения, а не бессмысленный "процент"
         grouped = df.groupby('period', as_index=False)['message_count'].sum()
-        y_col, y_label = 'message_count', 'Количество сообщений'
-        title = f"Участие каналов в темах сообщений {group_label.lower()} ({answer['messages_count']})"
-    title += " ( интервал " + common.days_phrase(days) + " )"
+        y_col, y_label = 'message_count', txt[46]
+        title = f"{txt[47]} {group_label.lower()} ({answer['messages_count']})"
+    title += f" ( {txt[45]} " + interval_phrase(days, to_lang, txt[53]) + " )"
     fig = px.bar(
         grouped,
         x='period',
@@ -379,14 +396,15 @@ def plot_participation_bar(answer, df, user_id, period='day'):
 
 def plot_channels_line(answer, df, user_id):
     if len(df) > 0:
+        txt = language.get_lang(user_id, 'analyses', language.analyses)
+        to_lang = get(user_id, 'upr')['select_language']
         # графики
         df["date"] = pd.to_datetime(df["date"])
         start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
         end_date = answer['end_date'] if answer['end_date'] else answer['max_date_channels']
         days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-        title = "Активность сообщений в каналах по дням ({count} или {percent} %)".format(count=answer['messages_count'],
-                                                                                          percent=answer['percent'])
-        title += " ( интервал " + common.days_phrase(days) + " )"
+        title = f"{txt[40]} {txt[41].lower()} ({answer['messages_count']} {txt[44]} {answer['percent']} %)"
+        title += f" ( {txt[45]} " + interval_phrase(days, to_lang, txt[53]) + " )"
         df['legend_name'] = df.groupby('name_channel')['message_count'].transform('sum')
         df['legend_name'] = df['name_channel'] + ' (' + df['legend_name'].astype(str) + ')'
 
@@ -399,9 +417,9 @@ def plot_channels_line(answer, df, user_id):
             template='plotly_dark' if get(user_id, 'theme') == 'black' else 'plotly_white',
             title=title,
             labels={
-                "date": "Дата",
-                "message_count": "Количество сообщений",
-                "legend_name": "Канал"
+                "date": txt[49],
+                "message_count": txt[46],
+                "legend_name": txt[50]
             }
         )
 
@@ -410,10 +428,10 @@ def plot_channels_line(answer, df, user_id):
         #     trace.connectgaps = False
 
         fig.update_layout(
-            xaxis_title="Дата",
-            yaxis_title="Сообщений",
+            xaxis_title=txt[49],
+            yaxis_title=txt[51],
             hovermode="x unified",
-            legend_title="Канал",
+            legend_title=txt[50],
             yaxis_range=[0, None],  # Установка начала оси Y с нуля
             height=600,  # высота в пикселях
             width=1400,  # ширина в пикселях (по желанию)
@@ -435,6 +453,8 @@ def plot_channels_line(answer, df, user_id):
 
 def plot_participation_line(answer, df, user_id):
     if len(df) > 0:
+        txt = language.get_lang(user_id, 'analyses', language.analyses)
+        to_lang = get(user_id, 'upr')['select_language']
         # графики
         df["date"] = pd.to_datetime(df["date"])
         start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
@@ -442,11 +462,10 @@ def plot_participation_line(answer, df, user_id):
         days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
         has_theme = bool(answer['selected_theme']) and answer['selected_theme'] != 0
         if has_theme:
-            title = "Участие каналов в темах сообщений по дням ({count} или {percent} %)".format(
-                count=answer['messages_count'], percent=answer['percent'])
+            title = f"{txt[47]} {txt[41].lower()} ({answer['messages_count']} {txt[44]} {answer['percent']} %)"
         else:
-            title = "Участие каналов в темах сообщений по дням ({count})".format(count=answer['messages_count'])
-        title += " ( интервал " + common.days_phrase(days) + " )"
+            title = f"{txt[47]} {txt[41].lower()} ({answer['messages_count']})"
+        title += f" ( {txt[45]} " + interval_phrase(days, to_lang, txt[53]) + " )"
         df['legend_name'] = df.groupby('name_channel')['message_count'].transform('sum')
         df['legend_name'] = df['name_channel'] + ' (' + df['legend_name'].astype(str) + ')'
 
@@ -456,11 +475,11 @@ def plot_participation_line(answer, df, user_id):
             df["percent"] = np.where(df["count"] > 0,
                                      df["message_count"] / df["count"] * 100.0,
                                      np.nan)
-            y_col, y_axis_title = "percent", "% сообщений"
+            y_col, y_axis_title = "percent", txt[52]
         else:
             # Без темы message_count не подмножество count - отношение
             # ничем не ограничено сверху, показываем абсолютные значения
-            y_col, y_axis_title = "message_count", "Сообщений"
+            y_col, y_axis_title = "message_count", txt[51]
 
         fig = px.line(
             df,
@@ -471,10 +490,10 @@ def plot_participation_line(answer, df, user_id):
             template='plotly_dark' if get(user_id, 'theme') == 'black' else 'plotly_white',
             title=title,
             labels={
-                "date": "Дата",
-                "message_count": "Количество сообщений",
-                "percent": "% сообщений",
-                "legend_name": "Канал"
+                "date": txt[49],
+                "message_count": txt[46],
+                "percent": txt[52],
+                "legend_name": txt[50]
             }
         )
 
@@ -483,10 +502,10 @@ def plot_participation_line(answer, df, user_id):
         #     trace.connectgaps = False
 
         fig.update_layout(
-            xaxis_title="Дата",
+            xaxis_title=txt[49],
             yaxis_title=y_axis_title,
             hovermode="x unified",
-            legend_title="Канал",
+            legend_title=txt[50],
             yaxis_range=[0, None],  # Установка начала оси Y с нуля
             height=600,  # высота в пикселях
             width=1400,  # ширина в пикселях (по желанию)

@@ -399,6 +399,16 @@ st = '\n({country}, {city})'.format(country=country, city=city) if is_ok and cou
 common.write_log_db('START WEB', 'Старт сайта', socket.gethostname() + '\n' + common.get_inform_about_os(),
                     law_id='OHI-web', file_name='IP=' + ip + st)
 language.load_list_languages()
+# Прогрев кэша переводов из static/language.json (собран заранее -
+# tools/generate_language_json.py, входит в докер-образ) один раз при
+# старте процесса. Раньше language.lang заполнялся с диска только внутри
+# login.py/main_ohi_web.py:one_new - если самый первый запрос к
+# переведённой странице в этом процессе шёл КАКИМ-ТО другим путём, lang
+# оставался пустым, и get_value_language ушёл бы за GoogleTranslator по
+# новой, а следующий save_lang() перезаписал бы весь файл на диске только
+# тем, что успело накопиться в памяти - теряя всё остальное, что уже было
+# в файле на момент старта.
+language.load_lang()
 
 if __name__ == '__main__':
     if os.path.exists('static/session.json'):

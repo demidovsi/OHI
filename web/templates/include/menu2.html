@@ -2,7 +2,7 @@
 {% if request.endpoint == 'news_board' %}
     {% set current.group, current.item = menu_txt[0], menu_txt[1] %}
 {% elif request.endpoint == 'analyses' %}
-    {% set current.group, current.item = menu_txt[0], 'Аналитика' %}
+    {% set current.group, current.item = menu_txt[0], menu_txt[41] %}
 {% elif request.endpoint == 'logs' %}
     {% set current.group, current.item = menu_txt[2], menu_txt[3] %}
 {% elif request.endpoint == 'guests' %}
@@ -10,7 +10,7 @@
 {% elif request.endpoint == 'functions' %}
     {% set current.group, current.item = menu_txt[2], menu_txt[4] %}
 {% elif request.endpoint == 'chat_logs' %}
-    {% set current.group, current.item = menu_txt[2], 'Лог чата' %}
+    {% set current.group, current.item = menu_txt[2], menu_txt[42] %}
 {% elif request.endpoint == 'search_words' %}
     {% set current.group, current.item = menu_txt[2], menu_txt[32] %}
 {% elif request.endpoint == 'rss' %}
@@ -56,7 +56,7 @@
             <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'news_board' else '' }}"
                    href="{{url_for('news_board', user_id=upr['user_id'])}}">📊{{menu_txt[1]}}</a></li>
             <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'analyses' else '' }}"
-                   href="{{url_for('analyses', user_id=upr['user_id'])}}">Аналитика</a></li>
+                   href="{{url_for('analyses', user_id=upr['user_id'])}}">{{menu_txt[41]}}</a></li>
         </ul>
     </div>
     <div class="sidebar-group">
@@ -73,7 +73,7 @@
                    href="{{url_for('functions', user_id=upr['user_id'])}}">⚙️{{menu_txt[4]}}</a></li>
         {% endif %}
             <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'chat_logs' else '' }}"
-                   href="{{url_for('chat_logs', user_id=upr['user_id'])}}">Лог чата</a></li>
+                   href="{{url_for('chat_logs', user_id=upr['user_id'])}}">{{menu_txt[42]}}</a></li>
             <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'search_words' else '' }}"
                    href="{{url_for('search_words', user_id=upr['user_id'])}}">{{menu_txt[32]}}</a></li>
             <li><a onclick="change_menu()" class="{{ 'active' if request.endpoint == 'rss' else '' }}"
