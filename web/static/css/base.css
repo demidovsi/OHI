@@ -256,7 +256,10 @@ button:hover {
     font-size: 2rem;
     color: #000;
     animation: spin 1s linear infinite;
-    z-index: 1000;
+    /* Выше Bootstrap-модалки (.modal z-index:1055, .modal-backdrop:1050) -
+       иначе часики оказываются под модалкой/подложкой и не видны, пока
+       модалка открыта (news_board.html: #nbm_modal). */
+    z-index: 1100;
 }
 
 @keyframes spin {

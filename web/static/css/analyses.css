@@ -117,7 +117,7 @@ p {
     font-size: 2rem;
     color: #000;
     animation: spin 1s linear infinite;
-    z-index: 1000;
+    z-index: 1100;
 }
 
 @keyframes spin {

@@ -15,7 +15,7 @@ import config
 import colors
 from ohi_shared.text_utils import decode, encode, str1000, get_duration  # noqa: F401
 
-version = 'version 1.4.3 - 09.09.2026'  # версия программы вэб сайта
+version = 'version 1.4.4 - 09.09.2026'  # версия программы вэб сайта
 app_lang = 'ru'
 current_path = ''
 

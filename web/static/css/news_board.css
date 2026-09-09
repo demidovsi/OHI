@@ -522,7 +522,10 @@ body[data-theme="black"] .modal-backdrop.show {
     left: 50%;
     transform: translate(-50%, -50%);
     animation: spin 1s linear infinite;
-    z-index: 1000;
+    /* Выше Bootstrap-модалки (.modal z-index:1055, .modal-backdrop:1050) -
+       иначе часики оказываются под модалкой/подложкой и не видны, пока
+       модалка открыта (#nbm_modal). */
+    z-index: 1100;
 }
 
 @keyframes spin {

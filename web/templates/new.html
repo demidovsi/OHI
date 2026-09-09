@@ -32,21 +32,21 @@
         </select>
         <span style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">ID={{par['new_id']}}</span>
         {% if par['unit']['lang'] != 'ru' and upr['admin'] %}
-            <button class="simple-text" name="translate_ru"
+            <button class="simple-text nb-translate-btn" name="translate_ru"
                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-green, {{colors['green']}});"
                     title="Перевести на русский язык">
                 <u>RU</u>
             </button>
         {% endif %}
         {% if par['unit']['lang'] != 'en' and upr['admin'] %}
-            <button class="simple-text" name="translate_en"
+            <button class="simple-text nb-translate-btn" name="translate_en"
                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
                     title="Перевести на английский язык">
                 <u>EN</u>
             </button>
         {% endif %}
         {% if par['unit']['lang'] != 'he' and upr['admin'] %}
-            <button class="simple-text" name="translate_he"
+            <button class="simple-text nb-translate-btn" name="translate_he"
                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
                     title="Перевести на иврит">
                 <u>HE</u>
@@ -141,6 +141,11 @@
         if (needArticleBtn) {
             needArticleBtn.addEventListener('click', function () { loadingIcon.style.display = 'block'; });
         }
+        // То же самое - для кнопок перевода (RU/EN/HE): запрос к ChatGPT
+        // (new.py:make_translate) тоже может занять заметное время.
+        document.querySelectorAll('.nb-translate-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () { loadingIcon.style.display = 'block'; });
+        });
 
     $(function() {
         $(document).ready(function () {

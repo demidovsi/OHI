@@ -270,18 +270,18 @@ var loadingIcon = document.querySelector('#loadingIcon');
         if (row) row.scrollIntoView({block: 'center', behavior: 'smooth'});
     }
 
-    document.querySelector('#nb_goto').addEventListener('click', function () {
-        var idStr = prompt(TXT[44]);
-        if (!idStr) return;
-        idStr = idStr.trim();
-        if (!/^\d+$/.test(idStr)) { alert(TXT[45]); return; }
+    // Находит дату новости по id (сервер) и позиционируется на неё - при
+    // необходимости подгружая нужные сутки. silent=true - для автоматического
+    // позиционирования на ранее выбранную новость при заходе на страницу
+    // (не беспокоим alert'ом, если её вдруг больше нет).
+    function gotoNewsId(idStr, silent) {
         showLoading();
         fetch(window.NEWS_BOARD_FIND_URL.replace(/0$/, idStr), {headers: {'X-Requested-With': 'XMLHttpRequest'}})
             .then(function (r) { return r.json(); })
             .then(function (json) {
                 hideLoading();
                 if (json.redirect) { window.location = json.redirect; return; }
-                if (!json.found) { alert(TXT[46]); return; }
+                if (!json.found) { if (!silent) alert(TXT[46]); return; }
                 if (dateInput.value === json.date) {
                     selectAndScroll(idStr);
                 } else {
@@ -289,6 +289,14 @@ var loadingIcon = document.querySelector('#loadingIcon');
                 }
             })
             .catch(function () { hideLoading(); });
+    }
+
+    document.querySelector('#nb_goto').addEventListener('click', function () {
+        var idStr = prompt(TXT[44]);
+        if (!idStr) return;
+        idStr = idStr.trim();
+        if (!/^\d+$/.test(idStr)) { alert(TXT[45]); return; }
+        gotoNewsId(idStr, false);
     });
 
     var searchTimer = null;
@@ -554,8 +562,26 @@ var loadingIcon = document.querySelector('#loadingIcon');
         openArticleModal(id);
     }
 
+    // Позиционирование на ранее выбранную новость (state.selectedId,
+    // запомнена в localStorage) при обычном заходе на страницу - без этого
+    // подсветка (rowHtml) была видна только если нужная новость случайно
+    // попадала в сутки первой загрузки. Пропускаем, если открытие страницы
+    // и так уже что-то позиционирует (select_id/open_id в URL).
+    function applySelectedOnLoad() {
+        if (!state.selectedId) return;
+        var params = new URLSearchParams(window.location.search);
+        if (params.get('select_id') || params.get('open_id')) return;
+        var row = tbody.querySelector('tr[data-id="' + state.selectedId + '"]');
+        if (row) {
+            row.scrollIntoView({block: 'center', behavior: 'smooth'});
+        } else {
+            gotoNewsId(state.selectedId, true);
+        }
+    }
+
     // ── старт ──
     setRows(window.NEWS_BOARD_INITIAL || []);
     applyReturnHighlight();
     applyOpenIdParam();
+    applySelectedOnLoad();
 })();
