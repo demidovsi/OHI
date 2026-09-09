@@ -15,7 +15,7 @@ import config
 import colors
 from ohi_shared.text_utils import decode, encode, str1000, get_duration  # noqa: F401
 
-version = 'version 1.3.9 - 09.09.2026'  # версия программы вэб сайта
+version = 'version 1.4.0 - 09.09.2026'  # версия программы вэб сайта
 app_lang = 'ru'
 current_path = ''
 
@@ -664,7 +664,7 @@ def create_user_address(user_id, request):
     country, city, is_ok = define_guest(st_address(request))
     if not is_ok:
         country = city = ''
-    user_address = f"{get(user_id, 'user_name')}; {st_address(request)}; system={st_system(request)} {country} {city}"
+    user_address = f"user={get(user_id, 'user_name')}; {st_address(request)}; system={st_system(request)} {country} {city}"
     add(user_id, 'user_address', user_address)
     add(user_id, 'country', country)
     add(user_id, 'city', city)

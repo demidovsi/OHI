@@ -105,10 +105,10 @@ def chat_logs(user_id):
     return render_template(
         'chat_logs.html', colors=get(user_id, 'upr')['colors'], upr=get(user_id, 'upr'), par=par,
         menu_txt=language.get_lang(user_id, 'menu', language.menu),
-        own='chat_logs')
+        own='chat_logs', languages=config.languages)
 
 
-@app.route('/news_board/<user_id>/', methods=('GET',))
+@app.route('/news_board/<user_id>/', methods=('GET', 'POST'))
 def news_board(user_id):
     par = c_news_board.prepare_form(user_id, request)
     users_session.users.save()
@@ -116,7 +116,8 @@ def news_board(user_id):
         return redirect(par['redirect'])
     return render_template(
         'news_board.html', colors=get(user_id, 'upr')['colors'], upr=get(user_id, 'upr'), par=par,
-        user_id=user_id, own='news_board', menu_txt=language.get_lang(user_id, 'menu', language.menu))
+        user_id=user_id, own='news_board', menu_txt=language.get_lang(user_id, 'menu', language.menu),
+        languages=config.languages)
 
 
 @app.route('/api/news_board/<user_id>/data', methods=('GET',))

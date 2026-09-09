@@ -10,11 +10,8 @@ form {
     display: flex;
     flex-direction: column;
     /* Занимаем всю доступную высоту (как раньше - весь viewport), за вычетом
-       .container сверху и снизу (padding-top:50px + margin:10px*2, base.css)
-       и ещё 45px снизу под #user_name (include/select_language.html, base.css:
-       position:fixed; bottom:5px; right:5px) - без этого запаса .right
-       растягивался до самого низа viewport и вылезал из-под него. */
-    height: calc(100vh - 70px - 45px);
+       .container сверху и снизу (padding-top:50px + margin:10px*2, base.css). */
+    height: calc(100vh - 70px);
 }
 
 .top {

@@ -1,21 +1,5 @@
-<div id="user_name" title="{{upr['version']}}">
-  <span style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}})">{{upr['user_name']}} </span>
-  {% if languages %}
-    <select class="combo" name="select_language" id="select_language"
-            title="{{menu_txt[30]}}"
-            style="background: var(--color-background, {{colors['background']}}); color: var(--color-yellow, {{colors['yellow']}})"
-            onchange="choose_language()">
-        {% for lang in languages %}
-            {% if lang['key'] == upr['select_language'] %}
-                <option value="{{lang['key']}}" selected>{{lang['key']}}</option>
-            {% else %}
-                <option value="{{lang['key']}}">{{lang['key']}}</option>
-            {% endif %}
-        {% endfor %}
-    </select>
-  {% endif %}
-    <!-- Кнопка переключения темы перенесена в topbar (include/menu2.html) -
-         здесь остаётся только скрытое поле, синхронизирующее текущую тему
-         с формой этой страницы (см. common.py: 'select_theme_form' in request.form). -->
-    <input type="hidden" name="select_theme_form" id="select_theme_form" value="{{upr['select_theme']}}">
-</div>
+<!-- Имя пользователя/версия и select языка перенесены в topbar
+     (include/menu2.html - тултип у "OHI" и select рядом с кнопкой темы).
+     Здесь остаётся только скрытое поле, синхронизирующее текущую тему
+     с формой этой страницы (см. common.py: 'select_theme_form' in request.form). -->
+<input type="hidden" name="select_theme_form" id="select_theme_form" value="{{upr['select_theme']}}">

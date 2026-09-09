@@ -41,6 +41,13 @@ body[data-theme="black"] {
 html[data-theme="white"] { background: white; }
 html[data-theme="black"] { background: black; }
 
+/* Нативная иконка календаря у input[type=date] всегда тёмная и не
+   подстраивается под тему сама - в тёмной теме сливалась с тёмным фоном
+   поля. Тот же приём, что и в guests.css/search_words.css. */
+body[data-theme="black"] #nb_date::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+}
+
 .theme-toggle-btn {
     height: 34px;
     border: 1px solid #7a7b7e;

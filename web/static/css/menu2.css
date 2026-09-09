@@ -53,8 +53,26 @@ header.topbar {
     white-space: nowrap;
 }
 
-.topbar-theme-btn {
+/* Группа справа в первой строке (select языка + кнопка темы) - margin-left:
+   auto на самой группе (а не на кнопке темы, как было раньше) прижимает её
+   целиком к правому краю, элементы внутри идут в обычном порядке. */
+.topbar-right {
     margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.topbar-lang-select {
+    height: 30px;
+    border: 1px solid var(--color-black, #7a7b7e);
+    border-radius: 7px;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+}
+
+.topbar-theme-btn {
     height: 30px;
     border: 1px solid var(--color-black, #7a7b7e);
     border-radius: 7px;

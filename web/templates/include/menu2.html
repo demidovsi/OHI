@@ -18,10 +18,31 @@
 {% endif %}
 <header class="topbar">
     <button type="button" id="sidebar_toggle_btn" class="sidebar-toggle-btn" title="Меню" onclick="toggle_sidebar()">☰</button>
-    <span class="topbar-title">📰 OHI{% if current.item %} — {{current.group}} / {{current.item}}{% endif %}</span>
-    <button type="button" id="theme_toggle_btn" class="theme-toggle-btn topbar-theme-btn"
-            title="Переключить цветовую тему"
-            onclick="toggle_theme()">{% if upr['select_theme'] == 'black' %}☀️{% else %}🌙{% endif %}</button>
+    <span class="topbar-title" title="{{upr['user_name']}} | {{upr['version']}}">📰 OHI{% if current.item %} — {{current.group}} / {{current.item}}{% endif %}</span>
+    <div class="topbar-right">
+        {% if languages %}
+        <!-- form="{{own}}" - select физически вне формы страницы (та лежит
+             внутри .container, а topbar - общий для всех страниц include), но
+             HTML5 form-атрибут связывает его с формой по id, так что
+             choose_language() (base.html: document.forms['{{own}}'].submit())
+             по-прежнему отправляет его значение вместе с остальными полями. -->
+        <select class="combo topbar-lang-select" name="select_language" id="select_language" form="{{own}}"
+                title="{{menu_txt[30]}}"
+                style="background: var(--color-background, {{colors['background']}}); color: var(--color-yellow, {{colors['yellow']}})"
+                onchange="choose_language()">
+            {% for lang in languages %}
+                {% if lang['key'] == upr['select_language'] %}
+                    <option value="{{lang['key']}}" selected>{{lang['key']}}</option>
+                {% else %}
+                    <option value="{{lang['key']}}">{{lang['key']}}</option>
+                {% endif %}
+            {% endfor %}
+        </select>
+        {% endif %}
+        <button type="button" id="theme_toggle_btn" class="theme-toggle-btn topbar-theme-btn"
+                title="Переключить цветовую тему"
+                onclick="toggle_theme()">{% if upr['select_theme'] == 'black' %}☀️{% else %}🌙{% endif %}</button>
+    </div>
 </header>
 
 <div id="loadingIcon" class="loading-icon"><img src="/static/waiting.png" width="128" height="128"></div>

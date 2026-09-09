@@ -66,6 +66,8 @@ def prepare_form(user_id, request):
     if st:
         answer['redirect'] = st
         return answer
+    if request.method == 'POST':
+        common.choose_language(user_id, request)
     answer['list_rss'] = []
     answer['themes'] = []
     load_list_rss(answer)

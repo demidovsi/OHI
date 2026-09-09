@@ -14,10 +14,8 @@ form {
     display: flex;
     flex-direction: column;
     /* Занимаем всю доступную высоту, за вычетом .container сверху и снизу
-       (padding-top:50px + margin:10px*2, base.css) и ещё 45px снизу под
-       #user_name (include/select_language.html, base.css: position:fixed;
-       bottom:5px; right:5px). */
-    height: calc(100vh - 70px - 45px);
+       (padding-top:50px + margin:10px*2, base.css). */
+    height: calc(100vh - 70px);
 }
 
 /* .container (base.css) - overflow:auto по обеим осям. Вертикальный скролл

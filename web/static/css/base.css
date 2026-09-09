@@ -158,15 +158,6 @@ thead th {
     width: auto;
 }
 
-#user_name {
-    position: fixed;
-    bottom: 5px;
-    right: 5px;
-    padding-top: 10px;
-    padding-right: 10px;
-    z-index: 100;
-}
-
 /* .topbar/.sidebar (menu2.css) сами фиксируют себя относительно viewport -
    обёртка .menu больше не должна позиционироваться/создавать свой
    stacking context, иначе элементы с более высоким z-index на странице

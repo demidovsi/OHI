@@ -108,15 +108,6 @@ p {
     overflow: auto;
 }
 
-#user_name {
-    position: fixed;
-    bottom: 5px;
-    right: 5px;
-    padding-top: 10px;
-    padding-right: 10px;
-    z-index: 100;
-}
-
 .loading-icon {
     display: none;
     position: fixed;

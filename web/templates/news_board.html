@@ -27,6 +27,12 @@
 
     <input type="hidden" id="select_theme_form" value="{{upr['select_theme']}}">
 
+    <!-- Пустая форма-цель для select языка в topbar (include/menu2.html:
+         form="news_board") - у страницы нет собственной <form> (данные
+         грузятся через AJAX, см. news_board.js), а choose_language() ниже
+         сабмитит именно её. -->
+    <form method="post" name="news_board" id="news_board"></form>
+
     <div class="nb-page">
         <div class="nb-toolbar" style="background: var(--color-background, {{colors['background']}});">
 <!--            <span class="nb-title">📰 <b>Новости</b></span>-->
@@ -183,6 +189,13 @@
         window.NEWS_BOARD_DELETE_URL = {{ url_for('api_news_board_delete', user_id=upr['user_id'], news_id=0) | tojson }};
         window.NEWS_BOARD_ARTICLE_URL = {{ url_for('new', user_id=upr['user_id'], new_id=0) | tojson }};
         window.NEWS_BOARD_ARTICLE_API_URL = {{ url_for('api_new_board', user_id=upr['user_id'], new_id=0) | tojson }};
+
+        // Страница не наследует base.html (там эта функция определена по
+        // умолчанию для select языка в topbar) - переключение темы не
+        // трогаем, оно уже мгновенное на клиенте (static/js/theme_switch.js).
+        function choose_language() {
+            document.forms['news_board'].submit();
+        }
     </script>
     <script src="/static/js/theme_switch.js"></script>
     <script src="/static/js/news_board.js"></script>
