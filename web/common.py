@@ -15,7 +15,7 @@ import config
 import colors
 from ohi_shared.text_utils import decode, encode, str1000, get_duration  # noqa: F401
 
-version = 'version 1.4.5 - 09.09.2026'  # версия программы вэб сайта
+version = 'version 1.4.6 - 09.09.2026'  # версия программы вэб сайта
 app_lang = 'ru'
 current_path = ''
 
@@ -607,6 +607,7 @@ def user_from_chat(request, new_id=None):
         'admin': 'admin' in get(user_id, 'rights'),
         'theme': 'black',
         'select_theme': 'black',
+        'version': version,
         'colors': colors.colors['black'],
         'time_zone': get(user_id, 'time_zone'),
         'select_language': 'ru'
