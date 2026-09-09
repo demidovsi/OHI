@@ -47,6 +47,7 @@
 <script>
     window.GUESTS_INITIAL_CHART_JSON = {{ par.get('chart_json', '{}') | tojson }};
     window.GUESTS_INITIAL_CHART_TITLE = {{ par.get('chart_title', '') | tojson }};
+    window.GUESTS_TXT = {{ txt | tojson }};
 </script>
 <script src="/static/js/guests.js"></script>
 {% endblock %}

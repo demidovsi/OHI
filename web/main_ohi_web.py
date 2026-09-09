@@ -105,6 +105,7 @@ def chat_logs(user_id):
     return render_template(
         'chat_logs.html', colors=get(user_id, 'upr')['colors'], upr=get(user_id, 'upr'), par=par,
         menu_txt=language.get_lang(user_id, 'menu', language.menu),
+        txt=language.get_lang(user_id, 'chat_logs', language.chat_logs),
         own='chat_logs', languages=config.languages)
 
 
@@ -240,8 +241,9 @@ def api_functions_data(user_id):
 
     colors = get(user_id, 'upr')['colors']
     upr = get(user_id, 'upr')
+    functions_txt = language.get_lang(user_id, 'functions', language.functions)
     return jsonify(
-        table_html=render_template('include/functions_table.html', par=par, colors=colors, upr=upr),
+        table_html=render_template('include/functions_table.html', par=par, colors=colors, upr=upr, txt=functions_txt),
         options_html=render_template('include/functions_options.html', par=par, colors=colors),
         existing_idents=[f['sh_name'] for f in par['functions'] if f.get('sh_name')],
         name_function=par.get('name_function', ''),
@@ -273,11 +275,12 @@ def api_guests_data(user_id):
 
     colors = get(user_id, 'upr')['colors']
     upr = get(user_id, 'upr')
+    guests_txt = language.get_lang(user_id, 'guests', language.guests)
     return jsonify(
         top_html=render_template('include/guests_top.html', par=par, colors=colors, upr=upr,
                                  menu_txt=language.get_lang(user_id, 'menu', language.menu),
-                                 languages=config.languages),
-        table_html=render_template('include/guests_table.html', par=par, colors=colors, upr=upr),
+                                 languages=config.languages, txt=guests_txt),
+        table_html=render_template('include/guests_table.html', par=par, colors=colors, upr=upr, txt=guests_txt),
         pages_html=render_template('include/pages_table.html', par=par, colors=colors, own='guests',
                                    menu_txt=language.get_lang(user_id, 'menu', language.menu)),
         chart_json=par.get('chart_json', '{}'),

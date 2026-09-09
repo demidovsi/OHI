@@ -49,7 +49,7 @@
                                 <th id="th_description" scope="col">{{txt[7]}}</th>
                                 <th id="th_type" scope="col">{{txt[8]}}</th>
                                 <th id="th_article" scope="col">{{txt[25]}}</th>
-                                <th id="th_categories" scope="col">Категории</th>
+                                <th id="th_categories" scope="col">{{txt[26]}}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -71,7 +71,7 @@
                                         <button name="corr_obj_{{data['id']}}" class="simple-text"
                                                 style="background: {{ ('var(--color-select-background, ' ~ colors['select_background'] ~ ')') if data['id'] == par['select_id'] else ('var(--color-background, ' ~ colors['background'] ~ ')') }};
                                                 color: {{ ('var(--color-select-color, ' ~ colors['select_color'] ~ ')') if data['id'] == par['select_id'] else ('var(--color-blue, ' ~ colors['blue'] ~ ')') }};"
-                                                title="Поместить данные в правую часть для коррекции">
+                                                title="{{txt[10]}}">
                                             <u>{{data['sh_name']}}</u>
                                         </button>
                                     {% else %}
@@ -176,10 +176,10 @@
                     <input type="text" value="{{par['unit']['type_rss_init']}}" id="type_rss_init" hidden>
                 </p>
 
-                <p><span style="color: var(--color-blue, {{colors['blue']}})">Категории:</span>
+                <p><span style="color: var(--color-blue, {{colors['blue']}})">{{txt[27]}}</span>
                 <textarea name="categories" class="textarea" id="categories"
                         style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
-                          title="Перечень категорий новостей через запятую"
+                          title="{{txt[28]}}"
                         onkeydown="if(event.keyCode===9){var v=this.value,s=this.selectionStart,e=this.selectionEnd;
                             this.value=v.substring(0, s)+'\t'+v.substring(e);
                             this.selectionStart=this.selectionEnd=s+1; return false;}">{{par['unit']['categories']}}</textarea>

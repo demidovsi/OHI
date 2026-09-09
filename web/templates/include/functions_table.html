@@ -7,29 +7,28 @@
             <td colspan="3">
                 <input type="text" class="text" name="function_name~{{unit['function']}}"
                        value="{{unit['name_function']}}" data-original="{{init_unit['name_function']}}"
-                       title="Имя функции" onkeydown="return event.key != 'Enter';"
+                       title="{{txt[41]}}" onkeydown="return event.key != 'Enter';"
                        style="width:100%; background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});">
             </td>
             <td>
                 <textarea class="text" name="function_description~{{unit['function']}}"
                        data-original="{{init_unit['description'] or ''}}"
-                       title="Описание функции"
+                       title="{{txt[42]}}"
                        style="width:100%; box-sizing:border-box; background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});">{{unit['description'] or ''}}</textarea>
             </td>
             <td class="row-actions" style="white-space: nowrap;">
                 <button type="submit" class="simple-text row-btn row-save"
                         name="corr_function_{{unit['function']}}" value="1"
                         style="display:none; background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
-                        title="Записать изменения функции">💾</button>
+                        title="{{txt[43]}}">💾</button>
                 <button type="button" class="simple-text row-btn row-restore"
-                        title="Восстановить значения"
+                        title="{{txt[44]}}"
                         style="display:none; background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
                         onclick="restoreRow(this)">&#8634;</button>
                 <button type="submit" class="simple-text row-btn row-delete"
                         name="delete_function_{{unit['function']}}" value="1"
-                        title="Удалить функцию и все ее параметры"
-                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
-                        onclick="return confirm('Удалить функцию и все ее параметры?')">🗑️</button>
+                        title="{{txt[45]}}"
+                        style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});">🗑️</button>
             </td>
             <td style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">{{unit['function']}}</td>
         </tr>
@@ -38,7 +37,7 @@
         <td>
             <input type="text" class="text" name="code~{{unit['id']}}"
                    value="{{unit['code']}}" data-original="{{init_unit['code']}}"
-                   title="Код параметра" onkeydown="return event.key != 'Enter';"
+                   title="{{txt[12]}}" onkeydown="return event.key != 'Enter';"
                    style="width:100%; background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">
         </td>
         <td>
@@ -46,13 +45,13 @@
             <input class="val-input" name="val~{{unit['id']}}" value="{{unit['value']}}"
                    data-original="{{init_unit['value']}}"
                    type="number"
-                   title="Числовое значение параметра"
+                   title="{{txt[24]}}"
                    onkeydown="return event.key != 'Enter';"
                    style="width:100%; box-sizing:border-box; background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}}) !important;">
             {% else %}
             <textarea class="val-input text" name="val~{{unit['id']}}"
                    data-original="{{init_unit['value']}}"
-                   title="Текстовое значение параметра"
+                   title="{{txt[25]}}"
                    style="width:100%; box-sizing:border-box; background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}}) !important;">{{unit['value']}}</textarea>
             {% endif %}
         </td>
@@ -60,28 +59,27 @@
             <input type="checkbox" name="is_number~{{unit['id']}}"
                    data-original="{{ '1' if init_unit['is_number'] == 1 else '0' }}"
                    {% if unit['is_number'] == 1 %}checked{% endif %}
-                   title="Числовое значение">
+                   title="{{txt[50]}}">
         </td>
         <td>
             <textarea class="text" name="sh_name~{{unit['id']}}"
                    data-original="{{init_unit['sh_name'] or ''}}"
-                   title="Комментарий к параметру"
+                   title="{{txt[21]}}"
                    style="width:100%; box-sizing:border-box; background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});">{{unit['sh_name'] or ''}}</textarea>
         </td>
         <td class="row-actions" style="white-space: nowrap;">
             <button type="submit" class="simple-text row-btn row-save"
                     name="corr_parameter_{{unit['id']}}" value="1"
                     style="display:none; background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
-                    title="Записать изменения строки">💾</button>
+                    title="{{txt[46]}}">💾</button>
             <button type="button" class="simple-text row-btn row-restore"
                     style="display:none; background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
-                    title="Восстановить значения строки"
+                    title="{{txt[47]}}"
                     onclick="restoreRow(this)">&#8634;</button>
             <button type="submit" class="simple-text row-btn row-delete"
-                    name="delete_parameter_{{unit['id']}}" value="1"
+                    name="delete_parameter_{{unit['id']}}" value="1" data-code="{{unit['code']}}"
                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
-                    title="Удалить параметр"
-                    onclick="return confirm('Удалить параметр ID={{unit['id']}} с именем [{{unit['code']}}]?')">🗑️</button>
+                    title="{{txt[48]}}">🗑️</button>
         </td>
     <td align="right" style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});">{{unit['id']}}</td>
     </tr>{% endif %}

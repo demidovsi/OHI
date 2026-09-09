@@ -10,6 +10,8 @@ var loadingIcon = document.querySelector('#loadingIcon');
 (function () {
     document.body.style.display = 'block';
 
+    const GTXT = window.GUESTS_TXT || [];
+
     const form = document.forms['guests'];
     if (!form) {
         return;
@@ -121,7 +123,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
                         tooltip: {
                             callbacks: {
                                 label: function (c) {
-                                    return ' ' + c.parsed.x.toLocaleString('ru') + ' посещений';
+                                    return ' ' + c.parsed.x.toLocaleString('ru') + ' ' + GTXT[17];
                                 }
                             }
                         }

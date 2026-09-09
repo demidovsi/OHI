@@ -9,25 +9,25 @@
         <button type="button" class="mode-btn {% if par['view_mode']=='guests' %}active{% endif %}"
                 id="btn_guests"
                 style="background:var(--color-background, {{colors['background']}});color:var(--color-blue, {{colors['blue']}});">
-            Посетители
+            {{txt[0]}}
         </button>
         <button type="button" class="mode-btn {% if par['view_mode']=='pages' %}active{% endif %}"
                 id="btn_pages"
                 style="background:var(--color-background, {{colors['background']}});color:var(--color-blue, {{colors['blue']}});">
-            Страницы
+            {{txt[1]}}
         </button>
     </span>
 
     {# ── Фильтры ── #}
     <span style="margin-left:18px;display:inline-flex;align-items:center;gap:8px;">
-        С:&nbsp;<input type="date" name="date_from" id="date_from" value="{{par.get('date_from','')}}"
+        {{txt[2]}}&nbsp;<input type="date" name="date_from" id="date_from" value="{{par.get('date_from','')}}"
                style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});border:1px solid #aaa;border-radius:4px;padding:2px 5px;width:120px;">
-        По:&nbsp;<input type="date" name="date_to" id="date_to" value="{{par.get('date_to','')}}"
+        {{txt[3]}}&nbsp;<input type="date" name="date_to" id="date_to" value="{{par.get('date_to','')}}"
                style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});border:1px solid #aaa;border-radius:4px;padding:2px 5px;width:120px;">
     </span>
     <span style="margin-left:12px;">
         <input type="search" name="search" id="search" value="{{par.get('search','')}}"
-               placeholder="Поиск..." maxlength="60"
+               placeholder="{{txt[4]}}" maxlength="60"
                style="background:var(--color-background, {{colors['background']}});color:var(--color-black, {{colors['black']}});border:1px solid #aaa;border-radius:4px;padding:2px 8px;width:180px;">
     </span>
     <button type="submit" class="simple-text" style="background:var(--color-background, {{colors['background']}}); color:#fff; margin-left:6px;">
@@ -39,20 +39,20 @@
     {% if s %}
     <div style="margin-top:6px;">
         <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
-            Всего гостей: <b>{{s.get('total_guests', '—')}}</b>
+            {{txt[5]}} <b>{{s.get('total_guests', '—')}}</b>
         </span>
         <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
-            Активных: <b>{{s.get('active_guests', '—')}}</b>
+            {{txt[6]}} <b>{{s.get('active_guests', '—')}}</b>
         </span>
         <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
-            Всего посещений: <b>{{s.get('total_visits', '—')}}</b>
+            {{txt[7]}} <b>{{s.get('total_visits', '—')}}</b>
         </span>
         <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
-            Уникальных страниц: <b>{{s.get('total_pages', '—')}}</b>
+            {{txt[8]}} <b>{{s.get('total_pages', '—')}}</b>
         </span>
         {% if par.get('count') is not none %}
         <span class="g-card" style="background:var(--color-select-background, {{colors['select_background']}});color:var(--color-select-color, {{colors['select_color']}});">
-            Записей в таблице: <b>{{par['count']}}</b>
+            {{txt[9]}} <b>{{par['count']}}</b>
         </span>
         {% endif %}
     </div>

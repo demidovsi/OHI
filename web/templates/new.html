@@ -34,36 +34,36 @@
         {% if par['unit']['lang'] != 'ru' and upr['admin'] %}
             <button class="simple-text nb-translate-btn" name="translate_ru"
                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-green, {{colors['green']}});"
-                    title="Перевести на русский язык">
+                    title="{{txt[15]}}">
                 <u>RU</u>
             </button>
         {% endif %}
         {% if par['unit']['lang'] != 'en' and upr['admin'] %}
             <button class="simple-text nb-translate-btn" name="translate_en"
                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
-                    title="Перевести на английский язык">
+                    title="{{txt[16]}}">
                 <u>EN</u>
             </button>
         {% endif %}
         {% if par['unit']['lang'] != 'he' and upr['admin'] %}
             <button class="simple-text nb-translate-btn" name="translate_he"
                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-red, {{colors['red']}});"
-                    title="Перевести на иврит">
+                    title="{{txt[17]}}">
                 <u>HE</u>
             </button>
         {% endif %}
         <button class="simple-text" name="need_article" id="need_article"
                 style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
-                title="Заново прочитать статью с сайта (только для админа)"
+                title="{{txt[19]}}"
                 {% if not upr['admin'] %} disabled {% endif %}>
-            <u>Статья</u>
+            <u>{{txt[18]}}</u>
         </button>
         <span class="row1-right" style="color: var(--color-black, {{colors['black']}});">
             {{txt[11]}}=<span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['file']}}</span>,
             {{txt[12]}} [<span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['lang']}}</span>]
             <button class="simple-text" name="load_file"
                     style="background: var(--color-background, {{colors['background']}}); color: var(--color-blue, {{colors['blue']}});"
-                    title="Загрузить файл в исходном языке">
+                    title="{{txt[20]}}">
                 <img src="/static/load_cloud.png" width="18" height="18">
             </button>
         </span>
@@ -106,7 +106,7 @@
                 </p>
             {% endif %}
             {% if par['unit']['author'] %}
-                <p class="text">Автор: <span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['author']}}</span></p>
+                <p class="text">{{txt[21]}} <span style="color: var(--color-green, {{colors['green']}})">{{par['unit']['author']}}</span></p>
             {% endif %}
         </div> <!-- left_bottom -->
         <div class="right">

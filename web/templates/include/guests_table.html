@@ -12,11 +12,11 @@
     </colgroup>
     <thead style="background: var(--color-select-background, {{colors['select_background']}}); color: var(--color-select-color, {{colors['select_color']}});">
         <tr>
-            <th>IP-адрес</th>
-            <th>Страна</th>
-            <th>Город</th>
-            <th style="text-align:right;">Визитов</th>
-            <th>Последний визит</th>
+            <th>{{txt[10]}}</th>
+            <th>{{txt[11]}}</th>
+            <th>{{txt[12]}}</th>
+            <th style="text-align:right;">{{txt[13]}}</th>
+            <th>{{txt[14]}}</th>
         </tr>
     </thead>
     <tbody>
@@ -33,7 +33,7 @@
         </td>
     </tr>
     {% else %}
-    <tr><td colspan="5" style="color:#aaa;padding:20px;text-align:center;">Нет данных</td></tr>
+    <tr><td colspan="5" style="color:#aaa;padding:20px;text-align:center;">{{txt[15]}}</td></tr>
     {% endfor %}
     </tbody>
 </table>
@@ -50,10 +50,10 @@
     </colgroup>
     <thead style="background: var(--color-select-background, {{colors['select_background']}}); color: var(--color-select-color, {{colors['select_color']}});">
         <tr>
-            <th>Страница</th>
-            <th style="text-align:right;">Посещений</th>
-            <th style="text-align:right;">Гостей</th>
-            <th>Последнее</th>
+            <th>{{txt[16]}}</th>
+            <th style="text-align:right;">{{txt[17]}}</th>
+            <th style="text-align:right;">{{txt[18]}}</th>
+            <th>{{txt[19]}}</th>
         </tr>
     </thead>
     <tbody>
@@ -69,7 +69,7 @@
         </td>
     </tr>
     {% else %}
-    <tr><td colspan="4" style="color:#aaa;padding:20px;text-align:center;">Нет данных</td></tr>
+    <tr><td colspan="4" style="color:#aaa;padding:20px;text-align:center;">{{txt[15]}}</td></tr>
     {% endfor %}
     </tbody>
 </table>

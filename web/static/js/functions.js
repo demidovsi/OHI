@@ -10,6 +10,8 @@ var loadingIcon = document.querySelector('#loadingIcon');
 (function () {
     document.body.style.display = 'block';
 
+    const TXT = window.FUNCTIONS_TXT || [];
+
     const form = document.forms['functions'];
     if (!form) {
         return;
@@ -95,7 +97,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
         if (!oldEl) return;
         var wantsTextarea = !isNumber;
         var isTextarea = oldEl.tagName === 'TEXTAREA';
-        var title = (isNumber ? 'Числовое' : 'Текстовое') + ' значение параметра';
+        var title = isNumber ? TXT[24] : TXT[25];
         if (isTextarea === wantsTextarea) {
             // Уже нужный тип элемента - для input ещё поправить сам type.
             if (!wantsTextarea) oldEl.type = 'number';
@@ -163,7 +165,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
         var valInput = row.querySelector('.val-input');
         if (valInput) {
             if (input.checked && valInput.value !== '' && isNaN(Number(valInput.value))) {
-                alert('Значение "' + valInput.value + '" не является числом. Исправьте значение перед переключением.');
+                alert(TXT[51] + valInput.value + TXT[52]);
                 input.checked = false;
                 return;
             }
@@ -304,10 +306,25 @@ var loadingIcon = document.querySelector('#loadingIcon');
 
     form.addEventListener('submit', function (event) {
         event.preventDefault();
-        if (event.submitter && event.submitter.name === 'refresh' && hasUnsavedChanges()) {
-            if (!confirm('Есть несохранённые изменения. Перечитать данные и потерять их?')) {
+        var submitterName = event.submitter ? event.submitter.name : '';
+        if (submitterName === 'refresh' && hasUnsavedChanges()) {
+            if (!confirm(TXT[53])) {
                 return;
             }
+        }
+        // Подтверждение удаления - раньше было в разметке (onclick="return
+        // confirm('...')" в functions_table.html), с переведённым текстом
+        // внутри так рискованно: Jinja экранирует апостроф в '&#39;', браузер
+        // при разборе HTML-атрибута декодирует его обратно в ' ДО того, как
+        // JS разберёт строку - переведённый текст с апострофом (например
+        // английское "it's") преждевременно закрыл бы строковый литерал.
+        // Здесь же - обычная конкатенация JS-строк, без этого риска.
+        if (submitterName.indexOf('delete_function_') === 0) {
+            if (!confirm(TXT[45] + '?')) return;
+        } else if (submitterName.indexOf('delete_parameter_') === 0) {
+            var id = submitterName.slice('delete_parameter_'.length);
+            var code = event.submitter.dataset.code || '';
+            if (!confirm(TXT[49] + id + TXT[54] + code + ']?')) return;
         }
         doFetch(event.submitter);
     });

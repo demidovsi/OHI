@@ -1,11 +1,11 @@
     <div class="chart-container">
-        <p style="color: var(--color-blue, {{colors['blue']}});">История наблюдения с {{ par['min_date_channels'] }} по {{ par['max_date_channels'] }}
-            (всего сообщений: {{ par['total_messages_count'] }})</p>
+        <p style="color: var(--color-blue, {{colors['blue']}});">{{txt[37]}} {{ par['min_date_channels'] }} {{txt[38]}} {{ par['max_date_channels'] }}
+            ({{txt[39]}} {{ par['total_messages_count'] }})</p>
         </p>
         <button type="button" id="resetZoomBtn" class="reset-zoom-btn"
                 style="background: var(--color-background, {{colors['background']}}); color: var(--color-black, {{colors['black']}});"
-                title="Сбросить зум графика">
-            ⤢ Сбросить зум
+                title="{{txt[35]}}">
+            ⤢ {{txt[36]}}
         </button>
         <div id="theme_engagement-chart">{{ par['chart'] | safe }}</div>
     </div> <!-- chart-container -->
