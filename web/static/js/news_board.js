@@ -513,13 +513,14 @@ var loadingIcon = document.querySelector('#loadingIcon');
         el.addEventListener('input', calcModalChange);
     });
 
-    // При закрытии модалки (без перехода со страницы) просто подсвечиваем
-    // строку, из которой была открыта статья - так пользователь сразу видит,
-    // где остановился, не теряя ни фильтров, ни прокрутки, ни выбранной даты.
+    // При закрытии модалки (без перехода со страницы) подсвечиваем и
+    // прокручиваем к строке, из которой была открыта статья - так
+    // пользователь сразу видит, где остановился (важно и для open_id, см.
+    // applyOpenIdParam ниже - там таблица могла показывать не тот день, и
+    // строка до подгрузки данных вообще не существовала в DOM).
     modalEl.addEventListener('hidden.bs.modal', function () {
         if (!currentArticleId) return;
-        setSelected(currentArticleId);
-        render();
+        selectAndScroll(currentArticleId);
         currentArticleId = null;
     });
 
@@ -559,18 +560,34 @@ var loadingIcon = document.querySelector('#loadingIcon');
         params.delete('open_id');
         var query = params.toString();
         window.history.replaceState(null, '', window.location.pathname + (query ? '?' + query : ''));
-        openArticleModal(id);
+
+        // Таблица по умолчанию показывает сегодняшние сутки - новость из
+        // ссылки может быть за любой день. Без подгрузки нужной даты строки
+        // для неё вообще не будет в DOM, и после закрытия модалки
+        // (selectAndScroll в hidden.bs.modal) позиционироваться было бы не
+        // на что - тот же приём, что и в "Перейти к новости по ID" (gotoNewsId).
+        var open = function () { setSelected(id); openArticleModal(id); };
+        fetch(window.NEWS_BOARD_FIND_URL.replace(/0$/, id), {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                if (json.redirect) { window.location = json.redirect; return; }
+                if (!json.found || dateInput.value === json.date) { open(); return; }
+                loadDate(json.date, open);
+            })
+            .catch(open);
     }
 
     // Позиционирование на ранее выбранную новость (state.selectedId,
     // запомнена в localStorage) при обычном заходе на страницу - без этого
     // подсветка (rowHtml) была видна только если нужная новость случайно
-    // попадала в сутки первой загрузки. Пропускаем, если открытие страницы
-    // и так уже что-то позиционирует (select_id/open_id в URL).
+    // попадала в сутки первой загрузки. Не вызывается вовсе, если открытие
+    // страницы и так уже что-то позиционирует (select_id/open_id в URL) -
+    // см. флаги ниже: applyReturnHighlight/applyOpenIdParam удаляют свой
+    // параметр из URL СРАЗУ (до завершения своей, местами асинхронной,
+    // работы), так что проверять window.location.search здесь было бы уже
+    // поздно - к этому моменту параметра там не найти.
     function applySelectedOnLoad() {
         if (!state.selectedId) return;
-        var params = new URLSearchParams(window.location.search);
-        if (params.get('select_id') || params.get('open_id')) return;
         var row = tbody.querySelector('tr[data-id="' + state.selectedId + '"]');
         if (row) {
             row.scrollIntoView({block: 'center', behavior: 'smooth'});
@@ -580,8 +597,11 @@ var loadingIcon = document.querySelector('#loadingIcon');
     }
 
     // ── старт ──
+    var startParams = new URLSearchParams(window.location.search);
+    var hadSelectId = !!startParams.get('select_id');
+    var hadOpenId = !!startParams.get('open_id');
     setRows(window.NEWS_BOARD_INITIAL || []);
     applyReturnHighlight();
     applyOpenIdParam();
-    applySelectedOnLoad();
+    if (!hadSelectId && !hadOpenId) applySelectedOnLoad();
 })();
