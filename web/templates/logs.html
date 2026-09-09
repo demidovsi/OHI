@@ -147,6 +147,10 @@
 
 {% block scripts %}
   <script>
+    // IIFE - см. комментарий в rss.html (повторное исполнение этого же
+    // script-тега при смене языка без полной перезагрузки, ohi_soft_reload
+    // в menu2.html).
+    (function () {
         const scroller = document.querySelector('.datas');
         const scroll = document.querySelector("#scroll")
         var loadingIcon = document.querySelector('#loadingIcon');
@@ -171,6 +175,7 @@
     document.getElementById('{{own}}').addEventListener('submit', function(event) {
         const submitter = event.submitter;
         loadingIcon.style.display = 'block'; });
+    })();
 </script>
 
 {% endblock %}

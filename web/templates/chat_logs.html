@@ -205,6 +205,10 @@
     {{ moment.include_moment()}}
     {{ moment.lang('ru') }}
     <script>
+    // IIFE - см. комментарий в rss.html (повторное исполнение этого же
+    // script-тега при смене языка без полной перезагрузки, ohi_soft_reload
+    // в menu2.html).
+    (function () {
         const scroller = document.querySelector('.datas');
         const scroll = document.querySelector("#scroll")
         var loadingIcon = document.querySelector('#loadingIcon');
@@ -254,6 +258,10 @@
             setHeight();
             window.addEventListener('resize', setHeight);
         };
+        // 'load' уже отработал к моменту повторного исполнения этого script-
+        // тега (ohi_soft_reload) - без прямого вызова часики остались бы
+        // висеть до первого resize.
+        setHeight();
 
         var autoRefreshTimer = null;
 
@@ -322,5 +330,6 @@
                 if (e.key === 'Escape') closeModal();
             });
         })();
+    })();
     </script>
 {% endblock %}

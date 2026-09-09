@@ -35,15 +35,21 @@
 {% block scripts %}
 <script>
         var loadingIcon = document.querySelector('#loadingIcon');
-        document.getElementById("page_number").addEventListener("keyup", function(e) {
-            if (e.keyCode === 13) {
+        // #page_number рендерится только когда есть больше одной страницы
+        // (см. условие в начале файла) - без проверки на null это падало
+        // бы каждый раз, когда результат укладывается в одну страницу.
+        var pageNumberInput = document.getElementById("page_number");
+        if (pageNumberInput) {
+            pageNumberInput.addEventListener("keyup", function(e) {
+                if (e.keyCode === 13) {
+                    loadingIcon.style.display = 'block';
+                    document.forms['{{own}}'].requestSubmit();
+                    }
+            });
+            $('#page_number').on('change', function() {
                 loadingIcon.style.display = 'block';
                 document.forms['{{own}}'].requestSubmit();
-                }
-        });
-        $('#page_number').on('change', function() {
-            loadingIcon.style.display = 'block';
-            document.forms['{{own}}'].requestSubmit();
-        });
+            });
+        }
 </script>
 {% endblock %}

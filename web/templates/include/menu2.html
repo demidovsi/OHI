@@ -95,6 +95,69 @@
         loadingIcon.style.display = 'block';
     }
 
+    // Смена языка интерфейса без полной перезагрузки страницы (обычная
+    // choose_language() в base.html/analyses.html/news_board.html вызывает
+    // это вместо document.forms[own].submit()). Текст на странице приходит
+    // с сервера (language.py: txt[N] в шаблоне), а не из CSS, как у темы
+    // (static/js/theme_switch.js) - поэтому вместо submit делаем fetch того
+    // же URL, получаем HTML и подменяем <body> целиком.
+    //
+    // <script> из полученного HTML браузер НЕ исполняет при вставке через
+    // innerHTML (это касается только script - в отличие от <link>/<style>,
+    // которые применяются как обычно) - без этого вся разметка обновилась
+    // бы, но обработчики кликов/AJAX-форм на ней остались бы неживыми.
+    // Пересоздаём и добавляем заново каждый инлайн-script и свои собственные
+    // static/js/*.js (список ниже) - но НЕ сторонние библиотеки (jQuery,
+    // Bootstrap, Chart.js, highlight-плагин и т.п., в т.ч. свои же файлы,
+    // которые ИХ просто хранят локально) - они уже загружены в этом же
+    // JS-окружении и повторное исполнение либо не нужно, либо просто
+    // рискованно (двойная инициализация делегатов Bootstrap и т.п.).
+    //
+    // Каждый script-тег страницы, который действительно нужно переисполнять
+    // (свой инлайн-код), заворачивается в (function(){...})() - иначе
+    // const/let верхнего уровня падали бы с "already been declared" при
+    // повторном исполнении в том же самом JS-окружении (страница не
+    // перезагружается по-настоящему, window - тот же).
+    var OHI_REEXEC_SRC_ALLOWLIST = [
+        '/static/js/news_board.js', '/static/js/guests.js', '/static/js/functions.js'
+    ];
+
+    window.ohi_soft_reload = function (form) {
+        var fd = new FormData(form);
+        fetch(window.location.href, {
+            method: 'POST', body: fd, headers: {'X-Requested-With': 'XMLHttpRequest'}
+        }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.text();
+        }).then(function (html) {
+            var doc = new DOMParser().parseFromString(html, 'text/html');
+            document.title = doc.title;
+            Array.prototype.forEach.call(doc.documentElement.attributes, function (attr) {
+                document.documentElement.setAttribute(attr.name, attr.value);
+            });
+            Array.prototype.forEach.call(doc.body.attributes, function (attr) {
+                document.body.setAttribute(attr.name, attr.value);
+            });
+            document.body.innerHTML = doc.body.innerHTML;
+            Array.prototype.forEach.call(document.body.querySelectorAll('script'), function (old) {
+                var src = old.getAttribute('src');
+                if (src && OHI_REEXEC_SRC_ALLOWLIST.indexOf(src) === -1) {
+                    return;
+                }
+                var fresh = document.createElement('script');
+                if (src) {
+                    fresh.src = src;
+                } else {
+                    fresh.textContent = old.textContent;
+                }
+                old.replaceWith(fresh);
+            });
+        }).catch(function (err) {
+            console.error('ohi_soft_reload:', err);
+            form.submit();
+        });
+    };
+
     (function () {
         // Гамбургер - бинарный переключатель: панель либо закреплена слева
         // (и тогда сама выделяет себе полосу шириной --ohi-sidebar-width,

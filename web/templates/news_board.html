@@ -203,7 +203,10 @@
             // всем строкам формы - может занять заметное время, без индикатора
             // страница просто "молчит" до перезагрузки.
             document.querySelector('#loadingIcon').style.display = 'block';
-            document.forms['news_board'].submit();
+            // Без полной перезагрузки страницы - ohi_soft_reload (menu2.html)
+            // подменяет <body> и заново исполняет news_board.js (он в
+            // OHI_REEXEC_SRC_ALLOWLIST), который сам всё переинициализирует.
+            window.ohi_soft_reload(document.forms['news_board']);
         }
     </script>
     <script src="/static/js/theme_switch.js"></script>

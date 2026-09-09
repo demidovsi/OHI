@@ -206,6 +206,14 @@
 
 {% block scripts %}
 <script>
+    // IIFE - без него const/let на верхнем уровне падали бы с "already been
+    // declared" при повторном исполнении этого же script-тега (см.
+    // ohi_soft_reload в menu2.html: смена языка без полной перезагрузки
+    // страницы повторно вставляет и выполняет свои <script> в том же
+    // JS-окружении). Функции, вызываемые из onclick в разметке (обычный
+    // атрибут выполняется в глобальной области, не видит локальные
+    // объявления внутри IIFE), явно вешаем на window.
+    (function () {
         const scroller = document.querySelector('.data');
         const scroll = document.querySelector("#scroll")
         var loadingIcon = document.querySelector('#loadingIcon');
@@ -227,7 +235,7 @@
         var stop = document.querySelector('#stop');
         var stop_init = document.querySelector('#stop_init');
 
-        function nsi_refresh_func() {
+        window.nsi_refresh_func = function () {
             if (sh_name && sh_name_init) sh_name.value = sh_name_init.value;
             if (url && url_init) url.value = url_init.value;
             if (lang && lang_init) lang.value = lang_init.value;
@@ -305,10 +313,11 @@
         });
     }
 
-    // Вызовите функцию после загрузки страницы
-    document.addEventListener('DOMContentLoaded', function() {
-        truncateText('.truncate-text', 200);
-    });
-
+    // Вызываем сразу (не через DOMContentLoaded) - к моменту выполнения
+    // этого script-тега (конец body, как при обычной загрузке, так и при
+    // повторном исполнении в ohi_soft_reload) DOM уже готов; DOMContentLoaded
+    // на повторном запуске всё равно не сработал бы второй раз.
+    truncateText('.truncate-text', 200);
+    })();
 </script>
 {% endblock %}

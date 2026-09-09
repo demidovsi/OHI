@@ -194,6 +194,11 @@
     <script src='/static/js/Chart.js'></script>
 {% endif %}
 <script>
+    // IIFE - см. комментарий в rss.html (ohi_soft_reload в menu2.html
+    // повторно исполняет этот же script-тег при смене языка без полной
+    // перезагрузки страницы - без обёртки const/let верхнего уровня
+    // упали бы с "already been declared").
+    (function () {
         const scroller = document.querySelector('.table_counts');
         const scroll = document.querySelector("#scroll")
         var loadingIcon = document.querySelector('#loadingIcon');
@@ -265,6 +270,8 @@
     // Вызываем при загрузке и изменении размера окна
     window.addEventListener('load', equalizeDivHeights);
     window.addEventListener('resize', equalizeDivHeights);
+    equalizeDivHeights();
+    })();
 </script>
 {% if par['switch'] == 'detail' %}
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>

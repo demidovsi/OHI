@@ -108,6 +108,12 @@
 
 <script src="/static/js/theme_switch.js"></script>
 <script>
+    // IIFE - см. комментарий в rss.html (повторное исполнение этого же
+    // script-тега при смене языка без полной перезагрузки, ohi_soft_reload
+    // в menu2.html). choose_language/clear_date вызываются из разметки
+    // (обычный onchange/onclick-атрибут исполняется в глобальной области,
+    // не видит локальные объявления внутри IIFE) - явно вешаем на window.
+    (function () {
         const loadingIcons = [document.querySelector('#loadingIcon')];
 
         function showLoadingAndSubmit() {
@@ -129,8 +135,12 @@
             if (element) element.onclick = toggleDivsChannel;
         });
 
-        function choose_language() {
-            showLoadingAndSubmit();
+        // Смена языка - без полной перезагрузки (ohi_soft_reload, определена
+        // в menu2.html - она тоже часть DOM, который здесь ниже переживает
+        // такую же замену и повторное исполнение).
+        window.choose_language = function () {
+            loadingIcons.forEach(icon => icon.style.display = 'block');
+            window.ohi_soft_reload(document.forms['{{own}}']);
         }
 
         // choose_theme() здесь не переопределяется - тему теперь переключает
@@ -142,12 +152,10 @@
             document.getElementById('param-relative').style.display = document.getElementById('relative').checked ? 'block' : 'none';
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            toggleDivs();
-            toggleDivsChannel();
-        });
+        toggleDivs();
+        toggleDivsChannel();
 
-        function clear_date() {
+        window.clear_date = function () {
             ['start_date', 'end_date'].forEach(id => {
                 document.getElementById(id).value = '';
             });
@@ -164,6 +172,7 @@
             document.getElementById('param-channel').style.display = document.getElementById('message_channels').checked ? 'block' : 'none';
             document.getElementById('param-period').style.display = document.getElementById('message_count').checked ? 'block' : 'none';
         }
+    })();
 </script>
 </body>
 </html>

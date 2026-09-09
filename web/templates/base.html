@@ -60,7 +60,11 @@
             // время. Без индикатора страница просто "молчит" до перезагрузки,
             // будто ничего не происходит.
             document.querySelector('#loadingIcon').style.display = 'block';
-            document.forms['{{own}}'].submit();
+            // Без полной перезагрузки страницы - ohi_soft_reload (menu2.html)
+            // подменяет <body> результатом того же запроса и заново исполняет
+            // свои script'ы (страница либо оборачивает верхнеуровневые const/
+            // let в IIFE, либо вообще не имеет собственного инлайн-скрипта).
+            window.ohi_soft_reload(document.forms['{{own}}']);
         }
       function choose_theme() {
             document.forms['{{own}}'].submit();
