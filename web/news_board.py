@@ -57,6 +57,23 @@ def load_day(user_id, year, month, day):
     return rows
 
 
+def find_date(user_id, news_id):
+    """Определяет дату новости (в часовом поясе пользователя, как и load_day)
+    по её id - для кнопки "Перейти к новости по ID" (news_board.js)."""
+    query = "select coalesce(at_date_time, public_date) as dt from {schema}.v_nsi_rss_history where id={id} limit 1;".format(
+        schema=config.SCHEMA, id=int(news_id))
+    ans, is_ok, status_code = common.send_rest('v2/execute', 'PUT', params={"script": query},
+                                               token_user=get(user_id, 'token'))
+    if not is_ok:
+        flash('Ошибка поиска новости: ' + str(ans), 'warning')
+        return None
+    rows = json.loads(ans)
+    if not rows or not rows[0].get('dt'):
+        return None
+    tz = get(user_id, 'time_zone') or 0
+    return common.convert_time_to_timezone(rows[0]['dt'].replace('T', ' '), tz, format='%Y-%m-%d')
+
+
 def prepare_form(user_id, request):
     """Первичная отдача страницы (GET) - справочники каналов/тем + данные за
     сегодня, чтобы первый показ обошёлся без лишнего похода за данными

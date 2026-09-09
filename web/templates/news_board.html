@@ -69,6 +69,7 @@
             </select>
 
             <button type="button" id="nb_refresh" class="nb-btn" title="{{txt[9]}}">🔄</button>
+            <button type="button" id="nb_goto" class="nb-btn" title="{{txt[43]}}">#️⃣</button>
 
             <span id="nb_summary" class="nb-summary"></span>
         </div> <!-- nb-toolbar -->
@@ -150,6 +151,11 @@
                             <button type="button" id="nbm_translate_en" class="nb-btn" style="color: var(--color-blue, {{colors['blue']}});" title="{{txt[21]}}" hidden>EN</button>
                             <button type="button" id="nbm_translate_he" class="nb-btn" style="color: var(--color-red, {{colors['red']}});" title="{{txt[22]}}" hidden>HE</button>
                             <button type="button" id="nbm_need_article" class="nb-btn" title="{{txt[23]}}" hidden>{{txt[24]}}</button>
+                            <span class="nbm-toolbar-right">
+                                {{txt[31]}}<span id="nbm_file" class="nbm-accent"></span>,
+                                {{txt[32]}} [<span id="nbm_lang" class="nbm-accent"></span>]
+                                <button type="button" id="nbm_load_file" class="nb-btn" title="{{txt[33]}}">📥</button>
+                            </span>
                         </div>
                         <div class="nbm-columns">
                             <div class="nbm-left">
@@ -160,10 +166,6 @@
                                 <p>{{txt[28]}} <a id="nbm_url" href="#" target="_blank" rel="noopener">{{txt[29]}}</a></p>
                                 <p><img id="nbm_meta_img" class="nbm-photo" hidden></p>
                                 <p id="nbm_author_wrap" hidden>{{txt[30]}} <span id="nbm_author" class="nbm-accent"></span></p>
-                                <p>{{txt[31]}}<span id="nbm_file" class="nbm-accent"></span>,
-                                    {{txt[32]}} [<span id="nbm_lang" class="nbm-accent"></span>]
-                                    <button type="button" id="nbm_load_file" class="nb-btn" title="{{txt[33]}}">📥</button>
-                                </p>
                             </div>
                             <div class="nbm-right">
                                 <textarea id="nbm_full" class="nbm-field nbm-full-field"></textarea>
@@ -188,6 +190,7 @@
         window.NEWS_BOARD_TXT = {{ txt | tojson }};
         window.NEWS_BOARD_DATA_URL = {{ url_for('api_news_board_data', user_id=upr['user_id']) | tojson }};
         window.NEWS_BOARD_DELETE_URL = {{ url_for('api_news_board_delete', user_id=upr['user_id'], news_id=0) | tojson }};
+        window.NEWS_BOARD_FIND_URL = {{ url_for('api_news_board_find', user_id=upr['user_id'], news_id=0) | tojson }};
         window.NEWS_BOARD_ARTICLE_URL = {{ url_for('new', user_id=upr['user_id'], new_id=0) | tojson }};
         window.NEWS_BOARD_ARTICLE_API_URL = {{ url_for('api_new_board', user_id=upr['user_id'], new_id=0) | tojson }};
 

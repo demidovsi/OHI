@@ -26,9 +26,27 @@ var loadingIcon = document.querySelector('#loadingIcon');
         try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
     }
 
+    // Выбранная (закреплённая) новость - id запоминается в localStorage и
+    // выделяется фоном ВСЕГДА, при любом render() (не разово, как раньше:
+    // прямой classList.add на конкретном узле терялся при следующей же
+    // перерисовке - смена фильтра/поиска/сортировки просто перестраивает
+    // tbody.innerHTML заново через rowHtml()).
+    var SELECTED_KEY = 'ohi_news_board_selected_id';
+    function getSavedSelected() {
+        try { return localStorage.getItem(SELECTED_KEY); } catch (e) { return null; }
+    }
+    function setSelected(id) {
+        state.selectedId = id != null ? String(id) : null;
+        try {
+            if (state.selectedId) localStorage.setItem(SELECTED_KEY, state.selectedId);
+            else localStorage.removeItem(SELECTED_KEY);
+        } catch (e) {}
+    }
+
     var state = {
         rows: [],           // сырые данные текущих суток (как пришли с сервера)
         lang: getSavedLang() || window.NEWS_BOARD_LANG || 'ru',
+        selectedId: getSavedSelected(),
         search: '',
         channel: '',
         theme: '',
@@ -132,8 +150,9 @@ var loadingIcon = document.querySelector('#loadingIcon');
         var deleteBtn = window.NEWS_BOARD_ADMIN
             ? '<td><button type="button" class="nb-delete-btn" data-id="' + r.id + '" title="' + TXT[36] + '">🗑️</button></td>'
             : '';
+        var selected = state.selectedId && String(r.id) === state.selectedId ? ' nb-row-return' : '';
         return (
-            '<tr data-id="' + r.id + '">' +
+            '<tr data-id="' + r.id + '" class="' + selected + '">' +
             '<td class="nb-row-datetime">' + r._dateText + '<br><span class="nb-row-id">#' + r.id + '</span></td>' +
             '<td>' + escapeHtml(r.name_rss || '') + (r.author ? '<br><span style="opacity:.7;font-size:.85em;">' + escapeHtml(r.author) + '</span>' : '') + '</td>' +
             '<td>' +
@@ -200,7 +219,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
     }
 
     var abortController = null;
-    function loadDate(dateStr) {
+    function loadDate(dateStr, onDone) {
         showLoading();
         if (abortController) abortController.abort();
         abortController = new AbortController();
@@ -212,6 +231,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
                 dateInput.value = dateStr;
                 setRows(json.rows);
                 hideLoading();
+                if (onDone) onDone();
             })
             .catch(function (err) {
                 if (err.name !== 'AbortError') hideLoading();
@@ -238,6 +258,38 @@ var loadingIcon = document.querySelector('#loadingIcon');
     });
     document.querySelector('#nb_refresh').addEventListener('click', function () { loadDate(dateInput.value); });
     dateInput.addEventListener('change', function () { loadDate(dateInput.value); });
+
+    // Выделяет строку (постоянно, через state.selectedId + render) и
+    // прокручивает к ней - общий финальный шаг и для кнопки "Перейти по ID"
+    // ниже, и для возврата из статьи (applyReturnHighlight), и для закрытия
+    // модалки.
+    function selectAndScroll(id) {
+        setSelected(id);
+        render();
+        var row = tbody.querySelector('tr[data-id="' + id + '"]');
+        if (row) row.scrollIntoView({block: 'center', behavior: 'smooth'});
+    }
+
+    document.querySelector('#nb_goto').addEventListener('click', function () {
+        var idStr = prompt(TXT[44]);
+        if (!idStr) return;
+        idStr = idStr.trim();
+        if (!/^\d+$/.test(idStr)) { alert(TXT[45]); return; }
+        showLoading();
+        fetch(window.NEWS_BOARD_FIND_URL.replace(/0$/, idStr), {headers: {'X-Requested-With': 'XMLHttpRequest'}})
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                hideLoading();
+                if (json.redirect) { window.location = json.redirect; return; }
+                if (!json.found) { alert(TXT[46]); return; }
+                if (dateInput.value === json.date) {
+                    selectAndScroll(idStr);
+                } else {
+                    loadDate(json.date, function () { selectAndScroll(idStr); });
+                }
+            })
+            .catch(function () { hideLoading(); });
+    });
 
     var searchTimer = null;
     searchInput.addEventListener('input', function () {
@@ -458,8 +510,8 @@ var loadingIcon = document.querySelector('#loadingIcon');
     // где остановился, не теряя ни фильтров, ни прокрутки, ни выбранной даты.
     modalEl.addEventListener('hidden.bs.modal', function () {
         if (!currentArticleId) return;
-        var row = tbody.querySelector('tr[data-id="' + currentArticleId + '"]');
-        if (row) row.classList.add('nb-row-return');
+        setSelected(currentArticleId);
+        render();
         currentArticleId = null;
     });
 
@@ -479,8 +531,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
         var tryHighlight = function (attemptsLeft) {
             var row = tbody.querySelector('tr[data-id="' + id + '"]');
             if (row) {
-                row.scrollIntoView({block: 'center', behavior: 'smooth'});
-                row.classList.add('nb-row-return');
+                selectAndScroll(id);
             } else if (attemptsLeft > 0) {
                 setTimeout(function () { tryHighlight(attemptsLeft - 1); }, 150);
             }

@@ -51,10 +51,31 @@ def fetch_html(url: str, timeout: int = 20, session: Optional[requests.Session] 
 
 
 # ---------------- Parsing helpers ----------------
-def _clean(s: Optional[str]) -> str:
+def _clean(s: Any) -> str:
+    # На вход иногда попадает не строка (например список авторов из JSON-LD,
+    # см. _try_jsonld_article - "author" по schema.org может быть и списком) -
+    # без приведения типа s.split() падал бы с AttributeError.
     if not s:
         return ""
+    if isinstance(s, list):
+        s = " ".join(str(x) for x in s if x)
+    elif not isinstance(s, str):
+        s = str(s)
     return " ".join(s.split())
+
+
+def _author_name(author: Any) -> Any:
+    """schema.org "author" у NewsArticle - dict (один автор), список dict/str
+    (несколько авторов) или просто строка. Возвращает имя/имена одной строкой
+    (или исходное значение как есть, если формат не распознан - _clean дальше
+    приведёт к строке в любом случае)."""
+    if isinstance(author, dict):
+        return author.get("name")
+    if isinstance(author, list):
+        names = [a.get("name") for a in author if isinstance(a, dict) and a.get("name")]
+        names += [a for a in author if isinstance(a, str)]
+        return ", ".join(names) if names else None
+    return author
 
 
 def _try_jsonld_article(soup: BeautifulSoup) -> Dict[str, Any]:
@@ -80,11 +101,7 @@ def _try_jsonld_article(soup: BeautifulSoup) -> Dict[str, Any]:
 
             out["title"] = _clean(obj.get("headline"))
             out["subtitle"] = _clean(obj.get("description"))
-            out["author"] = (
-                _clean(obj.get("author", {}).get("name"))
-                if isinstance(obj.get("author"), dict)
-                else _clean(obj.get("author"))
-            )
+            out["author"] = _clean(_author_name(obj.get("author")))
             out["published"] = _clean(obj.get("datePublished"))
             out["updated"] = _clean(obj.get("dateModified"))
             out["text"] = _clean(obj.get("articleBody"))

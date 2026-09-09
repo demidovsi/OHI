@@ -1,6 +1,20 @@
 .row1 {
     position: absolute;
     height: 50px;
+    width: 1200px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Карточка "Длина текста=.../исходный язык [...]" (была в .left, под фото/
+   автором) - прижата к правому краю строки с кнопкой "Статья". */
+.row1-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
 }
 
 .bottom {

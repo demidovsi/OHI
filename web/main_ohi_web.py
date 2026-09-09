@@ -137,6 +137,18 @@ def api_news_board_data(user_id):
                    messages=get_flashed_messages(with_categories=True))
 
 
+@app.route('/api/news_board/<user_id>/find/<int:news_id>', methods=('GET',))
+def api_news_board_find(user_id, news_id):
+    st = common.init_form(user_id, request, '/news_board/')
+    if st:
+        return jsonify(redirect=st)
+    date_str = c_news_board.find_date(user_id, news_id)
+    users_session.users.save()
+    if not date_str:
+        return jsonify(found=False)
+    return jsonify(found=True, date=date_str)
+
+
 @app.route('/api/news_board/<user_id>/delete/<int:news_id>', methods=('POST',))
 def api_news_board_delete(user_id, news_id):
     st = common.init_form(user_id, request, '/news_board/')

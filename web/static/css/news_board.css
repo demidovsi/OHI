@@ -436,6 +436,16 @@ body[data-theme="black"] .modal-backdrop.show {
     margin-bottom: 10px;
 }
 
+/* Карточка "Длина текста=.../исходный язык [...]" (была в .nbm-left, под
+   автором) - прижата к правому краю строки с кнопкой "Статья". */
+.nbm-toolbar-right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
 .nbm-accent {
     color: var(--color-green, green);
 }
