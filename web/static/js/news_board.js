@@ -392,12 +392,10 @@ var loadingIcon = document.querySelector('#loadingIcon');
         nbmDescription.style.height = '';
         nbmTitle.value = unit.title || '';
         nbmDescription.value = unit.description || '';
-        // Пустое описание (частый случай для некоторых каналов) - поле можно
-        // не показывать вовсе, а не оставлять пустой прямоугольник. Именно
-        // display, а не атрибут hidden - у .nbm-field уже есть display:block
-        // с той же специфичностью, что и [hidden] в UA-стилях, и он бы её
-        // перебивал.
-        nbmDescription.style.display = unit.description ? '' : 'none';
+        // Поле "Описание" выводится всегда, даже если оно пустое - иначе
+        // в него было бы невозможно вставить текст вручную (админ), раз
+        // поля с пустым описанием попросту не видно.
+        nbmDescription.style.display = '';
         nbmFull.value = unit.full || '';
         nbmTitle.readOnly = !admin;
         nbmDescription.readOnly = !admin;

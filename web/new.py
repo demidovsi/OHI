@@ -132,11 +132,22 @@ def save(user_id, answer):
 def need_article(answer):
     try:
         article = article_parser.extract_ynet_article(answer['unit']['url'])
+        # Разбор HTML - эвристика (JSON-LD/DOM fallback у article_parser), не
+        # гарантирует результат на каждом сайте: если ничего не нашлось, поля
+        # приходят пустыми строками БЕЗ исключения - без проверки они молча
+        # перетирали бы уже введённый текст в title/description (два левых
+        # textarea на форме).
+        if not (article.get('title') or article.get('subtitle') or article.get('text')):
+            flash('Не удалось распознать содержимое статьи на странице', 'warning')
+            return
         answer['select_lang'] = article['lang'] if article['lang'] in answer['languages'] else 'ru'
-        answer['new_title'] = article['title']
-        answer['new_description'] = article['subtitle']
-        answer['new_full'] = article['text']
-        answer['unit']['file'] = len(answer['new_full'])
+        if article.get('title'):
+            answer['new_title'] = article['title']
+        if article.get('subtitle'):
+            answer['new_description'] = article['subtitle']
+        if article.get('text'):
+            answer['new_full'] = article['text']
+            answer['unit']['file'] = len(answer['new_full'])
     except Exception as err:
         if '410 Client Error' in str(err):
             flash('Страница удалена (410)', 'warning')
