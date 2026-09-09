@@ -117,6 +117,7 @@ def news_board(user_id):
     return render_template(
         'news_board.html', colors=get(user_id, 'upr')['colors'], upr=get(user_id, 'upr'), par=par,
         user_id=user_id, own='news_board', menu_txt=language.get_lang(user_id, 'menu', language.menu),
+        txt=language.get_lang(user_id, 'news_board', language.news_board),
         languages=config.languages)
 
 

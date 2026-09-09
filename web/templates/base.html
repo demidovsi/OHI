@@ -54,6 +54,12 @@
   </body>
   <script>
       function choose_language() {
+            // Первое переключение страницы на язык, для которого ещё нет
+            // кэша перевода (language.py: get_lang), уходит на сервер за
+            // GoogleTranslator по всем строкам формы - может занять заметное
+            // время. Без индикатора страница просто "молчит" до перезагрузки,
+            // будто ничего не происходит.
+            document.querySelector('#loadingIcon').style.display = 'block';
             document.forms['{{own}}'].submit();
         }
       function choose_theme() {

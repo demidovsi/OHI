@@ -256,8 +256,63 @@ rss = [
 analyses = [
 ]
 
+news_board = [
+    {"0": "Предыдущий день"},
+    {"1": "Следующий день"},
+    {"2": "Сегодня"},
+    {"3": "🔍 Поиск по заголовку, описанию, автору, каналу..."},
+    {"4": "Канал"},
+    {"5": "Все каналы"},
+    {"6": "Тема"},
+    {"7": "Все темы"},
+    {"8": "Язык отображения"},
+    {"9": "Обновить"},
+    {"10": "Дата/время"},
+    {"11": "Канал / автор"},
+    {"12": "Заголовок / описание"},
+    {"13": "Темы"},
+    {"14": "Язык"},
+    {"15": "Нет новостей за выбранный день / по заданным фильтрам"},
+    {"16": "Закрыть"},
+    {"17": "Информация по новости"},
+    {"18": "Загрузка..."},
+    {"19": "Язык для вывода текста новости="},
+    {"20": "Перевести на русский язык"},
+    {"21": "Перевести на английский язык"},
+    {"22": "Перевести на иврит"},
+    {"23": "Заново прочитать статью с сайта (только для админа)"},
+    {"24": "Статья"},
+    {"25": "Источник:"},
+    {"26": "Время:"},
+    {"27": "Тема:"},
+    {"28": "Сайт:"},
+    {"29": "Переход на страницу сайта с новостью"},
+    {"30": "Автор:"},
+    {"31": "Длина текста="},
+    {"32": "исходный язык"},
+    {"33": "Загрузить файл в исходном языке"},
+    {"34": "Восстановить"},
+    {"35": "Сохранить"},
+    {"36": "Удалить"},
+    {"37": "(без заголовка)"},
+    {"38": "Показано"},
+    {"39": "из"},
+    {"40": "Удалить новость ID="},
+    {"41": "Ошибка: "},
+    {"42": "Новости — дашборд"},
+]
+
 lang = dict()
 lang_busy = False
+
+
+def _is_bad_translation(txt):
+    """GoogleTranslator (deep_translator) иногда не бросает исключение при
+    сбое (rate-limit/недоступность у непривычных языков), а молча парсит
+    HTML-страницу ошибки самого Google и возвращает её текст как будто это
+    перевод - без проверки такой мусор ("Error 500 (Server Error)!!1...")
+    уходит в кеш (language.json) и остаётся там навсегда."""
+    return not txt or 'error 500 (server error)' in txt.lower()
 
 
 def get_lang(user_id, form, array_text):
@@ -281,9 +336,10 @@ def get_value_language(key, array_text, to_lang):
                 txt = array_text[l][str(l)]
                 if to_lang != 'ru':
                     try:
-                        txt = GoogleTranslator(target=tolang).translate(array_text[l][str(l)])
+                        translated = GoogleTranslator(target=tolang).translate(array_text[l][str(l)])
+                        if not _is_bad_translation(translated):
+                            txt = translated
                     except Exception as er:
-                        txt = array_text[l][str(l)]
                         print(f"{er}")
                 lang[to_lang][key].append(txt)
                 l += 1
@@ -292,25 +348,36 @@ def get_value_language(key, array_text, to_lang):
 
 
 def translate_array(array, to_lang):
+    # Раньше сбой перевода ОДНОЙ строки (например TooManyRequests/RequestError
+    # у GoogleTranslator - нередко для непривычных языков) обнулял результат
+    # целиком (return []) - этот пустой список тут же кешировался и сохранялся
+    # в language.json навсегда: любое дальнейшее обращение к txt[N] в шаблоне
+    # падало IndexError (500-я). Теперь при сбое конкретной строки просто
+    # берётся русский оригинал - остальные уже переведённые строки не теряются,
+    # а итоговый список всегда той же длины, что и array.
+    tolang = 'iw' if to_lang == 'he' else to_lang
     try:
         result = list()
-        if to_lang == 'he':
-            to_lang = 'iw'
         for unit in array:
             for key in unit.keys():
+                src = unit[key]
                 if to_lang == 'ru':
-                    result.append(unit[key])
+                    result.append(src)
                 else:
                     try:
-                        txt = GoogleTranslator(target=to_lang).translate(unit[key])
-                        result.append(txt)
+                        translated = GoogleTranslator(target=tolang).translate(src)
+                        result.append(src if _is_bad_translation(translated) else translated)
                     except Exception as er:
                         print(f"{er}")
-                        return []
+                        result.append(src)
         return result
     except Exception as er:
+        # Совсем неожиданный сбой (не самого перевода, а обхода array) -
+        # тот же принцип: вернуть список русских строк той же длины/формы,
+        # что и обычный результат, а не сырой array (список словарей {"N": ..}),
+        # который дальше по коду (txt[N] в шаблонах) ожидается строкой.
         print(f"{er}")
-        return array
+        return [list(unit.values())[0] for unit in array]
 
 
 def save_lang():

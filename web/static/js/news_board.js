@@ -9,9 +9,26 @@ var loadingIcon = document.querySelector('#loadingIcon');
 (function () {
     document.body.style.display = 'block';
 
+    var TXT = window.NEWS_BOARD_TXT || [];
+
+    // Язык вывода ТЕКСТА новостей (#nb_lang) - независим от языка интерфейса
+    // (select_language в topbar, NEWS_BOARD_LANG). Раньше state.lang всегда
+    // брался из NEWS_BOARD_LANG - смена языка интерфейса (перезагружает
+    // страницу) незаметно сбрасывала и выбор языка новостей на тот же язык.
+    // Запоминаем выбор отдельно в localStorage, чтобы он переживал такую
+    // перезагрузку; NEWS_BOARD_LANG остаётся значением по умолчанию только
+    // для самого первого визита, когда в localStorage ещё ничего нет.
+    var LANG_KEY = 'ohi_news_board_lang';
+    function getSavedLang() {
+        try { return localStorage.getItem(LANG_KEY); } catch (e) { return null; }
+    }
+    function saveLang(lang) {
+        try { localStorage.setItem(LANG_KEY, lang); } catch (e) {}
+    }
+
     var state = {
         rows: [],           // сырые данные текущих суток (как пришли с сервера)
-        lang: window.NEWS_BOARD_LANG || 'ru',
+        lang: getSavedLang() || window.NEWS_BOARD_LANG || 'ru',
         search: '',
         channel: '',
         theme: '',
@@ -113,14 +130,14 @@ var loadingIcon = document.querySelector('#loadingIcon');
         }).join('');
         var expanded = state.expanded[r.id] ? ' nb-expanded' : '';
         var deleteBtn = window.NEWS_BOARD_ADMIN
-            ? '<td><button type="button" class="nb-delete-btn" data-id="' + r.id + '" title="Удалить">🗑️</button></td>'
+            ? '<td><button type="button" class="nb-delete-btn" data-id="' + r.id + '" title="' + TXT[36] + '">🗑️</button></td>'
             : '';
         return (
             '<tr data-id="' + r.id + '">' +
             '<td class="nb-row-datetime">' + r._dateText + '<br><span class="nb-row-id">#' + r.id + '</span></td>' +
             '<td>' + escapeHtml(r.name_rss || '') + (r.author ? '<br><span style="opacity:.7;font-size:.85em;">' + escapeHtml(r.author) + '</span>' : '') + '</td>' +
             '<td>' +
-                '<a href="' + articleHref(r.id) + '" class="nb-row-title" data-id="' + r.id + '">' + (title || '(без заголовка)') + '</a>' +
+                '<a href="' + articleHref(r.id) + '" class="nb-row-title" data-id="' + r.id + '">' + (title || TXT[37]) + '</a>' +
                 '<div class="nb-row-desc' + expanded + '" data-id="' + r.id + '">' + desc + '</div>' +
             '</td>' +
             '<td>' + themesHtml + '</td>' +
@@ -139,7 +156,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
             emptyEl.hidden = true;
             tbody.innerHTML = list.map(rowHtml).join('');
         }
-        summaryEl.textContent = 'Показано ' + list.length + ' из ' + state.rows.length;
+        summaryEl.textContent = TXT[38] + ' ' + list.length + ' ' + TXT[39] + ' ' + state.rows.length;
         updateSortIndicators();
     }
 
@@ -231,7 +248,7 @@ var loadingIcon = document.querySelector('#loadingIcon');
 
     channelSelect.addEventListener('change', function () { state.channel = channelSelect.value; render(); });
     themeSelect.addEventListener('change', function () { state.theme = themeSelect.value; render(); });
-    langSelect.addEventListener('change', function () { state.lang = langSelect.value; render(); });
+    langSelect.addEventListener('change', function () { state.lang = langSelect.value; saveLang(state.lang); render(); });
 
     document.querySelectorAll('.nb-sortable').forEach(function (th) {
         th.addEventListener('click', function () {
@@ -269,14 +286,14 @@ var loadingIcon = document.querySelector('#loadingIcon');
         var delBtn = event.target.closest('.nb-delete-btn');
         if (delBtn) {
             var newsId = delBtn.dataset.id;
-            if (!confirm('Удалить новость ID=' + newsId + '?')) return;
+            if (!confirm(TXT[40] + newsId + '?')) return;
             showLoading();
             fetch(window.NEWS_BOARD_DELETE_URL.replace(/0$/, newsId), {
                 method: 'POST', headers: {'X-Requested-With': 'XMLHttpRequest'}
             }).then(function (r) { return r.json(); }).then(function (json) {
                 hideLoading();
                 if (json.redirect) { window.location = json.redirect; return; }
-                if (json.error) { alert('Ошибка: ' + json.error); return; }
+                if (json.error) { alert(TXT[41] + json.error); return; }
                 state.rows = state.rows.filter(function (r) { return String(r.id) !== String(newsId); });
                 render();
             }).catch(function () { hideLoading(); });
