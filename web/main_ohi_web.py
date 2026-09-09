@@ -281,18 +281,14 @@ def one_new(new_id):
         return render_template('login.html')
     language.load_lang()  # загрузить языки
     users_session.users.load()
-    add(user_id, 'page_for_return', '/news_board/{user_id}/'.format(user_id=user_id))
-    # text_for_return - индекс в language.new (используется как
-    # title="{{txt[par['text_for_return']]}}" у кнопки "Назад" в new.html),
-    # а не сам текст подсказки - строка тут молча даёт пустой tooltip
-    # (Jinja возвращает Undefined на TypeError при индексации списка строкой).
-    # 13 = "Назад в список новостей", как и у остальных переходов в news_board.
-    add(user_id, 'text_for_return', 13)
     add(user_id, 'theme', 'black')
     upr = get(user_id, 'upr')
     upr['select_language'] = 'ru'
     users_session.users.save()
-    return redirect('/new/{user_id}/{new_id}/'.format(user_id=user_id, new_id=new_id))
+    # Раньше вело сразу на отдельную страницу /new/ - теперь новость
+    # открывается модально поверх news_board (news_board.js: applyOpenIdParam),
+    # как и при обычном клике по строке в списке новостей.
+    return redirect('/news_board/{user_id}/?open_id={new_id}'.format(user_id=user_id, new_id=new_id))
 
 
 @app.route('/search_words/<user_id>/', methods=('GET', 'POST'))

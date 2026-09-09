@@ -473,7 +473,23 @@ var loadingIcon = document.querySelector('#loadingIcon');
         tryHighlight(10);
     }
 
+    // Открытие статьи модально сразу при заходе на страницу (?open_id=...) -
+    // используется одноразовой ссылкой /one_new/<new_id>/ (main_ohi_web.py),
+    // например из уведомления в чат-боте: вместо перехода на отдельную
+    // страницу /new/ новость открывается тем же модальным окном, что и по
+    // клику в списке, без потери фильтров/даты news_board.
+    function applyOpenIdParam() {
+        var params = new URLSearchParams(window.location.search);
+        var id = params.get('open_id');
+        if (!id) return;
+        params.delete('open_id');
+        var query = params.toString();
+        window.history.replaceState(null, '', window.location.pathname + (query ? '?' + query : ''));
+        openArticleModal(id);
+    }
+
     // ── старт ──
     setRows(window.NEWS_BOARD_INITIAL || []);
     applyReturnHighlight();
+    applyOpenIdParam();
 })();
