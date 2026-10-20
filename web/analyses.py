@@ -2,13 +2,11 @@ import json
 import datetime
 import numpy as np
 
-import plotly.express as px
 import pandas as pd
-from flask import flash, redirect, render_template
+from flask import flash
 
 import config
 import common
-import language
 from common import get, write_log, add
 
 # Нижняя граница по умолчанию для графиков, когда пользователь не задал
@@ -30,18 +28,6 @@ array_default = [
     {'key': 'period_type', 'value': 'day'},
     {'key': 'change_switch', 'value': False},
 ]
-
-
-def interval_phrase(days, to_lang, days_word):
-    """common.days_phrase даёт грамматически верную русскую форму (день/дня/
-    дней по числу) - для остальных языков такое согласование не воспроизвести
-    простой заменой слова через GoogleTranslator (число и слово переводятся
-    отдельно и независимо от контекста), поэтому не для 'ru' используем один
-    и тот же переведённый вариант слова независимо от числа (небольшая
-    грамматическая потеря, но корректный язык вместо всегда-русского)."""
-    if to_lang == 'ru':
-        return common.days_phrase(days)
-    return f"{days} {days_word}"
 
 
 def get_monday(date_str):
@@ -171,8 +157,8 @@ def filter_date(request, answer, data):
     return data
 
 
-def load_messages(user_id, answer):
-    inform = get(user_id, 'analyses_messages')
+def load_messages(answer):
+    inform = get('analyses_messages')
     if inform is None or len(inform) == 0:
         answer['min_date_channels'] = ''
         answer['max_date_channels'] = ''
@@ -189,8 +175,7 @@ def load_messages(user_id, answer):
         # при OR). Если оба поля указывают на РАЗНЫЕ сутки - строка попадёт
         # в оба дня, ровно как её увидел бы пользователь, листая news.py
         # по датам.
-        tz_minutes = get(user_id, 'time_zone') or 0
-        tz_interval = "interval '{tz} minutes'".format(tz=tz_minutes)
+        tz_interval = "interval '{tz} hours'".format(tz=int(get('time_zone') or 0))
         theme_filter = (" and id IN (select rss_history_id from {schema}.rel_rss_themes_rss_history_rss "
                         "where rss_themes_id = {theme_id})").format(
             schema=config.SCHEMA, theme_id=answer['selected_theme']
@@ -217,12 +202,12 @@ def load_messages(user_id, answer):
                 ORDER BY date;
             """.format(schema=config.SCHEMA, tz_interval=tz_interval, theme_filter=theme_filter)
         ans, is_ok, status_code = common.send_rest('v2/execute', 'PUT', params={"script": query},
-                                                   token_user=get(user_id, 'token'))
+                                                   token_user=get('token'))
         if not is_ok:
             flash('Ошибка получения данных каналов: ' + str(ans), 'warning')
             return []
         inform = json.loads(ans)
-        add(user_id, 'analyses_messages', inform)
+        add('analyses_messages', inform)
     return inform
 
 
@@ -251,282 +236,110 @@ def load_list_themes(answer):
         answer['list_themes'].append(data)
 
 
-def plot_channels_bar(answer, df, user_id, period='day'):
-    if len(df) == 0:
-        return
-    txt = language.get_lang(user_id, 'analyses', language.analyses)
-    to_lang = get(user_id, 'upr')['select_language']
-    start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
-    end_date = answer['end_date'] if answer['end_date'] else answer['max_date_channels']
-    days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-
+def _period_column(df, period):
+    """Колонка period для группировки по суткам / неделям (с понедельника) / месяцам."""
     df['date'] = pd.to_datetime(df['date'])
-
     if period == 'week':
         df['period'] = df['date'].dt.to_period('W').apply(lambda r: r.start_time)
-        group_label = txt[42]
     elif period == 'month':
         df['period'] = df['date'].dt.to_period('M').apply(lambda r: r.start_time)
-        group_label = txt[43]
     else:
         df['period'] = df['date']
-        group_label = txt[41]
+    return df
 
+
+def _days(answer):
+    start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
+    end_date = answer['end_date'] if answer['end_date'] else answer['max_date_channels']
+    try:
+        return (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
+    except Exception:
+        return 0
+
+
+def _chart(answer, mode, labels, datasets, y_kind):
+    """Данные графика для SPA (react-chartjs-2): подписи и заголовок переводит страница.
+    y_kind: 'count' — количество сообщений, 'percent' — % сообщений с темой."""
+    answer['chart'] = {
+        'mode': mode,                       # 'bar' | 'line'
+        'switch': answer['switch'],         # 'channels' | 'participation'
+        'period': answer['period_type'] if mode == 'bar' else 'day',
+        'messages_count': int(answer['messages_count']),
+        'percent': answer['percent'],
+        'has_theme': bool(answer['selected_theme']),
+        'days': _days(answer),
+        'y_kind': y_kind,
+        'labels': labels,
+        'datasets': datasets,
+    }
+
+
+def _date_labels(series):
+    return [pd.to_datetime(p).strftime('%Y-%m-%d') for p in series]
+
+
+def plot_channels_bar(answer, df, period='day'):
+    if len(df) == 0:
+        return
+    df = _period_column(df, period)
     grouped = df.groupby('period', as_index=False)['message_count'].sum()
-
-    title = f"{txt[40]} {group_label.lower()} ({answer['messages_count']} {txt[44]} {answer['percent']} %)"
-    title += f" ( {txt[45]} " + interval_phrase(days, to_lang, txt[53]) + " )"
-    fig = px.bar(
-        grouped,
-        x='period',
-        y='message_count',
-        title=title,
-        height=600,
-        template='plotly_dark' if get(user_id, 'theme') == 'black' else 'plotly_white',
-        labels={'period': group_label, 'message_count': txt[46]},
-    )
-
-    if len(df) < 7:
-        if 'period' in df.columns:
-            unique_periods = np.sort(df['period'].unique())
-            if df['period'].dtype.name.startswith('period'):
-                # Для pd. Period (например, при группировке по неделям/месяцам)
-                ticktexts = [str(p.start_time.date()) if hasattr(p, 'start_time') else str(p) for p in unique_periods]
-            elif np.issubdtype(df['period'].dtype, np.datetime64):
-                ticktexts = [pd.to_datetime(p).strftime("%Y-%m-%d") for p in unique_periods]
-            else:
-                ticktexts = [str(p) for p in unique_periods]
-            fig.update_xaxes(
-                tickvals=unique_periods,
-                ticktext=ticktexts,
-                tickformat="%Y-%m-%d"
-            )
-        else:
-            df["date"] = pd.to_datetime(df["date"]).dt.date
-            unique_dates = np.sort(df["date"].unique())
-            ticktexts = [d.strftime("%Y-%m-%d") for d in unique_dates]
-            fig.update_xaxes(
-                tickvals=unique_dates,
-                ticktext=ticktexts,
-                tickformat="%Y-%m-%d"
-            )
-    answer['chart'] = fig.to_html(full_html=False)
+    _chart(answer, 'bar', _date_labels(grouped['period']),
+           [{'label': '', 'data': [int(v) for v in grouped['message_count']]}], 'count')
 
 
-def plot_participation_bar(answer, df, user_id, period='day'):
+def plot_participation_bar(answer, df, period='day'):
     if len(df) == 0:
         return
-    txt = language.get_lang(user_id, 'analyses', language.analyses)
-    to_lang = get(user_id, 'upr')['select_language']
-    start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
-    end_date = answer['end_date'] if answer['end_date'] else answer['max_date_channels']
-    days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-
-    df['date'] = pd.to_datetime(df['date'])
-
-    if period == 'week':
-        df['period'] = df['date'].dt.to_period('W').apply(lambda r: r.start_time)
-        group_label = txt[42]
-    elif period == 'month':
-        df['period'] = df['date'].dt.to_period('M').apply(lambda r: r.start_time)
-        group_label = txt[43]
-    else:
-        df['period'] = df['date']
-        group_label = txt[41]
-
+    df = _period_column(df, period)
     df = df.groupby('period', as_index=False)[['count', 'message_count']].sum()
-    has_theme = bool(answer['selected_theme']) and answer['selected_theme'] != 0
-
-    if has_theme:
-        # message_count (nsi_log_rss_history, отфильтрован по теме через url)
-        # - подмножество count (все сырые сообщения канала за день,
-        # nsi_rss_history), поэтому доля = message_count/count, а не наоборот -
-        # иначе почти всегда получалось бы >100% (count обычно >= message_count)
-        df["percent"] = np.where(df["count"] > 0,
-                                 (df["message_count"] / df["count"] * 100.0).round(1),
-                             np.nan)
-        grouped = df.groupby('period', as_index=False)['percent'].sum()
-        y_col, y_label = 'percent', txt[48]
-        title = f"{txt[47]} {group_label.lower()} ({answer['messages_count']} {txt[44]} {answer['percent']} %)"
+    if answer['selected_theme']:
+        # message_count - подмножество count (сообщения с темой), доля = message_count/count
+        values = [round(100.0 * m / c, 1) if c > 0 else None for m, c in zip(df['message_count'], df['count'])]
+        y_kind = 'percent'
     else:
-        # Без выбранной темы message_count (nsi_log_rss_history) не является
-        # подмножеством count - это независимый счётчик, у их отношения нет
-        # верхней границы в 100%, поэтому без темы показываем абсолютные
-        # значения, а не бессмысленный "процент"
-        grouped = df.groupby('period', as_index=False)['message_count'].sum()
-        y_col, y_label = 'message_count', txt[46]
-        title = f"{txt[47]} {group_label.lower()} ({answer['messages_count']})"
-    title += f" ( {txt[45]} " + interval_phrase(days, to_lang, txt[53]) + " )"
-    fig = px.bar(
-        grouped,
-        x='period',
-        y=y_col,
-        title=title,
-        height=600,
-        template='plotly_dark' if get(user_id, 'theme') == 'black' else 'plotly_white',
-        labels={'period': group_label, y_col: y_label},
-    )
-
-    if len(df) < 7:
-        if 'period' in df.columns:
-            unique_periods = np.sort(df['period'].unique())
-            if df['period'].dtype.name.startswith('period'):
-                # Для pd. Period (например, при группировке по неделям/месяцам)
-                ticktexts = [str(p.start_time.date()) if hasattr(p, 'start_time') else str(p) for p in unique_periods]
-            elif np.issubdtype(df['period'].dtype, np.datetime64):
-                ticktexts = [pd.to_datetime(p).strftime("%Y-%m-%d") for p in unique_periods]
-            else:
-                ticktexts = [str(p) for p in unique_periods]
-            fig.update_xaxes(
-                tickvals=unique_periods,
-                ticktext=ticktexts,
-                tickformat="%Y-%m-%d"
-            )
-        else:
-            df["date"] = pd.to_datetime(df["date"]).dt.date
-            unique_dates = np.sort(df["date"].unique())
-            ticktexts = [d.strftime("%Y-%m-%d") for d in unique_dates]
-            fig.update_xaxes(
-                tickvals=unique_dates,
-                ticktext=ticktexts,
-                tickformat="%Y-%m-%d"
-            )
-    answer['chart'] = fig.to_html(full_html=False)
+        values = [int(v) for v in df['message_count']]
+        y_kind = 'count'
+    _chart(answer, 'bar', _date_labels(df['period']), [{'label': '', 'data': values}], y_kind)
 
 
-def plot_channels_line(answer, df, user_id):
-    if len(df) > 0:
-        txt = language.get_lang(user_id, 'analyses', language.analyses)
-        to_lang = get(user_id, 'upr')['select_language']
-        # графики
-        df["date"] = pd.to_datetime(df["date"])
-        start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
-        end_date = answer['end_date'] if answer['end_date'] else answer['max_date_channels']
-        days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-        title = f"{txt[40]} {txt[41].lower()} ({answer['messages_count']} {txt[44]} {answer['percent']} %)"
-        title += f" ( {txt[45]} " + interval_phrase(days, to_lang, txt[53]) + " )"
-        df['legend_name'] = df.groupby('name_channel')['message_count'].transform('sum')
-        df['legend_name'] = df['name_channel'] + ' (' + df['legend_name'].astype(str) + ')'
-
-        fig = px.line(
-            df,
-            x="date",
-            y="message_count",
-            color="legend_name",  # Каждая линия — отдельный канал
-            markers=True,
-            template='plotly_dark' if get(user_id, 'theme') == 'black' else 'plotly_white',
-            title=title,
-            labels={
-                "date": txt[49],
-                "message_count": txt[46],
-                "legend_name": txt[50]
-            }
-        )
-
-        # Отключаем соединение между точками с пропущенными значениями
-        # for trace in fig.data:
-        #     trace.connectgaps = False
-
-        fig.update_layout(
-            xaxis_title=txt[49],
-            yaxis_title=txt[51],
-            hovermode="x unified",
-            legend_title=txt[50],
-            yaxis_range=[0, None],  # Установка начала оси Y с нуля
-            height=600,  # высота в пикселях
-            width=1400,  # ширина в пикселях (по желанию)
-            autosize=False  # отключаем автоматический размер
-        )
-
-        if len(df) < 7:
-            df["date"] = pd.to_datetime(df["date"]).dt.date
-            unique_dates = np.sort(df["date"].unique())
-            ticktexts = [d.strftime("%Y-%m-%d") for d in unique_dates]
-            fig.update_xaxes(
-                tickvals=unique_dates,
-                ticktext=ticktexts,
-                tickformat="%Y-%m-%d"
-            )
-
-        answer['chart'] = fig.to_html(full_html=False)
+def _line_datasets(df, y_col):
+    """Линия на канал: подпись «канал (сумма сообщений)», значения по всем датам (нет данных — null)."""
+    df['date'] = pd.to_datetime(df['date'])
+    labels = sorted(df['date'].unique())
+    datasets = []
+    for name, part in df.groupby('name_channel'):
+        by_date = {d: v for d, v in zip(part['date'], part[y_col])}
+        data = []
+        for d in labels:
+            v = by_date.get(d)
+            data.append(None if v is None or pd.isna(v) else (round(float(v), 1) if y_col == 'percent' else int(v)))
+        datasets.append({'label': f"{name} ({int(part['message_count'].sum())})", 'data': data})
+    datasets.sort(key=lambda d: d['label'])
+    return _date_labels(labels), datasets
 
 
-def plot_participation_line(answer, df, user_id):
-    if len(df) > 0:
-        txt = language.get_lang(user_id, 'analyses', language.analyses)
-        to_lang = get(user_id, 'upr')['select_language']
-        # графики
-        df["date"] = pd.to_datetime(df["date"])
-        start_date = answer['start_date'] if answer['start_date'] else answer['min_date_channels']
-        end_date = answer['end_date'] if answer['end_date'] else answer['max_date_channels']
-        days = (pd.to_datetime(end_date) - pd.to_datetime(start_date)).days
-        has_theme = bool(answer['selected_theme']) and answer['selected_theme'] != 0
-        if has_theme:
-            title = f"{txt[47]} {txt[41].lower()} ({answer['messages_count']} {txt[44]} {answer['percent']} %)"
-        else:
-            title = f"{txt[47]} {txt[41].lower()} ({answer['messages_count']})"
-        title += f" ( {txt[45]} " + interval_phrase(days, to_lang, txt[53]) + " )"
-        df['legend_name'] = df.groupby('name_channel')['message_count'].transform('sum')
-        df['legend_name'] = df['name_channel'] + ' (' + df['legend_name'].astype(str) + ')'
-
-        if has_theme:
-            # message_count - подмножество count (см. plot_participation_bar), доля
-            # = message_count/count, иначе почти всегда получалось бы >100%
-            df["percent"] = np.where(df["count"] > 0,
-                                     df["message_count"] / df["count"] * 100.0,
-                                     np.nan)
-            y_col, y_axis_title = "percent", txt[52]
-        else:
-            # Без темы message_count не подмножество count - отношение
-            # ничем не ограничено сверху, показываем абсолютные значения
-            y_col, y_axis_title = "message_count", txt[51]
-
-        fig = px.line(
-            df,
-            x="date",
-            y=y_col,
-            color="legend_name",  # Каждая линия — отдельный канал
-            markers=True,
-            template='plotly_dark' if get(user_id, 'theme') == 'black' else 'plotly_white',
-            title=title,
-            labels={
-                "date": txt[49],
-                "message_count": txt[46],
-                "percent": txt[52],
-                "legend_name": txt[50]
-            }
-        )
-
-        # Отключаем соединение между точками с пропущенными значениями
-        # for trace in fig.data:
-        #     trace.connectgaps = False
-
-        fig.update_layout(
-            xaxis_title=txt[49],
-            yaxis_title=y_axis_title,
-            hovermode="x unified",
-            legend_title=txt[50],
-            yaxis_range=[0, None],  # Установка начала оси Y с нуля
-            height=600,  # высота в пикселях
-            width=1400,  # ширина в пикселях (по желанию)
-            autosize=False  # отключаем автоматический размер
-        )
-
-        if len(df) < 7:
-            df["date"] = pd.to_datetime(df["date"]).dt.date
-            unique_dates = np.sort(df["date"].unique())
-            ticktexts = [d.strftime("%Y-%m-%d") for d in unique_dates]
-            fig.update_xaxes(
-                tickvals=unique_dates,
-                ticktext=ticktexts,
-                tickformat="%Y-%m-%d"
-            )
-
-        answer['chart'] = fig.to_html(full_html=False)
+def plot_channels_line(answer, df):
+    if len(df) == 0:
+        return
+    labels, datasets = _line_datasets(df, 'message_count')
+    _chart(answer, 'line', labels, datasets, 'count')
 
 
-def load_participation(user_id, answer):
-    inform = get(user_id, 'analyses_participation')
+def plot_participation_line(answer, df):
+    if len(df) == 0:
+        return
+    if answer['selected_theme']:
+        # message_count - подмножество count, доля = message_count/count (иначе почти всегда >100%)
+        df['percent'] = np.where(df['count'] > 0, df['message_count'] / df['count'] * 100.0, np.nan)
+        labels, datasets = _line_datasets(df, 'percent')
+        _chart(answer, 'line', labels, datasets, 'percent')
+    else:
+        labels, datasets = _line_datasets(df, 'message_count')
+        _chart(answer, 'line', labels, datasets, 'count')
+
+
+def load_participation(answer):
+    inform = get('analyses_participation')
     if inform is None or len(inform) == 0:
         # "Участие" считаем целиком из nsi_rss_history (реальные сообщения) -
         # nsi_log_rss_history сюда не годится: проверено, что это отдельный,
@@ -536,8 +349,7 @@ def load_participation(user_id, answer):
         #
         # Сутки - по локальному времени пользователя, тем же условием OR по
         # public_date/at_date_time, что и load_messages (совпадает с news.py).
-        tz_minutes = get(user_id, 'time_zone') or 0
-        tz_interval = "interval '{tz} minutes'".format(tz=tz_minutes)
+        tz_interval = "interval '{tz} hours'".format(tz=int(get('time_zone') or 0))
         theme_id = answer['selected_theme']
         if theme_id and theme_id != 0:
             message_count_expr = (
@@ -567,17 +379,17 @@ def load_participation(user_id, answer):
                     ORDER BY date;
                 """.format(schema=config.SCHEMA, tz_interval=tz_interval, message_count_expr=message_count_expr)
         ans, is_ok, status_code = common.send_rest('v2/execute', 'PUT', params={"script": query},
-                                                   token_user=get(user_id, 'token'))
+                                                   token_user=get('token'))
         if not is_ok:
             flash('Ошибка получения данных каналов: ' + str(ans), 'warning')
             return []
         inform = json.loads(ans)
-        add(user_id, 'analyses_participation', inform)
+        add('analyses_participation', inform)
     return inform
 
 
-def get_data_participation(user_id, request, answer):
-    inform = load_participation(user_id, answer)
+def get_data_participation(request, answer):
+    inform = load_participation(answer)
     channels = list(inform)  # копии строк не нужны - downstream код их не мутирует
     answer['total_messages_count'] = sum(channel['message_count'] for channel in channels)
     answer['min_date_channels'] = channels[0]['date'] if channels else ''
@@ -605,14 +417,14 @@ def get_data_participation(user_id, request, answer):
 
     # ПОДГОТОВИТЬ ГРАФИКИ
     if answer['channel_type'] == 'message_channels':
-        plot_participation_line(answer, df, user_id)
+        plot_participation_line(answer, df)
     else:
-        plot_participation_bar(answer, df, user_id, answer['period_type'])
+        plot_participation_bar(answer, df, answer['period_type'])
     return df
 
 
-def get_data_channels(user_id, request, answer):
-    inform = load_messages(user_id, answer)
+def get_data_channels(request, answer):
+    inform = load_messages(answer)
     channels = list(inform)  # копии строк не нужны - downstream код их не мутирует
     answer['total_messages_count'] = sum(channel['message_count'] for channel in channels)
     answer['min_date_channels'] = channels[0]['date'] if channels else ''
@@ -638,9 +450,9 @@ def get_data_channels(user_id, request, answer):
 
     # ПОДГОТОВИТЬ ГРАФИКИ
     if answer['channel_type'] == 'message_channels':
-        plot_channels_line(answer, df, user_id)
+        plot_channels_line(answer, df)
     else:
-        plot_channels_bar(answer, df, user_id, answer['period_type'])
+        plot_channels_bar(answer, df, answer['period_type'])
     return df
 
 
@@ -653,28 +465,29 @@ def get_name_theme(answer):
                 break
 
 
-def prepare_form(user_id, request):
+def prepare_form(request):
     answer = dict()
-    st = common.init_form(user_id, request, '/analyses/')
+    st = common.init_form(request, '/analyses/')
     if st:
         answer['redirect'] = st
         return answer
     try:
-        common.default_form(user_id, array_default, answer, 'analyses_')
+        common.default_form(array_default, answer, 'analyses_')
         if request.method == 'POST':
-            common.choose_language(user_id, request)
+            common.choose_language(request)
             answer['change_switch'] = False
             if 'refresh' in request.form:
-                add(user_id, 'analyses_messages', [])
-                add(user_id, 'analyses_participation', [])
+                add('analyses_messages', [])
+                add('analyses_participation', [])
                 answer['change_switch'] = True
             if 'selected_channel' in request.form and answer['selected_channel'] != request.form.get('selected_channel'):
                 answer['selected_channel'] = request.form.get('selected_channel').strip()
-            if 'selected_theme' in request.form and answer['selected_theme'] != int(request.form.get('selected_theme')):
-                answer['selected_theme'] = int(request.form.get('selected_theme'))
+            selected_theme = int(common.sql_digits(request.form.get('selected_theme')) or 0)
+            if 'selected_theme' in request.form and answer['selected_theme'] != selected_theme:
+                answer['selected_theme'] = selected_theme
                 get_name_theme(answer)
-                add(user_id, 'analyses_messages', [])
-                add(user_id, 'analyses_participation', [])
+                add('analyses_messages', [])
+                add('analyses_participation', [])
             if "channels" in request.form and answer['switch'] != 'channels':
                 answer['switch'] = 'channels'
                 answer['change_switch'] = True
@@ -687,11 +500,12 @@ def prepare_form(user_id, request):
             if 'channel_type' in request.form and answer['channel_type'] != request.form.get("channel_type"):
                 answer['change_switch'] = True
                 answer['channel_type'] = request.form.get("channel_type")
-            answer['period_type'] = request.form.get("period_type", "day")
+            period_type = request.form.get("period_type", "day")
+            answer['period_type'] = period_type if period_type in ('day', 'week', 'month') else 'day'
             if answer['date_filter_type'] == 'custom' or request.form.get("start_date"):
-                answer['start_date'] = request.form.get("start_date")
+                answer['start_date'] = common.sql_date(request.form.get("start_date"))
             if answer['date_filter_type'] == 'custom' or request.form.get("end_date"):
-                answer['end_date'] = request.form.get("end_date")
+                answer['end_date'] = common.sql_date(request.form.get("end_date"))
             if 'relative_period' in request.form and answer['relative_period'] != int(request.form.get("relative_period")):
                 answer['relative_period'] = int(request.form.get("relative_period"))
                 answer['start_date'] = ''  # Сброс даты при смене периода
@@ -699,20 +513,20 @@ def prepare_form(user_id, request):
         else:
             load_list_channels(answer)
             load_list_themes(answer)
-            write_log('Анализ сообщений', user_id, request)
+            write_log('Анализ сообщений', request)
 
         if answer['switch'] == 'channels':
-            get_data_channels(user_id, request, answer)
+            get_data_channels(request, answer)
         if answer['switch'] == 'participation':
-            get_data_participation(user_id, request, answer)
+            get_data_participation(request, answer)
     except Exception as err:
-        add(user_id, 'analyses_messages', [])
-        add(user_id, 'analyses_participation', [])
+        add('analyses_messages', [])
+        add('analyses_participation', [])
         answer['selected_theme'] = 0
         answer['selected_channel'] = ''
         answer['start_date'] = ''
         answer['end_date'] = ''
         answer['date_filter_type'] = 'custom'
         flash(f'{err}', 'warning')
-    common.save_form(user_id, array_default, answer, 'analyses_')
+    common.save_form(array_default, answer, 'analyses_')
     return answer

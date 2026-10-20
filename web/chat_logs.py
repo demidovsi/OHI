@@ -22,51 +22,36 @@ array_default = [
 ]
 
 
-def get_where(user_id, answer):
+def get_where(answer):
     where = common.get_where(answer['search'], ['ip', 'country', 'city', 'type_message', 'message', 'email'])
 
-    # Фильтры по полям
-    if answer['filter_ip']:
-        where = where + ' and ' if where != '' else where
-        where = where + "ip like '%{value}%'".format(value=answer['filter_ip'])
-
-    if answer['filter_country']:
-        where = where + ' and ' if where != '' else where
-        where = where + "country like '%{value}%'".format(value=answer['filter_country'])
-
-    if answer['filter_city']:
-        where = where + ' and ' if where != '' else where
-        where = where + "city like '%{value}%'".format(value=answer['filter_city'])
-
-    if answer['filter_type_message']:
-        where = where + ' and ' if where != '' else where
-        where = where + "type_message like '%{value}%'".format(value=answer['filter_type_message'])
-
-    if answer['filter_email']:
-        where = where + ' and ' if where != '' else where
-        where = where + "email like '%{value}%'".format(value=answer['filter_email'])
+    # Фильтры по полям (значения из запроса — через escape_sql_literal)
+    for key, column in (('filter_ip', 'ip'), ('filter_country', 'country'), ('filter_city', 'city'),
+                        ('filter_type_message', 'type_message'), ('filter_email', 'email')):
+        if answer[key]:
+            where = where + ' and ' if where != '' else where
+            where = where + "{column} ilike '%{value}%'".format(
+                column=column, value=common.escape_sql_literal(answer[key]))
 
     # Фильтр по дате
     if answer['switch'] == 'one_day':
         year = answer['year']
         month = answer['month']
         day = answer['day']
-        # "or 0" - подстраховка на случай None (напр. вход в обход обычной
-        # формы логина, где часовой пояс читается из браузера).
-        tz = get(user_id, 'time_zone') or 0
-        date_begin = common.get_date_sql([year, month, day], -tz)
+        tz = get('time_zone') or 0
+        date_begin = common.get_date_sql([year, month, day], tz)
         t = datetime.datetime(year, month, day) + datetime.timedelta(days=1)
-        date_end = common.get_date_sql([t.year, t.month, t.day], -tz)
+        date_end = common.get_date_sql([t.year, t.month, t.day], tz)
         where = where + ' and ' if where != '' else where
         where = where + "at_date_time>='{date_begin}' and at_date_time<'{date_end}'".format(
             date_begin=date_begin, date_end=date_end)
     return where
 
 
-def get_count_chat_logs(user_id, answer):
+def get_count_chat_logs(answer):
     try:
         url = 'v1/content/count/{schema}/chat_logs?where={where}'.format(
-            schema=config.SCHEMA, where=get_where(user_id, answer))
+            schema=config.SCHEMA, where=get_where(answer))
         ans, result, status_code = common.send_rest(url)
         if result:
             return int(ans)
@@ -78,12 +63,12 @@ def get_count_chat_logs(user_id, answer):
         return 0
 
 
-def load_inform(user_id, answer):
+def load_inform(answer):
     row_count = int(answer['row_count'])
     page_from = int(answer['page'])
     try:
         url = 'v2/select/{schema}/chat_logs'.format(schema=config.SCHEMA)
-        st = get_where(user_id, answer)
+        st = get_where(answer)
         url += '?where=' + st + '&column_order=id desc' if st else '?column_order=id desc'
         url += f'&row_count={row_count}&row_from={row_count * (max(1, page_from) - 1)}'
         ans, result, status_code = common.send_rest(url)
@@ -112,23 +97,23 @@ def load_inform(user_id, answer):
         return []
 
 
-def define_pages_data(user_id, answer):
-    count = get_count_chat_logs(user_id, answer)
+def define_pages_data(answer):
+    count = get_count_chat_logs(answer)
     answer['count'] = 0 if count is None else count
     common.define_pages(answer)
-    answer['data'] = load_inform(user_id, answer)
+    answer['data'] = load_inform(answer)
 
 
-def prepare_form(user_id, request):
+def prepare_form(request):
     answer = dict()
-    st = common.init_form(user_id, request, '/chat_logs/')
+    st = common.init_form(request, '/chat_logs/')
     if st:
         answer['redirect'] = st
         return answer
-    common.default_form(user_id, array_default, answer, 'chat_log_')
+    common.default_form(array_default, answer, 'chat_log_')
     year, month, day = answer['st_date'].split('-')
     if request.method == 'POST':
-        common.choose_language(user_id, request)
+        common.choose_language(request)
         common.define_param_for_page(request, answer)
         answer['do_update'] = 'do_update' in request.form
 
@@ -164,7 +149,7 @@ def prepare_form(user_id, request):
                 pass
         if 'one_day' in request.form:
             answer['switch'] = 'one_day'
-            answer['do_update'] = answer['st_date'] == common.st_today()
+            answer['do_update'] = answer['st_date'] == common.local_today()
             answer['page'] = 1
             answer['scroll'] = 0
         if 'all_days' in request.form:
@@ -172,42 +157,38 @@ def prepare_form(user_id, request):
             answer['scroll'] = 0
             answer['page'] = 1
         if 'current_day' in request.form:
-            year = datetime.date.today().year
-            month = datetime.date.today().month
-            day = datetime.date.today().day
-            answer['st_date'] = common.get_st_date(year, month, day)
+            answer['st_date'] = common.local_today()
+            year, month, day = answer['st_date'].split('-')
             answer['do_update'] = True
             answer['scroll'] = 0
         elif 'left' in request.form:
             year, month, day = common.calc_day(year, month, day, -1)
             answer['st_date'] = common.get_st_date(year, month, day)
-            answer['do_update'] = answer['st_date'] == common.st_today()
+            answer['do_update'] = answer['st_date'] == common.local_today()
             answer['page'] = 1
             answer['scroll'] = 0
         elif 'right' in request.form:
             year, month, day = common.calc_day(year, month, day, 1)
             answer['st_date'] = common.get_st_date(year, month, day)
-            answer['do_update'] = answer['st_date'] == common.st_today()
+            answer['do_update'] = answer['st_date'] == common.local_today()
             answer['page'] = 1
             answer['scroll'] = 0
     else:
-        common.write_quest(user_id, request, 'ChatLogs')
+        common.write_log('Лог чата', request)
 
     answer['st_date'] = common.get_st_date(year, month, day)
 
-    answer['is_today'] = answer['st_date'] == common.st_today()
+    answer['is_today'] = answer['st_date'] == common.local_today()
     answer['year'] = int(year)
     answer['month'] = int(month)
     answer['day'] = int(day)
-    define_pages_data(user_id, answer)
+    define_pages_data(answer)
     if answer['switch'] == 'all_days':
         format_dt = "HH:mm:ss D.M.Y"
     else:
         format_dt = 'HH:mm:ss'
     answer['format_dt'] = format_dt
-    answer['title_search'] = 'Поиск производится по колонкам IP, COUNTRY, CITY, TYPE_MESSAGE, MESSAGE, EMAIL'
     answer['title'] = 'Логи чат-сообщений'
-    answer['no_refresh'] = True
     # для возврата в форму из других форм
-    common.save_form(user_id, array_default, answer, 'chat_log_')
+    common.save_form(array_default, answer, 'chat_log_')
     return answer

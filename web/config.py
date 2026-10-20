@@ -3,18 +3,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+# локальный запуск (python main_ohi_web.py); в Cloud Run — gunicorn на $PORT (Dockerfile)
 OWN_PORT = int(os.environ.get('PORT', 8082))
-OWN_HOST = '0.0.0.0'
+OWN_HOST = os.environ.get('OHI_WEB_HOST', '127.0.0.1')
 URL = os.environ['URL']
 SCHEMA = 'ohi'
+LOG_SRC = 'ohi_web'  # метка сайта в журнале (общие формы shared_web)
 kirill = os.environ['KIRILL']
 select_language = 'ru'
 languages = [
     {"key": "en", "name": "EN - English"},
     {"key": "ru", "name": "RU - Russian"},
     {"key": "he", "name": "HE - Hebrew"},
-    {"key": "de", "name": "DE - German"},
-    {"key": "fr", "name": "FR - France"},
-    {"key": "es", "name": "ES - Spanish"},
-    {"key": "zh-CN", "name": "zh-CN - Chinese (simplified)"},
 ]

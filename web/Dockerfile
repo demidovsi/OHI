@@ -1,5 +1,18 @@
 # Собирается из корня монорепозитория: docker build -f web/Dockerfile .
-FROM python:3.10-slim
+
+# --- Stage 1: сборка SPA (web/frontend -> web/frontend/dist) -------------------
+# Структура папок — как в репозитории: SPA использует общие страницы web/shared_web/frontend
+# (alias @shared-web, путь ../shared_web/frontend от папки frontend).
+FROM node:22-alpine AS frontend
+WORKDIR /repo/web/frontend
+COPY web/frontend/package.json web/frontend/package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY web/frontend/ ./
+COPY web/shared_web/frontend/ /repo/web/shared_web/frontend/
+RUN npm run build
+
+# --- Stage 2: Python-приложение ------------------------------------------------
+FROM python:3.11-slim
 
 WORKDIR /app
 
@@ -14,8 +27,15 @@ RUN grep -v '^-e ' requirements.txt > requirements_docker.txt \
     && pip install --no-cache-dir -r requirements_docker.txt \
     && rm requirements_docker.txt
 
-COPY web/ .
+COPY web/*.py ./
+COPY web/shared/ ./shared/
+COPY web/shared_web/ ./shared_web/
+COPY web/static/ ./static/
+
+# Собранный SPA — интерфейс сайта, раздаётся Flask'ом по всем адресам (см. api_v2.py)
+COPY --from=frontend /repo/web/frontend/dist ./frontend/dist
 
 EXPOSE 8080
 
-CMD ["python", "main_ohi_web.py"]
+# exec-форма: gunicorn читает $PORT, заданный Cloud Run. Один процесс: состояние форм — в памяти (common.py)
+CMD exec gunicorn --bind "0.0.0.0:${PORT:-8080}" --workers 1 --threads 8 --timeout 0 main_ohi_web:app

@@ -1,6 +1,7 @@
 import json
 import os
 import shutil
+import uuid
 
 import py7zr
 from google.cloud import storage
@@ -41,12 +42,11 @@ def get_bucket():
     return client.bucket(bucket_name)
 
 
-def load_file(user_id, filename, delete_after_load=True):
+def load_file(filename, delete_after_load=True):
     """
     Загружает файл из Google Cloud Storage, распаковывает его, если это архив, и возвращает содержимое файла.
 
     Аргументы:
-    user_id -- идентификатор пользователя,
     filename -- имя файла, который нужно загрузить
 
     Возвращает:
@@ -57,7 +57,7 @@ def load_file(user_id, filename, delete_after_load=True):
     """
     try:
         bucket = get_bucket()
-        temp_dir = common.current_path + '/news/' + user_id
+        temp_dir = common.current_path + '/news/' + uuid.uuid4().hex  # своя папка на каждый запрос
         if not os.path.exists(temp_dir + '/' + filename):
             os.makedirs(temp_dir, exist_ok=True)
             file_name = os.path.splitext(filename)[0] + '.txt'
@@ -83,7 +83,7 @@ def load_file(user_id, filename, delete_after_load=True):
                 txt = f.read()
             if delete_after_load:
                 os.remove(filepath)
-                shutil.rmtree(common.current_path + '/news/', ignore_errors=True)
+                shutil.rmtree(temp_dir, ignore_errors=True)
             return txt
         return ''  # Возвращаем пустую строку, если файл не существует
     except Exception as er:
@@ -106,24 +106,24 @@ def delete_file(filename):
         flash(txt, 'warning')
 
 
-def delete_new(user_id, obj_id, write_in_log=False):
+def delete_new(obj_id, write_in_log=False):
     try:
         # удалить связку
         query = "delete from {schema}.rel_rss_themes_rss_history_rss where rss_history_id={id};".format(
             schema=config.SCHEMA, id=int(obj_id))
         ans, is_ok, status = common.send_rest(
-            'v2/execute?need_answer=0', 'PUT', params={'script': query}, token_user=get(user_id, 'token'))
+            'v2/execute?need_answer=0', 'PUT', params={'script': query}, token_user=get('token'))
         if not is_ok:
             flash(str(ans), 'warning')
             return
         # удалить новость
         ans_theme, is_ok, status = common.send_rest(
             'v2/entity/{app_code}/rss_history/{obj_id}/'.format(app_code=config.SCHEMA, obj_id=obj_id), "DELETE",
-            token_user=get(user_id, 'token'))
+            token_user=get('token'))
         if not is_ok:
             common.write_log_db(
                 'Error', 'Новостные ленты', str(ans_theme) + ' при удалении из БД новости с ID= ' + str(obj_id),
-                file_name='Пользователь ' + get(user_id, 'user_address'))
+                file_name='Пользователь ' + (get('user_info') or ''))
             flash(str(ans_theme), 'warning')
         else:
             delete_file('en_{obj_id}.7z'.format(obj_id=obj_id))
@@ -135,11 +135,11 @@ def delete_new(user_id, obj_id, write_in_log=False):
             if write_in_log:
                 common.write_log_db(
                     'Удаление новости', 'Новостные ленты', 'Удалена из БД новость с ID= ' + str(obj_id),
-                    file_name='Пользователь ' + get(user_id, 'user_address'))
+                    file_name='Пользователь ' + (get('user_info') or ''))
     except Exception as er:
         common.write_log_db(
             'Exception', 'Новостные ленты', f"{er}" + ' при удалении из БД новости с ID= ' + str(obj_id),
-            file_name='Пользователь ' + get(user_id, 'user_address'))
+            file_name='Пользователь ' + (get('user_info') or ''))
         flash('Ошибка: ' + f"{er}", 'warning')
 
 

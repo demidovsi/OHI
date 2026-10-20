@@ -1,64 +1,169 @@
+import copy
+
+from flask import session, has_request_context
+from flask import flash
+from typing import Optional, Union
 import json
 import os
+import re
+import threading
 import time
 import datetime
 import platform
 import zoneinfo
 
-from flask import session
-from flask import flash
 import requests
 from requests.exceptions import HTTPError
 
-import users_session
 import config
 import colors
 from ohi_shared.text_utils import decode, encode, str1000, get_duration  # noqa: F401
+from shared_web import visits  # учёт посетителей — общий для сайтов (копия parlaments/shared_web)
 
-version = 'version 1.6.0 - 09.09.2026'  # версия программы вэб сайта
+version = 'version 2.0.0 - 20.10.2026'  # версия программы вэб сайта
 app_lang = 'ru'
 current_path = ''
 
 
-def exist(user_id):
-    return users_session.users.exist(user_id)
+# ── Сессия пользователя ─────────────────────────────────────────────────────────
+# Как в сайтах parlaments (sozd-web, kns-web): user_id в адресах и users_session.py больше нет. Кто вошёл — в
+# подписанной cookie Flask (session, SECRET_KEY из FLASK_SECRET_KEY): случайный ключ сессии 'sid' и «паспорт»
+# ('ident' — имя, права, роль, язык, тема, ...). Состояние форм (фильтры, страницы, сортировки) — в памяти процесса
+# (_STATE[sid]). Если запрос попал на другой экземпляр Cloud Run (или процесс перезапустился), состояние
+# восстанавливается из паспорта: пользователь остаётся залогинен, фильтры форм — по умолчанию.
+# Токен superadmin в cookie не хранится — берётся заново.
+
+# ключи «паспорта» — переживают смену экземпляра; upr — без colors (цвета по теме)
+IDENTITY_KEYS = ('user_name', 'rights', 'user_role', 'app_lang', 'expires', 'ip', 'country', 'city', 'os',
+                 'browser', 'user_info', 'time_zone', 'theme', 'schema', 'guest_id', 'upr')
+_STATE = {}                   # sid -> состояние сессии
+_STATE_LOCK = threading.Lock()
+_STATE_TTL = 24 * 3600        # состояние, к которому не обращались сутки, удаляется (как и cookie)
 
 
-def add(user_id, key, value):
-    users_session.users.add(user_id, key, value)
+def _sid(create=False):
+    """Ключ сессии текущего запроса (из cookie); create — создать новую сессию, если её нет."""
+    if not has_request_context():
+        return None
+    sid = session.get('sid')
+    if not sid and create:
+        sid = os.urandom(20).hex()
+        session['sid'] = sid
+        session.permanent = True
+    return sid
 
 
-def get(user_id, key):
-    return users_session.users.get(user_id, key)
+def _restore(ident):
+    """Состояние сессии из «паспорта» cookie (другой экземпляр / перезапуск процесса)."""
+    st = dict(ident or {})
+    upr = st.get('upr')
+    if isinstance(upr, dict):
+        upr = dict(upr)
+        upr['colors'] = colors.colors.get(upr.get('theme') or st.get('theme') or 'white', colors.colors['white'])
+        st['upr'] = upr
+    if st.get('rights') is not None:
+        _, ok, token_admin, _ = login_admin()
+        if ok:
+            st['token'] = token_admin
+    return st
 
 
-def default(user_id, key, value):
-    users_session.users.default(user_id, key, value)
+def _state(create=False):
+    sid = _sid(create)
+    if not sid:
+        return None
+    now = time.time()
+    with _STATE_LOCK:
+        st = _STATE.get(sid)
+        if st is None and (create or session.get('ident')):
+            st = _restore(session.get('ident'))
+            _STATE[sid] = st
+            for key in [k for k, v in _STATE.items() if now - v.get('_ts', now) > _STATE_TTL]:
+                _STATE.pop(key, None)
+        if st is not None:
+            st['_ts'] = now
+    return st
 
 
-def clear(user_id):
-    return users_session.users.clear(user_id)
+def _save_identity(st):
+    ident = {k: st[k] for k in IDENTITY_KEYS if k in st}
+    if isinstance(ident.get('upr'), dict):
+        ident['upr'] = {k: v for k, v in ident['upr'].items() if k != 'colors'}
+    session['ident'] = ident
 
 
-def to_string():
-    return users_session.users.to_string()
+def new_session():
+    """Новая сессия (вход пользователя): прежнее состояние браузера сбрасывается."""
+    old = session.get('sid') if has_request_context() else None
+    if old:
+        with _STATE_LOCK:
+            _STATE.pop(old, None)
+    session.clear()
+    _sid(create=True)
+    with _STATE_LOCK:
+        _STATE[session['sid']] = {'_ts': time.time()}
 
 
-def find_user(user_id, req):
-    return users_session.users.find_user(user_id, req)
+def end_session():
+    """Выход: состояние и cookie сессии удаляются."""
+    old = session.get('sid') if has_request_context() else None
+    if old:
+        with _STATE_LOCK:
+            _STATE.pop(old, None)
+    if has_request_context():
+        session.clear()
+
+
+def add(key, value):
+    st = _state(create=True)
+    if st is None:
+        return
+    st[key] = value
+    if key in IDENTITY_KEYS:
+        _save_identity(st)
+
+
+def get(key):
+    st = _state()
+    return st.get(key) if st else None
+
+
+def default(key, value):
+    # копия: значения по умолчанию (array_default форм) — общие объекты модуля; правка состояния одной сессии
+    # (unit, списки) не должна попадать в другие (раньше сессии сериализовались в файл, и общих объектов не было)
+    st = _state(create=True)
+    if st is not None and key not in st:
+        add(key, copy.deepcopy(value))
+
+
+def exist():
+    """Пользователь вошёл (есть права)."""
+    st = _state()
+    return bool(st) and st.get('rights') is not None
+
+
+def is_admin():
+    return exist() and 'admin' in (get('rights') or '')
+
+
+# ── REST API бэкенда ───────────────────────────────────────────────────────────
+
+_admin_cache = {'until': 0.0, 'value': None}
+_ADMIN_TTL = 3600  # токен superadmin кэшируется на час (раньше — вход на каждую запись в журнал)
 
 
 def login_admin():
+    """Вход superadmin. Возвращает (текст, is_ok, токен_dict, язык); токен кэшируется на _ADMIN_TTL секунд."""
+    now = time.time()
+    if _admin_cache['value'] is not None and now < _admin_cache['until']:
+        return _admin_cache['value']
     result = False
     token_admin = ''
     lang_admin = ''
     txt_z = {"login": "superadmin", "password": decode('abcd', config.kirill), "rememberMe": True}
     try:
         headers = {"Accept": "application/json"}
-        response = requests.request(
-            'POST', config.URL + 'v1/login', headers=headers,
-            json={"params": txt_z}
-            )
+        response = requests.request('POST', config.URL + 'v1/login', headers=headers, json={"params": txt_z})
     except HTTPError as err:
         txt = f'HTTP error occurred: {err}'
     except Exception as err:
@@ -70,23 +175,22 @@ def login_admin():
             if result:
                 js = json.loads(txt)
                 if "accessToken" in js:
-                    token_admin = js["accessToken"]
-                    token_admin = decode(decode('abcd', config.kirill), token_admin)
-                    token_admin = json.loads(token_admin)
+                    token_admin = json.loads(decode(decode('abcd', config.kirill), js["accessToken"]))
                 if 'lang' in js:
                     lang_admin = js['lang']
-            else:
-                token = None
-                return txt, result, token
         except Exception as err:
             txt = f'Error occurred: : {err}'
-    return txt, result, token_admin, lang_admin
+            result = False
+    value = (txt, result, token_admin, lang_admin)
+    if result:
+        _admin_cache['value'] = value
+        _admin_cache['until'] = now + _ADMIN_TTL
+    return value
 
 
 def send_rest(mes, directive="GET", params=None, lang='', token_user=None):
     js = {}
     if token_user is not None:
-        # js['token'] = token_user
         js['token'] = encode(decode('abcd', config.kirill), json.dumps(token_user))
     if lang == '':
         lang = app_lang
@@ -114,26 +218,45 @@ def send_rest(mes, directive="GET", params=None, lang='', token_user=None):
         return response.text, response.ok, '<' + str(response.status_code) + '> - ' + response.reason
 
 
-def write_log_db(level, src, msg, page=None, file_name='', law_id='', td=None):
+def write_log_db(
+    level: str,
+    src: str,
+    msg: str,
+    page: Optional[Union[int, str]] = None,
+    file_name: str = '',
+    law_id: str = ' ',
+    td: Optional[float] = None,
+) -> None:
+    """Запись в журнал {schema}.logs. Пустой file_name в запросе вошедшего пользователя заменяется на его user_info
+    (IP, страна, город, ОС, браузер)."""
+    answer, is_ok, token, lang = login_admin()
+    if not is_ok:
+        print(f"{time.ctime()} ERROR write_log_db: {answer}", flush=True)
+        return
     if page is None or page == '':
         page = 'NULL'
     if law_id is None:
         law_id = ''
-    if file_name is None:
+    if not file_name:
         file_name = ''
-    comment = msg
+    if not file_name and has_request_context() and exist():
+        file_name = get('user_info') or ''
     td = 'NULL' if td is None else "%.1f" % td if type(td) == float else td
+    if page != 'NULL':
+        page = int(page)
+    # level, source, comment, law_id, file_name — параметрами (%s), а не в тексте SQL
     st = "insert into {schema}.logs (level, source, comment, page, law_id, file_name, td) values " \
-         "('{level}', '{source}', %s, {page}, '{law_id}', %s, {td})".format(
-            schema=config.SCHEMA, level=level, source=src,  page=page, law_id=law_id, td=td)
-    txt, ok, token, lang = login_admin()
-    if ok:
-        datas = (comment, file_name)
-        answer, ok, status = send_rest(
-            'v2/execute?need_answer=0', 'PUT', params={"script": st, "datas": datas}, lang=lang, token_user=token)
-        if not ok:
+         "(%s, %s, %s, {page}, %s, %s, {td})".format(schema=config.SCHEMA, page=page, td=td)
+    datas = (level, src, msg, str(law_id), file_name)
+    answer, ok, status = send_rest(
+        'v2/execute?need_answer=0', 'PUT', params={"script": st, "datas": datas}, lang=lang, token_user=token)
+    if not ok:
+        print(f"{time.ctime()} ERROR write_log_db: {answer}", flush=True)
+        if has_request_context():
             flash(str(answer), 'warning')
 
+
+# ── Клиент ─────────────────────────────────────────────────────────────────────
 
 def st_system(request):
     try:
@@ -143,44 +266,95 @@ def st_system(request):
 
 
 def st_address(request):
-    """
-    Retrieves the remote address (IP address) from the request object.
-
-    Args:
-        request (flask.Request): The request object containing the client's request data.
-
-    Returns:
-        str: The remote address (IP address) of the client.
-    """
-    # dict.get(key, default) вычисляет default всегда, даже когда key уже
-    # присутствует - request.environ['REMOTE_ADDR'] дёргался безусловно и
-    # падал с KeyError, если этого ключа в окружении вдруг не было (даже при
-    # наличии HTTP_X_FORWARDED_FOR). request.remote_addr - штатное свойство
-    # Flask/Werkzeug, само не кидает исключений (возвращает None, если адрес
-    # не удалось определить).
+    """IP клиента: первый адрес X-Forwarded-For (дальше — прокси), иначе адрес соединения (shared_web/visits.py)."""
     try:
-        return request.environ.get('HTTP_X_FORWARDED_FOR') or request.remote_addr or ''
+        return visits.client_ip(request)
     except Exception as err:
-        print(str(err))
-        return ''
+        return f"{err}"
 
 
 def ip_good(request):
-    # ip = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
     ip = st_address(request)
-    if ip != '127.0.0.1':
+    if not visits.is_local(ip):
         return ip
 
 
-def login(e_mail, password, ip_address):
+def get_client_info(request) -> dict:
+    """Информация о клиенте: 'ip', 'country', 'city', 'os', 'browser'."""
+    ip = visits.client_ip(request)
+    country, city = visits.geo(ip)  # геолокация по IP (с кэшем; локальный адрес — пусто)
+
+    os_name = request.headers.get('Sec-CH-UA-Platform', '').strip('"')
+    ua = request.headers.get('User-Agent', '')
+    if not os_name:
+        if 'Android' in ua:
+            os_name = 'Android'
+        elif 'iPhone' in ua or 'iPad' in ua:
+            os_name = 'iOS'
+        elif 'Windows NT' in ua:
+            os_name = 'Windows'
+        elif 'Mac OS X' in ua:
+            os_name = 'macOS'
+        elif 'Linux' in ua:
+            os_name = 'Linux'
+
+    browser = ''
+    if 'OPR/' in ua or 'Opera' in ua:
+        browser = 'Opera'
+    elif 'Edg/' in ua:
+        browser = 'Edge'
+    elif 'YaBrowser/' in ua:
+        browser = 'Yandex Browser'
+    elif 'Chromium/' in ua:
+        browser = 'Chromium'
+    elif 'Chrome/' in ua:
+        browser = 'Chrome'
+    elif 'Firefox/' in ua:
+        browser = 'Firefox'
+    elif 'Safari/' in ua:
+        browser = 'Safari'
+    elif 'MSIE' in ua or 'Trident/' in ua:
+        browser = 'Internet Explorer'
+
+    return {'ip': ip, 'country': country, 'city': city, 'os': os_name, 'browser': browser}
+
+
+def remember_client(request):
+    """Данные клиента — в сессию (ip, country, city, os, browser, user_info для журнала)."""
+    info = get_client_info(request)
+    for key in ('ip', 'country', 'city', 'os', 'browser'):
+        add(key, info[key])
+    add('user_info', '; '.join([info['ip'], info['country'], info['city'], info['os'], info['browser']]))
+    return info
+
+
+def get_timezone_hours_by_ip(ip_text):
+    """Часовой пояс гостя по IP (для входа из чат-бота, где браузер не присылает время) — смещение от UTC в часах;
+    None, если определить не удалось."""
+    if visits.is_local(ip_text):
+        return None
+    try:
+        response = requests.get(f'http://ip-api.com/json/{ip_text}', headers={"Accept": "application/json"},
+                                timeout=3)
+        response.raise_for_status()
+        tz_name = response.json().get('timezone')
+        if not tz_name:
+            return None
+        offset = datetime.datetime.now(zoneinfo.ZoneInfo(tz_name)).utcoffset()
+        return int(offset.total_seconds() // 3600)
+    except Exception:
+        return None
+
+
+# ── Вход пользователя ──────────────────────────────────────────────────────────
+
+def login(e_mail, password):
+    """Вход пользователя через v1/login бэкенда: новая сессия, права, роль; запросы к бэкенду — с токеном superadmin."""
     result = False
     txt_z = {"login": e_mail, "password": password, "rememberMe": True, "category": config.SCHEMA}
     try:
         headers = {"Accept": "application/json"}
-        response = requests.request(
-            'POST', config.URL + 'v1/login', headers=headers,
-            json={"params": txt_z}
-            )
+        response = requests.request('POST', config.URL + 'v1/login', headers=headers, json={"params": txt_z})
     except HTTPError as err:
         txt = f'HTTP error occurred: {err}'
     except Exception as err:
@@ -191,235 +365,122 @@ def login(e_mail, password, ip_address):
             result = response.ok
             if result:
                 js = json.loads(txt)
-                token_db = ''
-                if "accessToken" in js:
-                    token_db = js["accessToken"]
-
-                token = decode(decode('abcd', config.kirill), token_db)
-                token = json.loads(token)
+                token = json.loads(decode(decode('abcd', config.kirill), js.get("accessToken", '')))
                 rights = 'visible'
-                users_session.users.load()
                 for key in token.keys():
                     if key == '***':
                         rights = 'visible, admin'
                     elif token[key] != 'GET' and token[key] != '' and 'visible' in token[key]:
                         rights = token[key]
                         break
-                user_id = users_session.users.id_by_name(ip_address)
-                if user_id is None:
-                    user_id = os.urandom(20).hex()
-                    users_session.users.add_user(user_id)
-                users_session.users.clear(user_id)
-                users_session.users.add(user_id, "user_name", e_mail)
-                users_session.users.add(user_id, "token", token_db)
-                users_session.users.add(user_id, "rights", rights)
 
+                new_session()
+                add("user_name", e_mail)
+                add("rights", rights)
+                add("schema", config.SCHEMA)
                 if "expires" in js:
-                    users_session.users.add(user_id, "expires", time.mktime(
-                        time.strptime(js["expires"], '%Y-%m-%d %H:%M:%S')))
+                    add("expires", time.mktime(time.strptime(js["expires"], '%Y-%m-%d %H:%M:%S')))
                 if 'lang' in js:
-                    users_session.users.add(user_id, "app_lang", js['lang'])
+                    add("app_lang", js['lang'])
                 if 'role' in js:
-                    users_session.users.add(user_id, "user_role", js['role'])
+                    add("user_role", js['role'])
+
                 answer, ok, token_admin, lang_admin = login_admin()
                 if ok:
-                    add(user_id, 'token', token_admin)
-                    add(user_id, 'lang', lang_admin)
-
-                users_session.users.save()
-                return txt, result, user_id
-            else:
-                return txt, result, ''
+                    add('token', token_admin)
+            return txt, result
         except Exception as err:
             txt = f'Error occurred: : {err}'
-    return txt, result, ''
+            result = False
+    return txt, result
 
 
-def make_login(user_name, password, ip_address):
+def make_login(user_name, password):
     try:
-        txt, result, user_id = login(user_name, password, ip_address)
+        txt, result = login(user_name, password)
         if not result:
             try:
                 txt = json.loads(txt)
                 flash('Error login : ' + txt['detail'] + '; user_name=' + user_name, 'warning')
             except Exception as er:
                 flash('Error login : ' + txt + '; user_name=' + user_name + ': ' + f"{er}", 'warning')
-        return result, user_id
+        return result
     except Exception as er:
         print('ERROR', 'make_login', f"{er}")
-        return False, ''
+        return False
 
 
-def get_guest(user_id, ip_text):
-    if ip_text != '127.0.0.1':
-        answer, ok, status_result = send_rest("v1/content/{schema}/guests?where=sh_name='{ip}'".format(
-            schema=config.SCHEMA, ip=ip_text))
-        if ok:
-            answer = json.loads(answer)
-            if len(answer) == 0:  # записать нового пользователя
-                country = get(user_id, 'country')
-                city = get(user_id, 'city')
-                txt = "null, '" + ip_text + "', '" + country + "', '" + city + "'"
-                answer, ok, status_result = send_rest('v1/object/{schema}/guests?param_list={param_list}'.format(
-                    schema=config.SCHEMA, param_list=txt), 'PUT', token_user=get(user_id, 'token'))
-                if not ok:
-                    print('get_quest', str(answer))
+def make_upr(theme, select_language, device=''):
+    """Параметры интерфейса пользователя (upr) — в сессию."""
+    theme = theme if theme in colors.colors else 'white'
+    add('theme', theme)
+    upr = {
+        'user_name': get('user_name'),
+        'schema': config.SCHEMA,
+        'admin': 'admin' in (get('rights') or ''),
+        'theme': theme,
+        'select_language': select_language or config.select_language,
+        'version': version,
+        'colors': colors.colors[theme],
+        'time_zone': get('time_zone'),
+        'device': device,
+    }
+    add('upr', upr)
+    return upr
 
 
-def define_guest(ip_text):
-    """
-    Determines the country and city of a guest based on their IP address.
-
-    Args:
-        ip_text (str): The IP address of the guest.
-
-    Returns:
-        tuple: A tuple containing the country, city, and a boolean indicating success.
-               If the IP address is '127.0.0.1', returns ('', '', True).
-               If an error occurs, returns the error message, '', and False.
-    """
-    if ip_text == '127.0.0.1':
-        return '', '', True
-
-    headers = {"Accept": "application/json"}
-    try:
-        response = requests.get(f'http://ip-api.com/json/{ip_text}?lang=ru', headers=headers)
-        response.raise_for_status()
-    except HTTPError as err:
-        print('ERROR', 'Ошибка запроса', f'HTTP error occurred: {err}')
-        return f'HTTP error occurred: {err}', '', False
-    except Exception as err:
-        return f'{err}', '', False
-
-    try:
-        answer = response.json()
-        if response.ok and 'country' in answer:
-            return answer['country'], answer['city'], True
-        return response.text.replace('\\n', '\n'), '', False
-    except Exception as err:
-        return f'{err}', '', False
+def user_from_chat(request, new_id=None):
+    """Вход по ссылке из чат-бота (/one_new/<id>/): пользователь llm, тёмная тема, русский язык."""
+    if not make_login('llm', 'llm'):
+        return False
+    if not exist() or 'visible' not in get('rights'):
+        flash('Для пользователя {user_name} нет доступа к базе данных'.format(user_name=get('user_name')))
+        return False
+    info = remember_client(request)
+    # у входа из чат-бота нет браузерной формы со временем — часовой пояс по IP, иначе Москва
+    tz = get_timezone_hours_by_ip(info['ip'])
+    add('time_zone', tz if tz is not None else 3)
+    make_upr('black', 'ru')
+    visits.register_login(request, get('user_name') + ' из Nasha_stengazeta')
+    write_log_db('USER', 'Nasha_stengazeta', 'Вход пользователя на WEB сайт из Nasha_stengazeta ' +
+                 st_system(request) + ' [' + request.environ.get('HTTP_USER_AGENT', '') + ']',
+                 page=new_id, law_id=get('user_name'))
+    return True
 
 
-def get_timezone_minutes_by_ip(ip_text):
-    """Определяет часовой пояс гостя по IP (для входов в обход обычной формы
-    логина, где часовой пояс присылает браузер - см. user_from_chat) - в
-    минутах смещения от UTC, как time_zone везде в проекте. ip-api.com (тот
-    же сервис, что и define_guest) в ответе уже отдаёт IANA-имя пояса
-    (например "Europe/Moscow"), из него через zoneinfo считаем офсет с
-    учётом текущего перехода на летнее/зимнее время. None, если определить
-    не удалось (127.0.0.1, сеть недоступна, неизвестный IP и т.п.) - тогда
-    вызывающий код сам решает, какое значение подставить по умолчанию.
-    """
-    if ip_text == '127.0.0.1':
-        return None
-    try:
-        response = requests.get(f'http://ip-api.com/json/{ip_text}', headers={"Accept": "application/json"},
-                                timeout=3)
-        response.raise_for_status()
-        answer = response.json()
-        tz_name = answer.get('timezone') if response.ok else None
-        if not tz_name:
-            return None
-        offset = datetime.datetime.now(zoneinfo.ZoneInfo(tz_name)).utcoffset()
-        return int(offset.total_seconds() // 60)
-    except Exception:
-        return None
+# ── Формы ──────────────────────────────────────────────────────────────────────
 
-
-def fix_login(ip, value):
-    if ip.strip() == '127.0.0.1':
-        return
-    # фиксация логина (текст в value) пользователя
-    answer, ok, status_result = send_rest("v1/content/{schema}/guests?where=sh_name='{ip}'".format(
-        schema=config.SCHEMA, ip=ip))
-    if ok:
-        answer = json.loads(answer)
-        if len(answer) != 0:  # есть пользователь
-            guest_id = answer[0]['id']
-            url = "v1/MDM/his/{schema}/guests/{param}/{obj_id}?value='{value}'".format(
-                schema=config.SCHEMA, param='page', obj_id=guest_id, value=value)
-            answer, ok, token_admin, lang_admin = login_admin()
-            answer, ok, status_result = send_rest(url, 'POST', token_user=token_admin)
-            if not ok:
-                print('write_quest', str(answer))
-
-
-def init_form(user_id, request, endpoint):
-    users_session.users.load()
-    user_id = find_user(user_id, request)
-    if not exist(user_id):
+def init_form(request, endpoint):
+    """Не вошедшего пользователя — на вход (после входа вернётся на endpoint)."""
+    if not exist():
         session['page_for_return'] = endpoint
-        users_session.users.save()
         return '/login/'
-    return None
 
 
-def write_quest(user_id, request, name_page):
-    # txt = request.environ.get('HTTP_X_FORWARDED_FOR', request.remote_addr)
-    country = ''
-    city = ''
-    txt = st_address(request)
-    if txt == '127.0.0.1':
-        return country, city
-    guest_id = None
-    answer, ok, status_result = send_rest("v1/content/{schema}/guests?where=sh_name='{ip}'".format(
-        schema=config.SCHEMA, ip=txt))
-    if ok:
-        answer = json.loads(answer)
-        if len(answer) == 0:  # записать нового пользователя
-            country, city, ok_ip = define_guest(txt)
-            if not ok_ip:
-                country = city = ''
-            txt = "null, '" + txt + "', '" + country + "', '" + city + "'"
-            answer, ok, status_result = send_rest('v1/object/{schema}/guests?param_list={param_list}'.format(
-                schema=config.SCHEMA, param_list=txt), 'PUT', token_user=get(user_id, 'token'))
-            if not ok:
-                print('write_quest', str(answer))
-            else:
-                guest_id = int(answer.replace('"', ''))
-        else:
-            guest_id = answer[0]['id']
-            country = answer[0]['country']
-            city = answer[0]['city']
-            if country is None or country == '' or city is None or city == '':
-                country, city, ok_ip = define_guest(txt)
-                txt = str(guest_id) + ", '" + txt + "', '" + country + "', '" + city + "'"
-                send_rest('v1/object/{schema}/guests?param_list={param_list}'.format(
-                    schema=config.SCHEMA, param_list=txt), 'PUT', token_user=get(user_id, 'token'))
-        if guest_id is not None:
-            url = "v1/MDM/his/{schema}/guests/{param}/{obj_id}?value='{value}'".format(
-                schema=config.SCHEMA, param='page', obj_id=guest_id, value=name_page)
-            answer, ok, status_result = send_rest(url, 'POST', token_user=get(user_id, 'token'))
-            if not ok:
-                print('write_quest', str(answer))
-    else:
-        print('write_quest', str(answer))
-    return country, city
-
-
-def write_log(source, user_id, request, law_id='', page=None, mes='Вход пользователя на страницу'):
-    ip = ip_good(request)
+def write_log(source, request, law_id='', page=None, mes='Вход пользователя на страницу'):
+    ip = get('ip')
     if ip:
-        write_quest(user_id, request, source)
-        create_user_address(user_id, request)
-        write_log_db('USER', source, mes, law_id=law_id, page=page, file_name=get(user_id, 'user_address'))
+        if visits.is_local(ip):
+            return
+        visits.register_page(source)  # в историю гостя (shared_web/visits.py)
+        write_log_db('USER', source, mes, law_id=law_id, page=page, file_name=get('user_info'))
 
 
-def default_form(user_id, array, answer, prefix):
+def default_form(array, answer, prefix):
     for data in array:
-        default(user_id, prefix + data['key'], data['value'])
-        answer[data['key']] = get(user_id, prefix + data['key'])
+        default(prefix + data['key'], data['value'])
+        answer[data['key']] = get(prefix + data['key'])
 
 
-def save_form(user_id, array, answer, prefix):
+def save_form(array, answer, prefix):
     for data in array:
-        add(user_id, prefix + data['key'], answer[data['key']])
+        add(prefix + data['key'], answer[data['key']])
 
 
 def define_param_for_page(request, answer):
     if 'row_count' not in answer:
         return
-    last_row_count = int(request.form.get('row_count', 5))
+    last_row_count = answer['row_count']
     answer['change_page'] = False
     answer['change_sort'] = False
     answer['change_search'] = False
@@ -431,9 +492,7 @@ def define_param_for_page(request, answer):
     if 'row_count' in request.form:
         answer['row_count'] = int(request.form.get('row_count'))
 
-    if last_row_count != int(request.form.get('row_count', 5)):  # сменилось количество строк в таблице
-        # answer['page'] = last_page * last_row_count // answer['row_count'] + 1
-        # if not answer['change_page']:
+    if last_row_count != answer['row_count']:  # сменилось количество строк в таблице
         answer['page'] = 1
         answer['scroll'] = 0
         answer['change_page'] = True
@@ -447,7 +506,7 @@ def define_param_for_page(request, answer):
         answer['change_page'] = True
         answer['scroll'] = 0
     if 'search' in request.form:
-        if answer['search'] != request.form.get('search'):
+        if answer.get('search') != request.form.get('search'):
             answer['change_search'] = True
         answer['search'] = request.form.get('search')
     for key in request.form.keys():
@@ -458,19 +517,18 @@ def define_param_for_page(request, answer):
                 answer['scroll'] = 0
                 answer['change_page'] = True
             break
-    if 'sort' in request.form:
-        if answer['selected_sort'] != request.form.get('sort'):
+    if 'sort' in request.form and 'selected_sort' in answer:
+        sort = sql_sort(request.form.get('sort'), answer['selected_sort'])
+        if answer['selected_sort'] != sort:
             answer['change_sort'] = True
             answer['change_page'] = True
-        answer['selected_sort'] = request.form.get('sort')
-        # answer['page'] = 1
-    if 'sort_trend0' in request.form:
+        answer['selected_sort'] = sort
+    if 'sort_trend0' in request.form and 'sort_trend' in answer:
         if answer['sort_trend'] != 0:
             answer['change_sort'] = True
             answer['change_page'] = True
         answer['sort_trend'] = 0
-        # answer['page'] = 1
-    if 'sort_trend1' in request.form:
+    if 'sort_trend1' in request.form and 'sort_trend' in answer:
         if answer['sort_trend'] != 1:
             answer['change_sort'] = True
             answer['change_page'] = True
@@ -483,7 +541,6 @@ def define_pages(answer):
     answer['page_count'] = (answer['count'] + int(answer['row_count']) - 1) // int(answer['row_count'])
     answer['page'] = max(1, answer['page'])
     answer['page'] = min(answer['page'], max(1, answer['page_count']))
-    answer['page'] = min(answer['page'], (answer['count'] + answer['row_count'] - 1) // answer['row_count'])
     answer['array_pages'] = define_button(answer['page_count'], answer['page'])
     answer['first'] = str((answer['page'] - 1) * int(answer['row_count']) + 1) if answer['count'] != 0 else '0'
     last = answer['page'] * int(answer['row_count']) if answer['count'] != 0 else 0
@@ -529,6 +586,48 @@ def define_button(last_page, page_from):
     return array_pages
 
 
+def choose_language(request):
+    if 'select_language' in request.form:
+        upr = get('upr')
+        upr['select_language'] = request.form.get('select_language')
+        add('upr', upr)
+    if 'select_theme_form' in request.form and request.form.get('select_theme_form') in colors.colors:
+        add('theme', request.form.get('select_theme_form'))
+        upr = get('upr')
+        upr['theme'] = request.form.get('select_theme_form')
+        upr['colors'] = colors.colors[get('theme')]
+        add('upr', upr)
+
+
+# ── Значения из запроса в тексте SQL ──────────────────────────────────────────────
+# SQL форм выполняется через v2/execute с токеном superadmin, поэтому всё, что пришло из запроса,
+# подставляется только через эти функции.
+_SORT_RE = re.compile(r'[A-Za-z_][A-Za-z0-9_.]*(::[A-Za-z_][A-Za-z0-9_ ]*)?')
+
+
+def escape_sql_literal(value):
+    """Значение для SQL-литерала в кавычках: апострофы удваиваются."""
+    return str(value).replace("'", "''")
+
+
+def sql_digits(value):
+    """Целое число из запроса строкой ('' — пусто или не число)."""
+    value = str(value if value is not None else '').strip()
+    return value if value.isdigit() else ''
+
+
+def sql_date(value, default=''):
+    """Дата 'YYYY-MM-DD' из запроса; иное — default."""
+    value = str(value or '').strip()
+    return value if re.fullmatch(r'\d{4}-\d{2}-\d{2}', value) else default
+
+
+def sql_sort(value, default):
+    """Колонка сортировки ('a.sh_name', 'start_date::date'); иное — default."""
+    value = str(value or '').strip()
+    return value if _SORT_RE.fullmatch(value) else default
+
+
 def get_where(search, columns):
     where = ''
     if search:
@@ -542,137 +641,47 @@ def get_where(search, columns):
                 for column in columns:
                     st_column = st_column + ' or ' if st_column != '' else st_column
                     st_column += (column + " ilike N'%{search}%'")
-                where_or = where_or + "(" + st_column.format(search=search.strip()) + ")"
+                where_or = where_or + "(" + st_column.format(search=escape_sql_literal(search.strip())) + ")"
             if where_or != '':
                 where = where + ' and ' if where != '' else where
             where += '(' + where_or + ')'
     return where
 
 
+# ── Даты ───────────────────────────────────────────────────────────────────────
+# time_zone сессии — смещение пользователя от UTC в часах (как в сайтах parlaments).
+
 def get_date_sql(st, time_zone):
+    """Начало суток st (локальных для пользователя со смещением time_zone часов) — в UTC для SQL."""
     if type(st) == list:
-        year = st[0]
-        month = st[1]
-        day = st[2]
+        year, month, day = st
     else:
         year, month, day = st.split('-')
     date = datetime.datetime(int(year), int(month), int(day))
-    dt = date + datetime.timedelta(minutes=time_zone if time_zone else 0)
+    dt = date - datetime.timedelta(hours=time_zone if time_zone else 0)
     return '{year}-{month}-{day} {hour}:{minute}:{second}'.format(
         year=dt.year, month=dt.month, day=dt.day, hour=dt.hour, minute=dt.minute, second=dt.second)
 
 
 def st_today():
-   return datetime.datetime.now().strftime('%Y-%m-%d')
+    return str(time.gmtime().tm_year) + '-' + str(time.gmtime().tm_mon).rjust(2, '0') + '-' + \
+           str(time.gmtime().tm_mday).rjust(2, '0')
 
-def translate_from_base(st):
-    if st is None:
-        return ''
-    st = st.replace('~A~', '(').replace('~B~', ')').replace('~a1~', '@').replace('~LF~', '\n')
-    st = st.replace('~a2~', ',').replace('~a3~', '=').replace('~a4~', '"').replace('~a5~', "'")
-    st = st.replace('~a6~', ':').replace('~b1~', '/').replace('~b2~', '&').replace('~R~', '\r')
-    return st
+
+def local_today():
+    """'Сегодня' по локальному времени пользователя (его time_zone)."""
+    local_now = datetime.datetime.utcnow() + datetime.timedelta(hours=get('time_zone') or 0)
+    return get_st_date(local_now.year, local_now.month, local_now.day)
 
 
 def get_st_date(year, month, day):
-    return str(year) + '-' + str(month).rjust(2, '0') + '-' + str(day).rjust(2, '0')
+    # int(): части даты приходят из запроса и идут в SQL — не число → ValueError
+    return str(int(year)) + '-' + str(int(month)).rjust(2, '0') + '-' + str(int(day)).rjust(2, '0')
 
 
 def calc_day(year, month, day, delta):
     dt = datetime.date(int(year), int(month), int(day)) + datetime.timedelta(days=delta)
     return dt.year, dt.month, dt.day
-
-
-def user_from_chat(request, new_id=None):
-    ok, user_id = make_login('llm', 'llm', st_address(request))
-    if not ok:
-        return False, ''
-    users_session.users.load()
-    create_user_address(user_id, request)
-    add(user_id, 'theme', 'black')
-    # В отличие от обычного логина (login.py читает часовой пояс из браузера
-    # через time_now/GMT), у входа из чат-бота нет браузерной формы, чтобы
-    # его узнать - без значения по умолчанию get(user_id, 'time_zone')
-    # оставался бы None, и унарный минус над ним валил бы 500-й ошибкой
-    # любую страницу с разбивкой по суткам (news_board, chat_logs, logs).
-    # Пытаемся определить точнее по IP (geo -> IANA-пояс -> офсет в минутах),
-    # и только если не вышло - берём разумное значение по умолчанию (Москва).
-    if get(user_id, 'time_zone') is None:
-        add(user_id, 'time_zone', get_timezone_minutes_by_ip(st_address(request)) or 180)
-
-    upr = {
-        'user_name': get(user_id, 'user_name'),
-        'user_id': user_id,
-        'schema': config.SCHEMA,
-        'admin': 'admin' in get(user_id, 'rights'),
-        'theme': 'black',
-        'select_theme': 'black',
-        'version': version,
-        'colors': colors.colors['black'],
-        'time_zone': get(user_id, 'time_zone'),
-        'select_language': 'ru'
-    }
-    add(user_id, 'upr', upr)
-    users_session.users.save()
-
-    if not ok:
-        return False, user_id
-    if not exist(user_id) or 'visible' not in get(user_id, 'rights'):
-        flash('Для пользователя {user_name} нет доступа к базе данных'.format(
-            user_name=get(user_id, 'user_name')))
-        return False
-
-    write_log_db('USER', 'Nasha_stengazeta', 'Вход пользователя на WEB сайт из Nasha_stengazeta ' +
-                 st_system(request) + ' [' + request.environ.get('HTTP_USER_AGENT') + ']',
-                 file_name=get(user_id, 'user_address'), page=new_id,
-                 law_id=request.form.get('user_name'))
-    # записать пользователя в список пользователей
-    get_guest(user_id, st_address(request))
-
-    # зафиксировать лог пользователя
-    fix_login(st_address(request), 'Login из Nasha_stengazeta ({user_name})'.format(
-        user_name=get(user_id, 'user_name')))
-    return True, user_id
-
-
-def choose_language(user_id, request):
-    if 'select_language' in request.form:
-        upr = get(user_id, 'upr')
-        upr['select_language'] = request.form.get('select_language')
-        add(user_id, 'upr', upr)
-    if 'select_theme_form' in request.form:
-        add(user_id, 'theme', request.form.get('select_theme_form'))
-        upr = get(user_id, 'upr')
-        upr['select_theme'] = request.form.get('select_theme_form')
-        upr['colors'] = colors.colors[get(user_id, 'theme')]
-        add(user_id, 'upr', upr)
-
-
-def create_user_address(user_id, request):
-    """
-    Creates and stores the user's address information.
-
-    Args:
-        user_id (str): The unique identifier of the user.
-        request (flask.Request): The request object containing the user's request data.
-
-    This function performs the following steps:
-    1. Defines the guest's country and city based on the IP address from the request.
-    2. If the IP address is not valid, sets the country and city to empty strings.
-    3. Constructs the user address string using the user's name, IP address, system information, country, and city.
-    4. Adds the user address, country, and city to the user's session data.
-    """
-    country, city, is_ok = define_guest(st_address(request))
-    if not is_ok:
-        country = city = ''
-    user_address = f"user={get(user_id, 'user_name')}; {st_address(request)}; system={st_system(request)} {country} {city}"
-    add(user_id, 'user_address', user_address)
-    add(user_id, 'country', country)
-    add(user_id, 'city', city)
-
-
-def define_st(txt):
-    return txt if txt else ''
 
 
 def calc_st_month(year, month, day, delta):
@@ -688,67 +697,38 @@ def calc_st_month(year, month, day, delta):
     return '{year}-{month}-{day}'.format(year=str(year).zfill(3), month=str(month).zfill(2), day=str(day).zfill(2))
 
 
-def get_inform_about_os():
-    os_name = platform.system()
-    os_release = platform.release()
-    os_version = platform.version()
-    os_info = platform.platform()
-    architecture = platform.architecture()
-    processor = platform.processor()
-    return f'{os_name}; {os_release}; {os_version};\n{os_info};\n{architecture};\n{processor}'
-
-
-def days_phrase(days):
-    days = int(days)
-    if 11 <= days % 100 <= 14:
-        suffix = 'дней'
-    else:
-        last = days % 10
-        if last == 1:
-            suffix = 'день'
-        elif 2 <= last <= 4:
-            suffix = 'дня'
-        else:
-            suffix = 'дней'
-    return f"{days} {suffix}"
-
-
-def convert_time_to_timezone(datetime_utc_str, time_zone_minutes, only_time=False, format=None):
-    """
-    Преобразует строку даты и времени UTC с учетом заданного смещения часового пояса.
-
-    Args:
-        datetime_utc_str (str): Строка даты и времени в UTC формате.
-        time_zone_minutes (int): Смещение часового пояса в минутах.
-
-    Returns:
-        str: Строка даты и времени с учетом часового пояса в том же формате.
-    """
+def convert_time_to_timezone(datetime_utc_str, time_zone_hours, format=None):
+    """Строка даты-времени UTC → локальное время пользователя (смещение в часах), в том же или заданном формате."""
     try:
-        # Определяем формат входной строки
         if 'T' in datetime_utc_str:
-            if '.' in datetime_utc_str:
-                dt_format = "%Y-%m-%dT%H:%M:%S.%f"
-            else:
-                dt_format = "%Y-%m-%dT%H:%M:%S"
+            dt_format = "%Y-%m-%dT%H:%M:%S.%f" if '.' in datetime_utc_str else "%Y-%m-%dT%H:%M:%S"
         else:
-            if '.' in datetime_utc_str:
-                dt_format = "%Y-%m-%d %H:%M:%S.%f"
-            else:
-                dt_format = "%Y-%m-%d %H:%M:%S"
-
-        # Преобразуем строку в datetime объект
-        dt_utc = datetime.datetime.strptime(datetime_utc_str, dt_format)
-
-        # Применяем смещение
-        dt_local = dt_utc + datetime.timedelta(minutes=time_zone_minutes)
-
-        if format is None:
-            format = dt_format
-        # Используем заданный или исходный формат (но без Т)
-        return dt_local.strftime(format).replace('T', ' ')
+            dt_format = "%Y-%m-%d %H:%M:%S.%f" if '.' in datetime_utc_str else "%Y-%m-%d %H:%M:%S"
+        dt_local = datetime.datetime.strptime(datetime_utc_str, dt_format) + \
+            datetime.timedelta(hours=time_zone_hours or 0)
+        return dt_local.strftime(format or dt_format).replace('T', ' ')
     except Exception as e:
         return f"Ошибка преобразования времени: {str(e)}"
+
+
+# ── Разное ─────────────────────────────────────────────────────────────────────
+
+def define_st(txt):
+    return txt if txt else ''
+
+
+def translate_from_base(st):
+    if st is None:
+        return ''
+    st = st.replace('~A~', '(').replace('~B~', ')').replace('~a1~', '@').replace('~LF~', '\n')
+    st = st.replace('~a2~', ',').replace('~a3~', '=').replace('~a4~', '"').replace('~a5~', "'")
+    st = st.replace('~a6~', ':').replace('~b1~', '/').replace('~b2~', '&').replace('~R~', '\r')
+    return st
+
+
+def get_inform_about_os():
+    return f'{platform.system()}; {platform.release()}; {platform.version()};\n{platform.platform()};\n' \
+           f'{platform.architecture()};\n{platform.processor()}'
 
 
 def what_change(unit, current, keys=None):
@@ -759,39 +739,30 @@ def what_change(unit, current, keys=None):
     :param unit:    Исходное значение (dict, list или скаляр)
     :param current: текущее значение (dict, list или скаляр)
     :param keys:    Список ключей для отслеживания (только для dict); если None — все ключи
-    :return:        JSON-строка с описанием изменений (пустой объект «{}» если изменений нет)
+    :return:        JSON-строка с описанием изменений ('' если изменений нет)
     """
     if keys is not None and isinstance(unit, dict) and isinstance(current, dict):
         unit = {k: unit[k] for k in keys if k in unit}
         current = {k: current[k] for k in keys if k in current}
 
     def _diff(old, new):
-        """Рекурсивно вычисляет разницу между old и new."""
-
-        # Оба значения — словари: сравниваем поключево
         if isinstance(old, dict) and isinstance(new, dict):
             changes = {}
-            all_keys = set(old) | set(new)
-            for key in sorted(all_keys):
+            for key in sorted(set(old) | set(new)):
                 if key not in new:
-                    # ключ удалён
                     changes[key] = {'old': old[key], 'new': None}
                 elif key not in old:
-                    # ключ добавлен
                     changes[key] = {'old': None, 'new': new[key]}
                 else:
                     nested = _diff(old[key], new[key])
                     if nested is not None:
                         changes[key] = nested
             return changes if changes else None
-
-        # Оба значения — списки: сравниваем поэлементно
         if isinstance(old, list) and isinstance(new, list):
             if old == new:
                 return None
             changes = {}
-            max_len = max(len(old), len(new))
-            for i in range(max_len):
+            for i in range(max(len(old), len(new))):
                 if i >= len(old):
                     changes[f'[{i}]'] = {'old': None, 'new': new[i]}
                 elif i >= len(new):
@@ -801,19 +772,13 @@ def what_change(unit, current, keys=None):
                     if nested is not None:
                         changes[f'[{i}]'] = nested
             return changes if changes else None
-
-        # Скалярные значения (или разнотипные объекты)
         if old != new:
             return {'old': old, 'new': new}
         return None
 
     if not isinstance(unit, (dict, list)) or not isinstance(current, (dict, list)):
-        # Если хотя бы один аргумент не dict/list — сравниваем как скаляры
         result = _diff(unit, current)
         return json.dumps(result if result else {}, indent=4, ensure_ascii=False)
 
     result = _diff(unit, current)
-    if result:
-        return json.dumps(result, indent=4, ensure_ascii=False)
-    else:
-        return ''
+    return json.dumps(result, indent=4, ensure_ascii=False) if result else ''

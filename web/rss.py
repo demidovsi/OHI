@@ -2,21 +2,20 @@ import json
 
 from flask import flash
 
-import language
-from common import get, add, write_log
+from common import get, write_log
 import config
 import common
 import cloud
 
 
-array_sort = [{"id": "sh_name", "sh_name": 4},
-              {"id": "id", "sh_name": 3},
-              {"id": "url", "sh_name": 5},
-              {"id": "lang", "sh_name": 6},
-              {"id": "description", "sh_name": 7},
-              {"id": "type_rss", "sh_name": 8},
-              {"id": "type_article", "sh_name": 25},
-]
+array_sort = [{"id": "sh_name", "sh_name": "Название ленты"},
+              {"id": "id", "sh_name": "ID ленты"},
+              {"id": "url", "sh_name": "URL ленты"},
+              {"id": "lang", "sh_name": "Язык"},
+              {"id": "description", "sh_name": "Описание сайта"},
+              {"id": "type_rss", "sh_name": "Тип ленты"},
+              {"id": "type_article", "sh_name": "Тип статьи"},
+              ]
 
 array_default = [
     {'key': 'scroll', 'value': 0},
@@ -28,15 +27,13 @@ array_default = [
     {'key': 'selected_sort', 'value': 'id'},
     {'key': 'sort_trend', 'value': 1},
     {'key': 'unit', 'value': {}},
-    {'key': 'languages', 'value': language.list_languages},
+    {'key': 'languages', 'value': ['', 'ru', 'en', 'he']},
     {'key': 'filter_language', 'value': ''},
-    {'key': 'title', 'value': 2},
-    {'key': 'array_sort', 'value': array_sort},
 ]
 
 def get_where(answer):
    where = common.get_where(answer['search'], ['sh_name', 'url', 'description', 'id::text', 'lang::text', 'type_rss', 'type_article'])
-   if answer['filter_language']:
+   if answer['filter_language'] in ('ru', 'en', 'he'):  # значение из запроса идёт в SQL
        where = where + ' and ' if where != '' else where
        where = where + "lang='" + answer['filter_language'] + "'"
    return where
@@ -120,22 +117,18 @@ def check_corr(request, answer):
     return False
 
 
-def check_delete_nsi(user_id, request, answer):
+def check_delete_nsi(request, answer):
+    """Удаление ленты (кнопка del_obj_<id>; подтверждение — диалог SPA)."""
     for key in request.form.keys():
         if 'del_obj_' in key:
-            st2, st2 = key.split('del_obj_')
-            answer['select_id'] = int(st2)
-            load_rss(answer)
-            add(user_id, 'page_for_return', '/rss/{user_id}/'.format(user_id=user_id))
-            add(user_id, 'delete_source', 'rss')
-            add(user_id, 'code', answer['select_id'])
-            add(user_id, 'confirmation_text', 'Подтверждение удаления новостной ленты [{name}] с ID={id}'.format(
-                name=answer['unit']['sh_name_init'], id=answer['unit']['id']))
-            add(user_id, 'question_text',
-                'Действительно удалить новостную ленту [{name}] с ID={id} и все ее новости?'.format(
-                    name=answer['unit']['sh_name_init'], id=answer['unit']['id']))
-            answer['redirect'] = '/delete_unit/{user_id}/'.format(user_id=user_id)
+            obj_id = common.sql_digits(key.split('del_obj_')[1])
+            if obj_id:
+                delete_rss(obj_id)
+                if int(obj_id) == answer['select_id']:
+                    answer['select_id'] = 0
+                    answer['unit'] = {}
             return True
+    return False
 
 
 def check_new_object(request, answer):
@@ -189,7 +182,7 @@ def define_from_form(answer, request):
     answer['unit']['stop'] = 'stop' in request.form and request.form['stop'] == 'on'
 
 
-def save_nsi(user_id, answer):
+def save_nsi(answer):
     def slave(code, dat):
         value = answer['unit'][code]
         value = None if value == 'None' else value
@@ -213,7 +206,7 @@ def save_nsi(user_id, answer):
     values['stop'] = answer['unit']['stop']
 
     params = {"schema_name": config.SCHEMA, "object_code": 'rss_list', "values": values, 'datas': datas}
-    ans, ok, status = common.send_rest('v3/entity', 'PUT', params=params, token_user=get(user_id, 'token'))
+    ans, ok, status = common.send_rest('v3/entity', 'PUT', params=params, token_user=get('token'))
     if not ok:
         flash(str(ans), 'warning')
     else:
@@ -226,7 +219,7 @@ def save_nsi(user_id, answer):
             'Новостные ленты',
             '{operation} новостной ленты;\n '.format(operation=operation) + what_change(answer),
             law_id=answer['unit']['sh_name_init'], page=answer['unit']['id'],
-            file_name='Пользователь ' + get(user_id, 'user_address'))
+            file_name='Пользователь ' + (get('user_info') or ''))
         answer['unit']['sh_name_init'] = answer['unit']['sh_name']
         answer['unit']['url_init'] = answer['unit']['url']
         answer['unit']['lang_init'] = answer['unit']['lang']
@@ -265,7 +258,7 @@ def what_change(answer):
     return result
 
 
-def delete_rss(user_id, obj_id):
+def delete_rss(obj_id):
     # прочитать список новостей удаляемой новостной ленты
     ans, is_ok, status = common.send_rest(
         'v2/select/{schema}/nsi_rss_history?where=rss={id} and file is not null and file > 0'.format(
@@ -277,11 +270,11 @@ def delete_rss(user_id, obj_id):
     # удалить новостную ленту
     ans_theme, is_ok, status = common.send_rest(
         'v2/entity/{app_code}/rss_list/{obj_id}/'.format(app_code=config.SCHEMA, obj_id=obj_id), "DELETE",
-        token_user=get(user_id, 'token'))
+        token_user=get('token'))
     if not is_ok:
         common.write_log_db(
             'Error', 'Новостные ленты', str(ans_theme) + ' при удалении из БД записи с новостной лентой ID= ' + str(obj_id),
-            file_name='Пользователь ' + get(user_id, 'user_address'))
+            file_name='Пользователь ' + (get('user_info') or ''))
         flash(str(ans_theme), 'warning')
     else:
         for data in list_news:  # удалить файлы новостей
@@ -295,57 +288,43 @@ def delete_rss(user_id, obj_id):
         common.write_log_db(
             'Удаление новостной ленты', 'Новостные ленты', 'Удалена из БД новостная лента с ID= ' + str(obj_id) + '\n' +
             json.dumps(json.loads(ans_theme), ensure_ascii=False, indent=4),
-            file_name='Пользователь ' + get(user_id, 'user_address'))
+            file_name='Пользователь ' + (get('user_info') or ''))
 
 
-def prepare_form(user_id, request):
+def prepare_form(request):
     answer = {}
-    redirect_url = common.init_form(user_id, request, '/rss/')
+    redirect_url = common.init_form(request, '/rss/')
     if redirect_url:
         answer['redirect'] = redirect_url
         return answer
 
-    common.default_form(user_id, array_default, answer, 'rss_')
+    common.default_form(array_default, answer, 'rss_')
 
     if request.method == 'POST':
-        common.choose_language(user_id, request)
+        common.choose_language(request)
         common.define_param_for_page(request, answer)
         define_from_form(answer, request)
 
-        if 'filter_language' in request.form:
+        if 'filter_language' in request.form and request.form['filter_language'] != answer['filter_language']:
             answer['filter_language'] = request.form['filter_language']
+            answer['page'] = 1
 
-        if 'refresh_table' in request.form:
-            answer['data'] = []
-
-        if check_corr(request, answer):
-            common.save_form(user_id, array_default, answer, 'rss_')
-            return answer
-
-        if check_new_object(request, answer):
-            common.save_form(user_id, array_default, answer, 'rss_')
-            return answer
-
-        if check_refresh_nsi(request, answer):
-            return answer
-
-        if 'nsi_save' in request.form:
-            common.save_form(user_id, array_default, answer, 'rss_')
-            save_nsi(user_id, answer)
-
-        if check_delete_nsi(user_id, request, answer):
-            common.save_form(user_id, array_default, answer, 'rss_')
-            return answer
+        if not check_corr(request, answer):
+            check_new_object(request, answer)
+            check_refresh_nsi(request, answer)
+            if common.is_admin():  # изменения лент — только администратор (меню прячет кнопки, проверка — здесь)
+                if 'nsi_save' in request.form:
+                    save_nsi(answer)
+                check_delete_nsi(request, answer)
     else:
-        write_log('Новостные ленты', user_id, request)
+        write_log('Новостные ленты', request)
 
     get_count(answer)
     get_count_stop(answer)
     load_inform(answer)
 
-    answer['title'] = 2
-
     common.define_pages(answer)
-    common.save_form(user_id, array_default, answer, 'rss_')
-
+    common.save_form(array_default, answer, 'rss_')
+    answer['array_sort'] = array_sort
+    answer['title_search'] = 'Поиск по колонкам: название, URL, описание, ID, язык, тип ленты, тип статьи'
     return answer

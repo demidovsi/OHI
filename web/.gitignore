@@ -1,5 +1,6 @@
 session.json
 static/session.json
+static/language.json
 ohi_web_venv
 
 # Environment variables
@@ -9,3 +10,6 @@ ohi_web_venv
 
 __pycache__/
 *.pyc
+
+# временные файлы статей (cloud.load_file)
+news/

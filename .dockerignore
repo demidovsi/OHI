@@ -12,6 +12,7 @@ web/.env
 web/.env.local
 web/.env.development
 web/static/session.json
+web/static/language.json
 
 # server
 server/.env
@@ -25,3 +26,6 @@ server/*.jsonl
 server/*.log
 server/*.db
 server/*.sqlite3
+web/frontend/node_modules/
+web/frontend/dist/
+web/news/

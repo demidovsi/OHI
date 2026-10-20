@@ -54,4 +54,4 @@ jobs:
             --project "$PROJECT_ID" \
             --allow-unauthenticated \
             --timeout=300 \
-            --set-secrets=URL=llm-web-url:latest,KIRILL=llm-web-kirill:latest
+            --set-secrets=URL=llm-web-url:latest,KIRILL=llm-web-kirill:latest,FLASK_SECRET_KEY=llm-web-flask-secret:latest

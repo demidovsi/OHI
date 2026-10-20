@@ -35,8 +35,8 @@ array_default = [
 ]
 
 array_sort = [
-    {"id": "public_date", "sh_name": 13},
-    {"id": "rss_history_id", "sh_name": 14},
+    {"id": "public_date", "sh_name": "Дата"},
+    {"id": "rss_history_id", "sh_name": "Номер новости"},
 ]
 
 bucket_name = 'llm-news'
@@ -61,7 +61,7 @@ def load_themes(answer):
                                     'sh_name_init': '', "value_init": '', "stop_init": False, "exception_init": ''})
         for data in answer['themes']:
             if data['id'] == answer['select_theme']:
-                answer['unit'] = data
+                answer['unit'] = dict(data)  # копия: правка темы не должна менять список тем
                 break
 
 
@@ -143,7 +143,7 @@ def check_new_object(request, answer):
         answer['data'] = []
 
 
-def make_transcript(user_id, answer):
+def make_transcript(answer):
     txt0 = ''
     ans, is_ok, status = common.send_rest('v2/select/{schema}/v_nsi_rss_history?where=id={id}'.format(
         schema=config.SCHEMA, id=answer['select_id']))
@@ -159,7 +159,7 @@ def make_transcript(user_id, answer):
                 txt0 += '\t' + ans['title_' + answer['select_lang']] + '\n\n'
             if ans['description_' + answer['select_lang']]:
                 txt0 += '\t' + ans['description_' + answer['select_lang']] + '\n\n'
-    txt = cloud.load_file(user_id, answer['select_lang'] + '_' + str(answer['select_id']))
+    txt = cloud.load_file(answer['select_lang'] + '_' + str(answer['select_id']))
     answer['transcript'] = txt0 + txt
     answer['len_transcript'] = common.str1000(len(answer['transcript']))
 
@@ -236,7 +236,7 @@ def what_change(answer):
     return result
 
 
-def save_nsi(user_id, answer):
+def save_nsi(answer):
     def slave(code):
         value = answer['unit'][code]
         value = None if value == 'None' else value
@@ -256,7 +256,7 @@ def save_nsi(user_id, answer):
     values['stop'] = answer['unit']['stop']
 
     params = {"schema_name": config.SCHEMA, "object_code": 'rss_themes', "values": values, 'datas': datas}
-    ans, ok, status = common.send_rest('v3/entity', 'PUT', params=params, token_user=get(user_id, 'token'))
+    ans, ok, status = common.send_rest('v3/entity', 'PUT', params=params, token_user=get('token'))
     if not ok:
         flash(str(ans), 'warning')
     else:
@@ -269,7 +269,7 @@ def save_nsi(user_id, answer):
             'Поисковые образы',
             '{operation} поисковой темы;\n '.format(operation=operation) + what_change(answer),
             law_id=answer['unit']['sh_name_init'],
-            file_name='Пользователь ' + get(user_id, 'user_address'))
+            file_name='Пользователь ' + (get('user_info') or ''))
         answer['unit']['sh_name_init'] = answer['unit']['sh_name']
         answer['unit']['value_init'] = answer['unit']['value']
         answer['unit']['exception_init'] = answer['unit']['exception']
@@ -279,19 +279,7 @@ def save_nsi(user_id, answer):
         return answer['unit']['id']
 
 
-def delete_nsi(user_id, answer):
-    add(user_id, 'page_for_return', '/search_words/{user_id}/'.format(user_id=user_id))
-    add(user_id, 'delete_source', 'theme')
-    add(user_id, 'code', answer['select_theme'])
-    add(user_id, 'confirmation_text', 'Подтверждение удаления темы поисковых образов [{name}] с ID={id}'.format(
-        name=answer['unit']['sh_name_init'], id=answer['unit']['id']))
-    add(user_id, 'question_text',
-        'Действительно удалить тему поисковых образов [{name}] с ID={id}?'.format(
-            name=answer['unit']['sh_name_init'], id=answer['unit']['id']))
-    answer['redirect'] = '/delete_unit/{user_id}/'.format(user_id=user_id)
-
-
-def delete_theme(user_id, obj_id):
+def delete_theme(obj_id):
     # прочитать список новостей удаляемой темы
     ans, is_ok, status = common.send_rest(
         'v2/select/{schema}/rel_rss_themes_rss_history_rss'.format(schema=config.SCHEMA))
@@ -303,11 +291,11 @@ def delete_theme(user_id, obj_id):
     # удалить саму тему
     ans_theme, is_ok, status = common.send_rest(
         'v2/entity/{app_code}/rss_themes/{obj_id}/'.format(app_code=config.SCHEMA, obj_id=obj_id), "DELETE",
-        token_user=get(user_id, 'token'))
+        token_user=get('token'))
     if not is_ok:
         common.write_log_db(
             'Error', 'Поисковые образы', str(ans_theme) + ' при удалении из БД записи с темой ID= ' + str(obj_id),
-            file_name='Пользователь ' + get(user_id, 'user_address'))
+            file_name='Пользователь ' + (get('user_info') or ''))
         flash(str(ans_theme), 'warning')
         return
 
@@ -315,33 +303,24 @@ def delete_theme(user_id, obj_id):
     query = 'delete from {schema}.rel_rss_themes_rss_history_rss where rss_themes_id={id}'.format(
         schema=config.SCHEMA, id=obj_id)
     ans, is_ok, status = common.send_rest('v2/execute?need_answer=0', 'PUT', params={'script': query},
-                                          token_user=get(user_id, 'token'))
+                                          token_user=get('token'))
     if not is_ok:
         flash(str(ans), 'warning')
         return
 
-    # найдем список новостей (их id) для удаления
-    list_id = []
-    obj_id = int(obj_id)
+    # новости удалённой темы, у которых нет других тем, удаляются вместе со статьями
+    themes_of_news = {}
     for data in list_news:
-        ident = data['rss_history_id']
-        count = 0
-        for unit in list_news:
-            if unit['rss_themes_id'] == obj_id:
-                count += 1
-        if count == 1:
-            list_id.append(ident)
-
-    # удаляем новости, которые только для удаленной темы
-    for data in list_id:
-        cloud.delete_new(user_id, obj_id), data
+        themes_of_news.setdefault(data['rss_history_id'], set()).add(data['rss_themes_id'])
+    obj_id = int(obj_id)
+    for news_id, themes in themes_of_news.items():
+        if themes == {obj_id}:
+            cloud.delete_new(news_id)
 
     common.write_log_db(
         'Удаление темы', 'Поисковые образы', 'Удалена из БД тема с ID= ' + str(obj_id) + '\n' +
         json.dumps(json.loads(ans_theme), ensure_ascii=False, indent=4),
-        file_name='Пользователь ' + get(user_id, 'user_address'))
-    add(user_id, 'search_words_data', [])
-    add(user_id, 'search_words_themes', [])
+        file_name='Пользователь ' + (get('user_info') or ''))
 
 
 def define_month(answer, delta):
@@ -400,14 +379,14 @@ def prepare_history(answer):
             answer['global_count'] = 0
 
 
-def save_history(user_id, answer, request):
+def save_history(answer, request):
     if answer['switch'] == 'service' and answer['select_theme']:
         if request.form.get('his_date'):
             url = 'v1/MDM/his/{schema}/rss_themes/counts/{obj_id}'.format(
                 schema=config.SCHEMA, obj_id=answer['unit']['id'])
             dt = request.form.get('his_date')
             url += "?dt={dt}&value={value}".format(dt=dt, value=request.form.get('his_value'))
-            ans, is_ok, status = common.send_rest(url, 'POST', token_user=get(user_id, 'token'))
+            ans, is_ok, status = common.send_rest(url, 'POST', token_user=get('token'))
             if not is_ok:
                 flash(str(ans), 'warning')
             else:
@@ -418,7 +397,7 @@ def save_history(user_id, answer, request):
             flash('Необходимо задать дату и время для значения', 'warning')
 
 
-def check_delete(answer, request, user_id):
+def check_delete(answer, request):
     # удаление новости из темы
     for key in request.form.keys():
         if 'his_delete_' in key:
@@ -439,7 +418,7 @@ def check_delete(answer, request, user_id):
                         schema=config.SCHEMA, id=st2, theme=answer['select_theme'])
                     ans, is_ok, status = common.send_rest(
                         'v2/execute?need_answer=0', 'PUT', params={"script": query},
-                        token_user=get(user_id, 'token'))
+                        token_user=get('token'))
                     if not is_ok:
                         flash(str(ans), 'warning')
                         return
@@ -450,7 +429,7 @@ def check_delete(answer, request, user_id):
                             need = False
                             break
                     if need:  # нужно удалить новость
-                        cloud.delete_new(user_id, st2, True)
+                        cloud.delete_new(st2, True)
                     mes = 'Удалена новость {id}'.format(id=st2)
                     if need:
                         mes += ' с удалением и самой новости'
@@ -458,13 +437,13 @@ def check_delete(answer, request, user_id):
                         mes += ' без удаления самой новости, так как новость присутствует в других темах'
                     common.write_log_db(
                         'Удаление новости из темы', 'Поисковые образы', mes,
-                        file_name='Пользователь ' + get(user_id, 'user_address'))
+                        file_name='Пользователь ' + (get('user_info') or ''))
                     answer['his_data'] = []
                     answer['data'] = []
                 break
 
 
-def clear_history(user_id, answer):
+def clear_history(answer):
     obj_id = answer['select_theme']
     # прочитать список новостей очищаемой темы
     ans, is_ok, status = common.send_rest(
@@ -478,7 +457,7 @@ def clear_history(user_id, answer):
     query = 'delete from {schema}.rel_rss_themes_rss_history_rss where rss_themes_id={id}'.format(
         schema=config.SCHEMA, id=obj_id)
     ans, is_ok, status = common.send_rest('v2/execute?need_answer=0', 'PUT', params={'script': query},
-                                          token_user=get(user_id, 'token'))
+                                          token_user=get('token'))
     if not is_ok:
         flash(str(ans), 'warning')
         return
@@ -495,7 +474,7 @@ def clear_history(user_id, answer):
             query += str(data['rss_history_id'])
         query = 'delete from {schema}.nsi_rss_history where id in ({query})'.format(schema=config.SCHEMA, query=query)
         ans, is_ok, status = common.send_rest('v2/execute?need_answer=0', 'PUT', params={'script': query},
-                                              token_user=get(user_id, 'token'))
+                                              token_user=get('token'))
         if not is_ok:
             flash(str(ans), 'warning')
 
@@ -503,18 +482,18 @@ def clear_history(user_id, answer):
         'Поисковые темы', 'Удаление данных',
         'Удалены исторические данные в количестве {count} для темы [{name}]'.format(
             count=answer['global_count'], name=answer['unit']['sh_name_init']),
-        file_name='Пользователь ' + get(user_id, 'user_address'))
+        file_name='Пользователь ' + (get('user_info') or ''))
     answer['his_data'] = []
     answer['data'] = []
     return True
 
 
-def history_start(user_id, answer):
-    if clear_history(user_id, answer):
+def history_start(answer):
+    if clear_history(answer):
         dt = 'NULL'
         ans, ok, status = common.send_rest(
             "v1/update/{schema}/rss_themes?where=id={id}".format(schema=config.SCHEMA, id=answer['unit']['id']),
-            'PATCH', token_user=common.get(user_id, 'token'),
+            'PATCH', token_user=common.get('token'),
             params={"values": {"last_date": f'{dt}'}})
         if not ok:
             flash(str(answer), 'warning')
@@ -522,18 +501,18 @@ def history_start(user_id, answer):
             answer['themes'] = []
 
 
-def prepare_form(user_id, request):
+def prepare_form(request):
     answer = dict()
-    st = common.init_form(user_id, request, '/search_words/')
+    st = common.init_form(request, '/search_words/')
     if st:
         answer['redirect'] = st
         return answer
-    common.default_form(user_id, array_default, answer, 'search_words_')
+    common.default_form(array_default, answer, 'search_words_')
     if request.method == 'POST':
-        common.choose_language(user_id, request)
+        common.choose_language(request)
         common.define_param_for_page(request, answer)
         define_from_form(answer, request)
-        if 'select_lang' in request.form:
+        if request.form.get('select_lang') in answer['languages'] and                 request.form.get('select_lang') != answer['select_lang']:
             answer['select_lang'] = request.form.get('select_lang')
             answer['transcript'] = ''
         if 'detail' in request.form:
@@ -552,26 +531,36 @@ def prepare_form(user_id, request):
             answer['select_id'] = 0
             for data in answer['themes']:
                 if data['id'] == answer['select_theme']:
-                    answer['unit'] = data
+                    answer['unit'] = dict(data)  # копия: правка темы не должна менять список тем
                     break
         check_show(request, answer)
         check_nsi_refresh(request, answer)
         check_new_object(request, answer)
-        check_delete(answer, request, user_id)
-        if 'nsi_save' in request.form:
-            save_nsi(user_id, answer)
-        if 'nsi_delete' in request.form:
-            delete_nsi(user_id, answer)
+        # «Управление» темами — только администратор (меню прячет режим, проверка — здесь)
+        admin = common.is_admin()
+        if admin:
+            check_delete(answer, request)
+            if 'nsi_save' in request.form:
+                save_nsi(answer)
+            if 'nsi_delete' in request.form and answer['select_theme']:
+                delete_theme(answer['select_theme'])
+                answer['select_theme'] = 0
+                answer['unit'] = {}
+                answer['themes'] = []
+                answer['data'] = []
+                answer['his_data'] = []
         if 'refresh' in request.form:
             answer['transcript'] = ''  # Прочитать текст стенограммы
             answer['data'] = []  # прочитать все даты
             answer['themes'] = []  # перечитать темы
-        if 'date_begin' in request.form and answer['date_begin'] != max(request.form.get('date_begin'), '2000-01-01'):
-            answer['date_begin'] = max(request.form.get('date_begin'), '2000-01-01')
+        date_begin = max(common.sql_date(request.form.get('date_begin'), answer['date_begin']), '2000-01-01')
+        if date_begin != answer['date_begin']:
+            answer['date_begin'] = date_begin
             answer['page'] = 1
             answer['his_data'] = []
-        if 'date_end' in request.form and answer['date_end'] != max(request.form.get('date_end'), '2000-02-01'):
-            answer['date_end'] = max(request.form.get('date_end'), '2000-02-01')
+        date_end = max(common.sql_date(request.form.get('date_end'), answer['date_end']), '2000-02-01')
+        if date_end != answer['date_end']:
+            answer['date_end'] = date_end
             answer['page'] = 1
             answer['his_data'] = []
         if 'left_history' in request.form:
@@ -604,21 +593,26 @@ def prepare_form(user_id, request):
                         answer['his_date'] = st2
                         answer['his_value'] = unit['value']
                         break
-        if 'save_history' in request.form:
-            save_history(user_id, answer, request)
-        if 'his_clear' in request.form:
-            clear_history(user_id, answer)
-        if 'his_start' in request.form:
-            history_start(user_id, answer)
+        if admin:
+            if 'save_history' in request.form:
+                save_history(answer, request)
+            if 'his_clear' in request.form:
+                clear_history(answer)
+            if 'his_start' in request.form:
+                history_start(answer)
     else:
-        write_log('Поисковые образы', user_id, request)
+        write_log('Поисковые образы', request)
 
     if len(answer['themes']) == 0:
         load_themes(answer)
-        answer['select_theme'] = 0
+        # выбранная тема остаётся выбранной (новая после записи — тоже), иначе — пустая
+        if answer['unit'].get('id') and answer['unit']['id'] != answer['select_theme']:
+            answer['select_theme'] = answer['unit']['id']
+        if not any(data['id'] == answer['select_theme'] for data in answer['themes']):
+            answer['select_theme'] = 0
         for data in answer['themes']:
             if data['id'] == answer['select_theme']:
-                answer['unit'] = data
+                answer['unit'] = dict(data)  # копия: правка темы не должна менять список тем
                 answer['select_theme'] = data['id']
                 break
     if answer['switch'] == 'detail':
@@ -626,13 +620,11 @@ def prepare_form(user_id, request):
         answer['global_count'] = answer['count']
         answer['data'] = load_inform(answer)
         if answer['select_id'] and answer['transcript'] == '':
-            make_transcript(user_id, answer)
+            make_transcript(answer)
     prepare_diagram(answer)
     prepare_history(answer)
     answer['array_sort'] = array_sort
-    answer['no_search'] = True
     get_highlight_text(answer)
-    # answer['no_refresh'] = True
     common.define_pages(answer)
-    common.save_form(user_id, array_default, answer, 'search_words_')
+    common.save_form(array_default, answer, 'search_words_')
     return answer

@@ -7,12 +7,11 @@ import openai
 import config
 import common
 import cloud
-from common import add, get
+from common import get
 import article_parser
 
 array_default = [
     {'key': 'scroll', 'value': 0},
-    {'key': 'page_for_return', 'value': 0},
     {'key': 'unit', 'value': {}},
     {'key': 'select_lang', 'value': 'ru'},
     {'key': 'languages', 'value': ['ru', 'en', 'he']},
@@ -57,7 +56,7 @@ def load_inform(answer):
         return True
 
 
-def make_info(user_id, answer):
+def make_info(answer):
     lang = answer['select_lang']
     answer['unit']['title'] = answer['unit']['title_' + lang]
     answer['unit']['title_init'] = answer['unit']['title_' + lang + '_init']
@@ -67,7 +66,7 @@ def make_info(user_id, answer):
 
     if answer['unit']['file']:
         if 'full_' + lang not in answer['unit']:
-            answer['unit']['full_' + lang] = cloud.load_file(user_id, lang + '_' + str(answer['unit']['id']))
+            answer['unit']['full_' + lang] = cloud.load_file(lang + '_' + str(answer['unit']['id']))
             answer['unit']['full_' + lang + '_init'] = answer['unit']['full_' + lang]
         answer['unit']['full'] = answer['unit']['full_'+lang]
         answer['unit']['full_init'] = answer['unit']['full_' + lang + '_init']
@@ -104,7 +103,7 @@ def define_from_form(request, answer):
     answer['unit']['full'] = request.form.get('full')
 
 
-def save(user_id, answer):
+def save(answer):
     id = int(answer['new_id'])
     values = dict()
     values['id'] = id
@@ -115,7 +114,7 @@ def save(user_id, answer):
     if lang == answer['unit']['lang']:
         values['file'] = len(answer['unit']['full'])
 
-    ans, is_ok, status = common.send_rest('v2/entity', 'PUT', params=params, token_user=get(user_id, 'token'))
+    ans, is_ok, status = common.send_rest('v2/entity', 'PUT', params=params, token_user=get('token'))
     if not is_ok:
         flash(str(ans), 'warning')
     else:
@@ -124,8 +123,7 @@ def save(user_id, answer):
              'description': answer['unit'].get('description_' + lang + '_init')},
             {'title': answer['unit']['title_' + lang],
              'description': answer['unit']['description_' + lang]})
-        common.write_log_db('Сохранение новости', 'new', diff, law_id=str(id), page=id,
-                        file_name=get(user_id, 'user_address'))
+        common.write_log_db('Сохранение новости', 'new', diff, law_id=str(id), page=id)
         answer['unit']['title_' + lang + '_init'] = answer['unit']['title_' + lang]
         answer['unit']['description_' + lang + '_init'] = answer['unit']['description_' + lang]
         if 'file' in values:
@@ -136,7 +134,7 @@ def save(user_id, answer):
         answer['unit'].pop('full_' + lang, None)  # удалить, если есть, чтобы не мешало
 
 
-def need_article(user_id, answer):
+def need_article(answer):
     new_id = answer['new_id']
     try:
         article = article_parser.extract_ynet_article(answer['unit']['url'])
@@ -149,7 +147,7 @@ def need_article(user_id, answer):
             flash('Не удалось распознать содержимое статьи на странице', 'warning')
             common.write_log_db('Обновление статьи с сайта', 'new',
                             'Не удалось распознать содержимое: ' + str(answer['unit']['url']),
-                            law_id=str(new_id), page=new_id, file_name=get(user_id, 'user_address'))
+                            law_id=str(new_id), page=new_id)
             return
         answer['select_lang'] = article['lang'] if article['lang'] in answer['languages'] else 'ru'
         if article.get('title'):
@@ -161,7 +159,7 @@ def need_article(user_id, answer):
             answer['unit']['file'] = len(answer['new_full'])
         common.write_log_db('Обновление статьи с сайта', 'new',
                         'Заново прочитана статья: ' + str(answer['unit']['url']),
-                        law_id=str(new_id), page=new_id, file_name=get(user_id, 'user_address'))
+                        law_id=str(new_id), page=new_id)
     except Exception as err:
         if '410 Client Error' in str(err):
             flash('Страница удалена (410)', 'warning')
@@ -169,97 +167,84 @@ def need_article(user_id, answer):
             flash('Ошибка получения статьи: ' + str(err), 'warning')
         common.write_log_db('Обновление статьи с сайта', 'new',
                         'Ошибка получения статьи (' + str(answer['unit']['url']) + '): ' + str(err)[:200],
-                        law_id=str(new_id), page=new_id, file_name=get(user_id, 'user_address'))
+                        law_id=str(new_id), page=new_id)
 
 
-def prepare_form(user_id, request, new_id):
+def prepare_form(request):
+    """Карточка новости (модальное окно ленты новостей). Поля: new_id; open (открытие — читать из БД); select_lang,
+    title, description, full (текст формы); действия: refresh, save, translate_ru/en/he, need_article, load_file
+    (изменять — только администратор)."""
     answer = dict()
-    st = common.init_form(user_id, request, '/news_board/')
+    st = common.init_form(request, '/news_board/')
     if st:
         answer['redirect'] = st
         return answer
-    common.default_form(user_id, array_default, answer, 'one_new_')
+    new_id = common.sql_digits(request.values.get('new_id'))
+    if not new_id:
+        answer['error'] = 'new_id'
+        return answer
+    common.default_form(array_default, answer, 'one_new_')
     answer['new_id'] = new_id
-    if request.method == 'POST':
-        # 'one_new_unit' в сессии - один слот на пользователя, а не на
-        # конкретную новость. Если между открытием ЭТОЙ статьи и текущим
-        # запросом успел выполниться запрос для ДРУГОЙ (несколько вкладок/
-        # модалок, гонка запросов), в сессии может лежать unit чужой новости -
-        # тогда перевод/сохранение ушли бы не в ту запись, а текст в форме
-        # выглядел бы "с чужой новости". При несовпадении id принудительно
-        # перечитываем нужную статью из БД, прежде чем применять форму.
-        if str(answer['unit'].get('id')) != str(new_id):
-            load_inform(answer)
-        common.choose_language(user_id, request)
-        if 'back' in request.form:
-            answer['redirect'] = answer['page_for_return']
-            add(user_id, 'page_for_return', '')
-            add(user_id, 'text_for_return', '')
-            return answer
-        define_from_form(request, answer)
+    admin = common.is_admin()
+    actions = ('refresh', 'save', 'translate_ru', 'translate_en', 'translate_he', 'need_article', 'load_file')
+    # open — открытие новости (перечитать из БД); иначе действие над новостью, уже лежащей в сессии
+    if request.method == 'POST' and 'open' not in request.form and str(answer['unit'].get('id')) == str(new_id):
+        common.choose_language(request)
+        if admin:
+            define_from_form(request, answer)
         if 'select_lang' in request.form:
             new_select_lang = request.form.get('select_lang')
-            if new_select_lang != answer['select_lang']:
+            if new_select_lang in answer['languages'] and new_select_lang != answer['select_lang']:
                 common.write_log_db('Смена языка вывода', 'new',
-                                'Язык вывода: {old} -> {new}'.format(
-                                    old=answer['select_lang'], new=new_select_lang),
-                                law_id=str(new_id), page=new_id, file_name=get(user_id, 'user_address'))
-            answer['select_lang'] = new_select_lang
-        if 'refresh' in request.form:
+                                    'Язык вывода: {old} -> {new}'.format(
+                                        old=answer['select_lang'], new=new_select_lang),
+                                    law_id=str(new_id), page=new_id)
+                answer['select_lang'] = new_select_lang
+        if any(a in request.form for a in actions) and not admin:
+            flash('Изменять новость может только администратор', 'warning')
+        elif 'refresh' in request.form:
             refresh(answer)
             common.write_log_db('Отмена изменений', 'new', 'Отменены несохранённые изменения',
-                            law_id=str(new_id), page=new_id, file_name=get(user_id, 'user_address'))
-        if 'save' in request.form:
-            save(user_id, answer)
-        if 'translate_ru' in request.form:
-            make_translate(user_id, 'Перевести на русский', answer, 'ru')
-        if 'translate_en' in request.form:
-            make_translate(user_id, 'Перевести на английский', answer, 'en')
-        if 'translate_he' in request.form:
-            make_translate(user_id, 'Translate to Hebrew', answer, 'he')
-        if 'need_article' in request.form:
-            need_article(user_id, answer)
+                                law_id=str(new_id), page=new_id)
+        elif 'save' in request.form:
+            save(answer)
+        elif 'translate_ru' in request.form:
+            make_translate('Перевести на русский', answer, 'ru')
+        elif 'translate_en' in request.form:
+            make_translate('Перевести на английский', answer, 'en')
+        elif 'translate_he' in request.form:
+            make_translate('Translate to Hebrew', answer, 'he')
+        elif 'need_article' in request.form:
+            need_article(answer)
     else:
-        answer['select_lang'] = 'ru'
-        common.write_log('Содержимое новости', user_id, request, page=new_id)
-        load_inform(answer)
-        # Открытие статьи прямой ссылкой (например, из news_board.js) не
-        # проходит через news.py:check_show, который обычно выставляет эти
-        # ключи перед переходом сюда - без них кнопка "Назад" не показывалась
-        # бы вовсе (see templates/new.html: {% if par['page_for_return'] %}).
-        if request.args.get('back_to') == 'news_board':
-            # select_id - чтобы news_board.js при возврате выделил фоном
-            # именно ту новость, которую пользователь открыл (см. nb-row-return в
-            # static/css/news_board.css и applyReturnHighlight в news_board.js)
-            add(user_id, 'page_for_return', '/news_board/{user_id}/?select_id={new_id}'.format(
-                user_id=user_id, new_id=new_id))
-            add(user_id, 'text_for_return', 13)
+        # первое открытие новости (или в сессии лежит другая новость — несколько вкладок): читаем из БД
+        answer['select_lang'] = request.values.get('select_lang') if request.values.get('select_lang') in             answer['languages'] else 'ru'
+        common.write_log('Содержимое новости', request, page=new_id)
+        if not load_inform(answer):
+            return answer
 
-    make_info(user_id, answer)
-    if 'load_file' in request.form:
+    make_info(answer)
+    if 'load_file' in request.form and admin:
         filename = answer['unit']['lang'] + '_' + str(new_id) + '.txt'
-        answer['unit']['full'] = cloud.load_file(user_id, filename)
+        answer['unit']['full'] = cloud.load_file(filename)
         common.write_log_db('Загрузка файла в исходном языке', 'new', 'Файл: ' + filename,
-                        law_id=str(new_id), page=new_id, file_name=get(user_id, 'user_address'))
+                            law_id=str(new_id), page=new_id)
 
     if 'new_title' in answer:
-        answer['unit']['title'] = answer['new_title']
+        answer['unit']['title'] = answer.pop('new_title')
     if 'new_description' in answer:
-        answer['unit']['description'] = answer['new_description']
+        answer['unit']['description'] = answer.pop('new_description')
     if 'new_full' in answer:
-        answer['unit']['full'] = answer['new_full']
+        answer['unit']['full'] = answer.pop('new_full')
 
-    answer['page_for_return'] = get(user_id, 'page_for_return')
-    answer['text_for_return'] = get(user_id, 'text_for_return')
-    # для возврата в форму из других форм
-    common.save_form(user_id, array_default, answer, 'one_new_')
+    common.save_form(array_default, answer, 'one_new_')
+    answer['admin'] = admin
     return answer
 
 
-def make_translate(user_id, question, answer, to_lang='ru'):
+def make_translate(question, answer, to_lang='ru'):
     """
     Функция для создания запроса на перевод текста с использованием OpenAI API.
-    :param user_id: ID пользователя, для которого выполняется перевод.
     :param question: Вопрос или запрос к модели.
     :param answer: Словарь, содержащий текст для перевода.
     :param to_lang: Язык, на который нужно перевести текст (по умолчанию 'ru').
@@ -271,7 +256,7 @@ def make_translate(user_id, question, answer, to_lang='ru'):
     if 'description' in unit:
         content = unit['description_' + unit['lang']] if unit['lang'] else unit['description_he']
         if content:
-            is_ok, text = translate(user_id, question, content, unit['id'])
+            is_ok, text = translate(question, content, unit['id'])
             if is_ok:
                 values['description_' + to_lang] = text
             else:
@@ -279,16 +264,16 @@ def make_translate(user_id, question, answer, to_lang='ru'):
     if 'title' in unit:
         content = unit['title_' + unit['lang']] if unit['lang'] else unit['title_he']
         if content:
-            is_ok, text = translate(user_id, question, content, unit['id'])
+            is_ok, text = translate(question, content, unit['id'])
             if is_ok:
                 values['title_' + to_lang] = text
             else:
                 failed = True
 
     lang = unit['lang'] if unit['lang'] else 'he'
-    content = cloud.load_file(user_id, lang + '_' + str(unit['id']))
+    content = cloud.load_file(lang + '_' + str(unit['id']))
     if content:
-        is_ok, text = translate(user_id, question, content, unit['id'])
+        is_ok, text = translate(question, content, unit['id'])
         if is_ok:
             cloud.save_file_bucket(to_lang + '_' + str(unit['id']), text)
             unit['full_' + to_lang] = text
@@ -299,7 +284,7 @@ def make_translate(user_id, question, answer, to_lang='ru'):
         flash('ChatGPT не смог перевести часть текста (например, отказался из-за содержимого) - '
               'эта часть оставлена без изменений', 'warning')
 
-    ans, is_ok, status = common.send_rest('v2/entity', 'PUT', params=params, token_user=get(user_id, 'token'))
+    ans, is_ok, status = common.send_rest('v2/entity', 'PUT', params=params, token_user=get('token'))
     if not is_ok:
         flash(str(ans), 'warning')
     else:
@@ -327,7 +312,7 @@ def _looks_like_refusal(text):
     return any(low.startswith(m) for m in REFUSAL_MARKERS)
 
 
-def translate(user_id, question, content, message_id):
+def translate(question, content, message_id):
     t0 = time.time()
     try:
         openai.api_key = common.decode('abcd', api_key)
@@ -345,16 +330,13 @@ def translate(user_id, question, content, message_id):
         if _looks_like_refusal(result):
             common.write_log_db('ChatGPT-Exception', 'ohi_web',
                             'ChatGPT отказался выполнить перевод (' + question + '): ' + result[:200],
-                            law_id=message_id, td=time.time() - t0,
-                            file_name=get(user_id, 'user_address'))
+                            law_id=message_id, td=time.time() - t0)
             return False, result
         common.write_log_db('ChatGPT', 'ohi_web', 'Обращение к ChatGPT от пользователя: ' + question,
-                        law_id=message_id, td=time.time() - t0,
-                        file_name=get(user_id, 'user_address'))
+                        law_id=message_id, td=time.time() - t0)
         return True, result
     except Exception as er:
         common.write_log_db('ChatGPT-Exception', 'ohi_web', 'Ошибка обращения к ChatGPT от пользователя ('
-                        + question + '): ' + f"{er}"[:200], law_id=message_id, td=time.time() - t0,
-                        file_name=get(user_id, 'user_address'))
+                        + question + '): ' + f"{er}"[:200], law_id=message_id, td=time.time() - t0)
         return False, f"{er}"
 
