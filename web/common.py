@@ -20,7 +20,7 @@ import colors
 from ohi_shared.text_utils import decode, encode, str1000, get_duration  # noqa: F401
 from shared_web import visits  # учёт посетителей — общий для сайтов (копия parlaments/shared_web)
 
-version = 'version 2.0.2 - 21.10.2026'  # версия программы вэб сайта
+version = 'version 2.0.3 - 21.10.2026'  # версия программы вэб сайта
 app_lang = 'ru'
 current_path = ''
 
@@ -227,8 +227,8 @@ def write_log_db(
     law_id: str = ' ',
     td: Optional[float] = None,
 ) -> None:
-    """Запись в журнал {schema}.logs. Пустой file_name в запросе вошедшего пользователя заменяется на его user_info
-    (IP, страна, город, ОС, браузер)."""
+    """Запись в журнал {schema}.logs. Пустой file_name в запросе заменяется на «IP; страна; город» клиента
+    (client_label): у вошедшего пользователя — из сессии, иначе — по самому запросу."""
     answer, is_ok, token, lang = login_admin()
     if not is_ok:
         print(f"{time.ctime()} ERROR write_log_db: {answer}", flush=True)
@@ -239,8 +239,8 @@ def write_log_db(
         law_id = ''
     if not file_name:
         file_name = ''
-    if not file_name and has_request_context() and exist():
-        file_name = get('user_info') or ''
+    if not file_name and has_request_context():
+        file_name = (get('user_info') if exist() else '') or client_label(request)
     td = 'NULL' if td is None else "%.1f" % td if type(td) == float else td
     if page != 'NULL':
         page = int(page)
@@ -319,12 +319,31 @@ def get_client_info(request) -> dict:
     return {'ip': ip, 'country': country, 'city': city, 'os': os_name, 'browser': browser}
 
 
+def client_label(request):
+    """Подпись клиента для поля file_name журнала: «IP; страна; город»."""
+    try:
+        ip = visits.client_ip(request)
+        country, city = visits.geo(ip)
+        return '; '.join([ip, country, city])
+    except Exception:
+        return ''
+
+
+def server_label():
+    """То же для самого сайта (запись о старте): внешний адрес и местоположение Cloud Run по ip-api.com."""
+    try:
+        data = requests.get('http://ip-api.com/json/?lang=ru', timeout=5).json()
+        return '; '.join([data.get('query', ''), data.get('country', ''), data.get('city', '')])
+    except Exception:
+        return ''
+
+
 def remember_client(request):
-    """Данные клиента — в сессию (ip, country, city, os, browser, user_info для журнала)."""
+    """Данные клиента — в сессию (ip, country, city, os, browser; user_info = «IP; страна; город» для журнала)."""
     info = get_client_info(request)
     for key in ('ip', 'country', 'city', 'os', 'browser'):
         add(key, info[key])
-    add('user_info', '; '.join([info['ip'], info['country'], info['city'], info['os'], info['browser']]))
+    add('user_info', '; '.join([info['ip'], info['country'], info['city']]))
     return info
 
 

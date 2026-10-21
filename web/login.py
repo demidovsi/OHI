@@ -17,7 +17,7 @@ def prepare_form(request) -> tuple[str, str]:
     Поля: user_name, password, time_now (строка Date браузера, «... GMT+0300 ...»), theme ("white"|"black"),
     select_language ("ru"|"en"|"he").
 
-    В сессию: ip, country, city, os, browser, user_info (для file_name записей журнала), time_zone (смещение от UTC
+    В сессию: ip, country, city, os, browser, user_info «IP; страна; город» (для file_name записей журнала), time_zone (смещение от UTC
     в часах), theme, upr (параметры интерфейса). После входа — запись LOGIN в журнал и вход в историю гостя.
 
     Returns:

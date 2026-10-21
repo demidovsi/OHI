@@ -269,7 +269,7 @@ def save_nsi(answer):
             'Поисковые образы',
             '{operation} поисковой темы;\n '.format(operation=operation) + what_change(answer),
             law_id=answer['unit']['sh_name_init'],
-            file_name='Пользователь ' + (get('user_info') or ''))
+            file_name=get('user_info') or '')
         answer['unit']['sh_name_init'] = answer['unit']['sh_name']
         answer['unit']['value_init'] = answer['unit']['value']
         answer['unit']['exception_init'] = answer['unit']['exception']
@@ -295,7 +295,7 @@ def delete_theme(obj_id):
     if not is_ok:
         common.write_log_db(
             'Error', 'Поисковые образы', str(ans_theme) + ' при удалении из БД записи с темой ID= ' + str(obj_id),
-            file_name='Пользователь ' + (get('user_info') or ''))
+            file_name=get('user_info') or '')
         flash(str(ans_theme), 'warning')
         return
 
@@ -320,7 +320,7 @@ def delete_theme(obj_id):
     common.write_log_db(
         'Удаление темы', 'Поисковые образы', 'Удалена из БД тема с ID= ' + str(obj_id) + '\n' +
         json.dumps(json.loads(ans_theme), ensure_ascii=False, indent=4),
-        file_name='Пользователь ' + (get('user_info') or ''))
+        file_name=get('user_info') or '')
 
 
 def define_month(answer, delta):
@@ -437,7 +437,7 @@ def check_delete(answer, request):
                         mes += ' без удаления самой новости, так как новость присутствует в других темах'
                     common.write_log_db(
                         'Удаление новости из темы', 'Поисковые образы', mes,
-                        file_name='Пользователь ' + (get('user_info') or ''))
+                        file_name=get('user_info') or '')
                     answer['his_data'] = []
                     answer['data'] = []
                 break
@@ -482,7 +482,7 @@ def clear_history(answer):
         'Поисковые темы', 'Удаление данных',
         'Удалены исторические данные в количестве {count} для темы [{name}]'.format(
             count=answer['global_count'], name=answer['unit']['sh_name_init']),
-        file_name='Пользователь ' + (get('user_info') or ''))
+        file_name=get('user_info') or '')
     answer['his_data'] = []
     answer['data'] = []
     return True

@@ -55,9 +55,8 @@ api_v2.register(app)
 
 common.current_path = os.path.abspath(os.curdir)
 
-_ip = socket.gethostbyname(socket.gethostname())
 common.write_log_db('START WEB', 'Старт сайта', socket.gethostname() + '\n' + common.get_inform_about_os() +
-                    '\n' + common.version, law_id='OHI-web', file_name='IP=' + _ip)
+                    '\n' + common.version, law_id='OHI-web', file_name=common.server_label())
 
 if __name__ == '__main__':
     from shared_web import spa_build

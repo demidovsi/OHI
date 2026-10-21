@@ -123,7 +123,7 @@ def delete_new(obj_id, write_in_log=False):
         if not is_ok:
             common.write_log_db(
                 'Error', 'Новостные ленты', str(ans_theme) + ' при удалении из БД новости с ID= ' + str(obj_id),
-                file_name='Пользователь ' + (get('user_info') or ''))
+                file_name=get('user_info') or '')
             flash(str(ans_theme), 'warning')
         else:
             delete_file('en_{obj_id}.7z'.format(obj_id=obj_id))
@@ -135,11 +135,11 @@ def delete_new(obj_id, write_in_log=False):
             if write_in_log:
                 common.write_log_db(
                     'Удаление новости', 'Новостные ленты', 'Удалена из БД новость с ID= ' + str(obj_id),
-                    file_name='Пользователь ' + (get('user_info') or ''))
+                    file_name=get('user_info') or '')
     except Exception as er:
         common.write_log_db(
             'Exception', 'Новостные ленты', f"{er}" + ' при удалении из БД новости с ID= ' + str(obj_id),
-            file_name='Пользователь ' + (get('user_info') or ''))
+            file_name=get('user_info') or '')
         flash('Ошибка: ' + f"{er}", 'warning')
 
 

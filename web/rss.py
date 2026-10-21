@@ -219,7 +219,7 @@ def save_nsi(answer):
             'Новостные ленты',
             '{operation} новостной ленты;\n '.format(operation=operation) + what_change(answer),
             law_id=answer['unit']['sh_name_init'], page=answer['unit']['id'],
-            file_name='Пользователь ' + (get('user_info') or ''))
+            file_name=get('user_info') or '')
         answer['unit']['sh_name_init'] = answer['unit']['sh_name']
         answer['unit']['url_init'] = answer['unit']['url']
         answer['unit']['lang_init'] = answer['unit']['lang']
@@ -274,7 +274,7 @@ def delete_rss(obj_id):
     if not is_ok:
         common.write_log_db(
             'Error', 'Новостные ленты', str(ans_theme) + ' при удалении из БД записи с новостной лентой ID= ' + str(obj_id),
-            file_name='Пользователь ' + (get('user_info') or ''))
+            file_name=get('user_info') or '')
         flash(str(ans_theme), 'warning')
     else:
         for data in list_news:  # удалить файлы новостей
@@ -288,7 +288,7 @@ def delete_rss(obj_id):
         common.write_log_db(
             'Удаление новостной ленты', 'Новостные ленты', 'Удалена из БД новостная лента с ID= ' + str(obj_id) + '\n' +
             json.dumps(json.loads(ans_theme), ensure_ascii=False, indent=4),
-            file_name='Пользователь ' + (get('user_info') or ''))
+            file_name=get('user_info') or '')
 
 
 def prepare_form(request):
