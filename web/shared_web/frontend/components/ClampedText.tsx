@@ -4,8 +4,9 @@ import Link from '@mui/material/Link'
 import { useT } from '@app/i18n'
 
 // Длинный текст ячейки таблицы (Log, колонка Message): не больше `lines` строк (по умолчанию 3, с учётом переносов
-// строк и переноса по ширине колонки); если текст не помещается — ссылка «Показать весь текст» / «Скрыть текст».
-// Ссылка появляется только у обрезанных текстов: наличие обрезки определяется по высоте (и при смене ширины колонки).
+// строк и переноса по ширине колонки); если текст не помещается — ссылка «Показать весь текст» под ним, а у раскрытого
+// текста «Скрыть текст» — в самом начале (чтобы не искать её в конце длинного текста). Обрезка определяется по высоте
+// (и при смене ширины колонки).
 
 interface Props {
   text: string
@@ -28,8 +29,15 @@ export default function ClampedText({ text, lines = 3 }: Props) {
     return () => ro.disconnect()
   }, [text, lines, open])
 
+  const toggle = (label: string) => (
+    <Link component="button" type="button" underline="hover" onClick={() => setOpen((v) => !v)} sx={{ fontSize: 12, display: 'block' }}>
+      {label}
+    </Link>
+  )
+
   return (
     <>
+      {open && toggle(t('Скрыть текст'))}
       <Box
         ref={ref}
         sx={
@@ -47,11 +55,7 @@ export default function ClampedText({ text, lines = 3 }: Props) {
       >
         {text}
       </Box>
-      {(clipped || open) && (
-        <Link component="button" type="button" underline="hover" onClick={() => setOpen((v) => !v)} sx={{ fontSize: 12, mt: 0.25 }}>
-          {open ? t('Скрыть текст') : t('Показать весь текст')}
-        </Link>
-      )}
+      {!open && clipped && toggle(t('Показать весь текст'))}
     </>
   )
 }
