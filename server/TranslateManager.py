@@ -5,6 +5,25 @@ from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
 import logging
 
+import requests
+import deep_translator.google as _dt_google
+
+
+class _RequestsWithTimeout:
+    """requests для deep_translator: у его requests.get нет таймаута, зависший запрос держал замок переводчика
+    (общий для всех потоков) бесконечно. Остальное — как в requests."""
+    TIMEOUT = 20
+
+    def __getattr__(self, name):
+        return getattr(requests, name)
+
+    def get(self, *args, **kwargs):
+        kwargs.setdefault('timeout', self.TIMEOUT)
+        return requests.get(*args, **kwargs)
+
+
+_dt_google.requests = _RequestsWithTimeout()
+
 
 # Иногда Google Translate вместо перевода отдаёт свою типовую HTML-страницу ошибки
 # (Error 500/404 !!1 "That's an error... That's all we know."). deep_translator не
@@ -34,7 +53,8 @@ class TranslationManager:
         self.max_retries = max_retries
         self.initial_delay = initial_delay
         self.cooldown_period = cooldown_period
-        self.lock = threading.Lock()
+        self.lock = threading.Lock()  # на сам запрос к Google и results
+        self._state_lock = threading.Lock()  # на проверку охлаждения (без ожидания под ним)
         self.last_error_time = 0
         self.consecutive_errors = 0
         self.queue = queue.Queue()
@@ -63,64 +83,71 @@ class TranslationManager:
         if not text or text.strip() == '':
             return True, ''
 
-        with self.lock:
-            # Проверка на необходимость глобального охлаждения
-            if self.consecutive_errors >= 5:
-                current_time = time.time()
-                if current_time - self.last_error_time < self.cooldown_period:
-                    wait_time = self.cooldown_period - (current_time - self.last_error_time)
-                    self.logger.warning(f"Глобальное охлаждение: ожидание {wait_time:.1f} сек.")
-                    time.sleep(wait_time)
-                self.consecutive_errors = 0
+        self._cooldown_wait()
+        current_delay = self.initial_delay
 
-            current_delay = self.initial_delay
-
-            for attempt in range(self.max_retries):
-                try:
+        for attempt in range(self.max_retries):
+            try:
+                # Замок — только на сам запрос к Google (запросы идут по одному, чтобы не ловить 429).
+                # Паузы повторов и охлаждение — вне замка: прежде они стояли под замком и останавливали
+                # переводы во всех потоках сразу.
+                with self.lock:
                     if source_lang:
                         result = GoogleTranslator(source=source_lang, target=target_lang).translate(text)
                     else:
                         result = GoogleTranslator(target=target_lang).translate(text)
 
-                    # GoogleTranslator.translate() может вернуть None для некоторых входных текстов
-                    if result is None:
-                        result = text
+                # GoogleTranslator.translate() может вернуть None для некоторых входных текстов
+                if result is None:
+                    result = text
 
-                    # Google иногда отдаёт свою страницу ошибки вместо перевода (см. комментарий
-                    # к _is_google_error_page) — deep_translator не бросает исключение в этом случае,
-                    # поэтому проверяем результат сами и обрабатываем как временную ошибку.
-                    if _is_google_error_page(result):
-                        raise RuntimeError('Google Translate вернул страницу ошибки вместо перевода')
+                # Google иногда отдаёт свою страницу ошибки вместо перевода (см. комментарий
+                # к _is_google_error_page) — deep_translator не бросает исключение в этом случае,
+                # поэтому проверяем результат сами и обрабатываем как временную ошибку.
+                if _is_google_error_page(result):
+                    raise RuntimeError('Google Translate вернул страницу ошибки вместо перевода')
 
-                    # Сброс счетчика ошибок при успехе
-                    self.consecutive_errors = 0
-                    return True, result
+                # Сброс счетчика ошибок при успехе
+                self.consecutive_errors = 0
+                return True, result
 
-                except TooManyRequests:
-                    self.consecutive_errors += 1
-                    self.last_error_time = time.time()
+            except TooManyRequests:
+                self.consecutive_errors += 1
+                self.last_error_time = time.time()
 
-                    self.logger.warning(
-                        f"TooManyRequests при переводе на {target_lang}. "
-                        f"Попытка {attempt + 1}/{self.max_retries}, ожидание {current_delay} сек."
-                    )
+                self.logger.warning(
+                    f"TooManyRequests при переводе на {target_lang}. "
+                    f"Попытка {attempt + 1}/{self.max_retries}, ожидание {current_delay} сек."
+                )
 
-                    if attempt < self.max_retries - 1:
-                        time.sleep(current_delay)
-                        current_delay *= 2  # Экспоненциальная задержка
-                    else:
-                        self.logger.error(f"Превышено максимальное количество попыток перевода на {target_lang}")
-                        return False, text
+                if attempt < self.max_retries - 1:
+                    time.sleep(current_delay)
+                    current_delay *= 2  # Экспоненциальная задержка
+                else:
+                    self.logger.error(f"Превышено максимальное количество попыток перевода на {target_lang}")
+                    return False, text
 
-                except Exception as e:
-                    self.logger.error(f"Ошибка перевода: {str(e)}")
-                    if attempt < self.max_retries - 1:
-                        time.sleep(current_delay)
-                        current_delay *= 2
-                    else:
-                        return False, text
+            except Exception as e:
+                self.logger.error(f"Ошибка перевода: {str(e)}")
+                if attempt < self.max_retries - 1:
+                    time.sleep(current_delay)
+                    current_delay *= 2
+                else:
+                    return False, text
 
         return False, text
+
+    def _cooldown_wait(self):
+        """Глобальное охлаждение после серии ошибок TooManyRequests: пауза (вне замка запросов), затем сброс счётчика."""
+        with self._state_lock:
+            if self.consecutive_errors < 5:
+                return
+            wait_time = self.cooldown_period - (time.time() - self.last_error_time)
+        if wait_time > 0:
+            self.logger.warning(f"Глобальное охлаждение: ожидание {wait_time:.1f} сек.")
+            time.sleep(wait_time)
+        with self._state_lock:
+            self.consecutive_errors = 0
 
     def make_translate(self, text, source_lang=None):
         """

@@ -10,6 +10,7 @@ import sys
 import time
 import json
 import signal
+import traceback
 
 import common
 from common import SRC
@@ -24,13 +25,39 @@ import rss_complete
 import clear_logs
 
 common.current_path = os.path.abspath(os.curdir)
-version = 'version 3.47 от 21 октября 2026 г.'
+version = 'version 3.48 от 21 октября 2026 г.'
 t0 = 0
 
 CHECK_PERIOD = 600.0      # как часто проверяются потоки, сек
 HEARTBEAT_PERIOD = 3600.0  # как часто повторять сводку при неизменном состоянии, сек
 _last_state = None        # состояние потоков в последней записанной сводке (без отметок времени)
 _last_state_time = 0.0
+STALL_PERIOD = 1800.0     # поток в работе, а его номер элемента не меняется дольше — пишем в лог, где он стоит, сек
+_progress = {}            # id ленты -> (t0 итерации, номер элемента, когда замечен, когда писали о «зависании»)
+
+
+def check_stall(elem):
+    """Диагностика зависаний: если у работающего потока ни начало итерации, ни номер элемента не менялись
+    STALL_PERIOD секунд, пишет в журнал (⚠️stall) стек потока — где именно он стоит (замок, сеть, пауза).
+    Повторно о том же потоке — не чаще раза в STALL_PERIOD."""
+    key = elem.rss['id']
+    now = time.time()
+    mark = (elem.t0, elem.number)
+    prev = _progress.get(key)
+    if prev is None or prev[0] != mark:
+        _progress[key] = (mark, now, 0.0)
+        return
+    _, since, written = prev
+    if now - since < STALL_PERIOD or now - written < STALL_PERIOD:
+        return
+    _progress[key] = (mark, since, now)
+    frame = sys._current_frames().get(elem.ident)
+    stack = ''.join(traceback.format_stack(frame)[-12:]) if frame else 'поток не найден'
+    common.write_log_db(
+        '⚠️stall', SRC,
+        f"Поток в работе {common.get_duration(now - elem.t0)}, элемент {elem.number}/{elem.global_count} "
+        f"не меняется {common.get_duration(now - since)}\nСтек потока:\n{stack}",
+        page=elem.rss['id'], law_id=elem.rss.get('sh_name', '') + '\n' + elem.source)
 
 
 def log_shutdown(reason):
@@ -92,6 +119,7 @@ def check_work(threads: list):
             continue
         if elem.in_work:
             count_work += 1
+            check_stall(elem)
         if elem.is_error:
             error += 1
         is_stopped = elem.rss.get('stop', False)

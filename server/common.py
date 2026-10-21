@@ -25,6 +25,8 @@ SRC = 'ohi-server'
 # Персистентная HTTP-сессия для REST-запросов к серверу.
 # Переиспользует TCP-соединения и connection pool вместо создания нового Session на каждый запрос.
 _rest_session = requests.Session()
+REST_TIMEOUT = (10, 120)  # (соединение, ответ), сек: без таймаута зависший запрос держит поток навсегда
+TG_TIMEOUT = 15
 current_path = ''
 count_tg_ok = 0     # счётчик успешных отправок в Telegram
 count_tg_err = 0    # счётчик ошибок отправки в Telegram
@@ -178,7 +180,7 @@ def login_admin():
             headers = {"Accept": "application/json"}
             response = requests.request(
                 'POST', config.URL + 'v1/login', headers=headers,
-                json={"params": txt_z}
+                json={"params": txt_z}, timeout=REST_TIMEOUT
                 )
         except HTTPError as err:
             txt = f'HTTP error occurred: {err}'
@@ -227,7 +229,8 @@ def send_rest(mes, directive="GET", params=None, lang='', token_user=None):
     for _attempt in range(_MAX_RETRIES + 1):
         try:
             headers = {"Accept": "application/json"}
-            response = _rest_session.request(directive, config.URL + mes.replace(' ', '+'), headers=headers, json=js)
+            response = _rest_session.request(directive, config.URL + mes.replace(' ', '+'), headers=headers, json=js,
+                                             timeout=REST_TIMEOUT)
         except HTTPError as err:
             txt = f'HTTP error occurred: {err}'
             return txt, False, None
@@ -328,7 +331,7 @@ def send_tg(st):
     """Отправляет HTML-сообщение в Telegram-канал. Возвращает ответ Telegram API."""
     token_bot, chat_id = get_param_telegram()
     url = f'https://api.telegram.org/bot{token_bot}/sendMessage'
-    answer = requests.get(url, params={'chat_id': chat_id, 'text': st, 'parse_mode': 'HTML'}).json()
+    answer = requests.get(url, params={'chat_id': chat_id, 'text': st, 'parse_mode': 'HTML'}, timeout=TG_TIMEOUT).json()
     return answer
 
 

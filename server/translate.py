@@ -33,11 +33,14 @@ def _domain_throttle(url: str) -> None:
         domain = urlparse(url).netloc
     except Exception:
         return
+    # Под замком только занимается очередь к домену (время ближайшего свободного окна); ждёт поток уже без замка —
+    # прежде sleep внутри замка останавливал загрузку статей у всех потоков, даже с других доменов.
     with _domain_lock:
-        wait = ARTICLE_DOMAIN_DELAY - (time.time() - _domain_last_request.get(domain, 0.0))
-        if wait > 0:
-            time.sleep(wait)
-        _domain_last_request[domain] = time.time()
+        now = time.time()
+        slot = max(now, _domain_last_request.get(domain, 0.0) + ARTICLE_DOMAIN_DELAY)
+        _domain_last_request[domain] = slot
+    if slot > now:
+        time.sleep(slot - now)
 
 
 def _get_article_loop() -> asyncio.AbstractEventLoop:
