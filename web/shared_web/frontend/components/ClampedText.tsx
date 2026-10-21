@@ -11,12 +11,17 @@ import { useT } from '@app/i18n'
 interface Props {
   text: string
   lines?: number
+  /** Раскрытое состояние снаружи (страница помнит раскрытые записи при обновлении таблицы); без него — своё. */
+  open?: boolean
+  onToggle?: () => void
 }
 
-export default function ClampedText({ text, lines = 4 }: Props) {
+export default function ClampedText({ text, lines = 4, open: openProp, onToggle }: Props) {
   const t = useT()
   const ref = useRef<HTMLDivElement>(null)
-  const [open, setOpen] = useState(false)
+  const [openOwn, setOpenOwn] = useState(false)
+  const open = openProp ?? openOwn
+  const toggleOpen = onToggle ?? (() => setOpenOwn((v) => !v))
   const [clipped, setClipped] = useState(false)
 
   useEffect(() => {
@@ -30,7 +35,7 @@ export default function ClampedText({ text, lines = 4 }: Props) {
   }, [text, lines, open])
 
   const toggle = (label: string) => (
-    <Link component="button" type="button" underline="hover" onClick={() => setOpen((v) => !v)} sx={{ fontSize: 12, display: 'block' }}>
+    <Link component="button" type="button" underline="hover" onClick={toggleOpen} sx={{ fontSize: 12, display: 'block' }}>
       {label}
     </Link>
   )

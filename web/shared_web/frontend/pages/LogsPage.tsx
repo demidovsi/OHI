@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import Box from '@mui/material/Box'
 import IconButton from '@mui/material/IconButton'
 import Paper from '@mui/material/Paper'
@@ -77,6 +78,14 @@ const KIND_COLOR: Record<LevelKind, string | undefined> = {
 export default function LogsPage() {
   const t = useT()
   const { par, messages, loading, error, submit, dismiss } = useForm('logs')
+  // Раскрытые записи Message помнит страница: обновление таблицы (автообновление, смена страницы/сутки) их не закрывает
+  const [opened, setOpened] = useState<Set<number>>(() => new Set())
+  const toggleOpened = (id: number) =>
+    setOpened((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(id)) next.add(id)
+      return next
+    })
 
   const fields = (extra: FormFields): FormFields => ({
     ...baseFields(par ?? {}),
@@ -180,7 +189,7 @@ export default function LogsPage() {
                   <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', minWidth: 120 }}>{r.law_id ?? ''}</TableCell>
                   <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', minWidth: 140 }}>{r.file_name ?? ''}</TableCell>
                   <TableCell sx={{ fontSize: 12, verticalAlign: 'top', minWidth: 320, color: KIND_COLOR[ck] }}>
-                    <ClampedText text={r.comment ?? ''} />
+                    <ClampedText text={r.comment ?? ''} open={opened.has(r.id)} onToggle={() => toggleOpened(r.id)} />
                   </TableCell>
                 </TableRow>
               )
