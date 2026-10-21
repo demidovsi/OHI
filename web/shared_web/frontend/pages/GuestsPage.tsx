@@ -221,9 +221,9 @@ export default function GuestsPage() {
         )}
       </Paper>
 
-      {/* Диаграмма и таблица — панели со сплиттером; без диаграммы таблица занимает всё место. */}
+      {/* Диаграмма и таблица — панели со сплиттером (размер — свой у каждого режима); без диаграммы таблица занимает всё место. */}
       <SplitPane
-        storageKey="guests"
+        storageKey={`guests_${mode}`}
         defaultSize="40%"
         minSize={300}
         first={
