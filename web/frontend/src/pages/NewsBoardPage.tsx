@@ -67,6 +67,7 @@ interface NewsRow {
 interface Prepared extends NewsRow {
   _time: number
   _dateText: string
+  _day: string
   _themes: string[]
   _haystack: string
 }
@@ -122,6 +123,7 @@ function prepare(rows: NewsRow[]): Prepared[] {
       ...r,
       _time: d ? d.getTime() : 0,
       _dateText: formatDateTime(d),
+      _day: d ? isoDay(d) : '',
       _themes: (r.themes || '')
         .split(',')
         .map((s) => s.trim())
@@ -131,11 +133,14 @@ function prepare(rows: NewsRow[]): Prepared[] {
   })
 }
 
-function shiftDate(st: string, days: number): string {
-  const [y, m, d] = st.split('-').map(Number)
-  const dt = new Date(y, m - 1, d + days)
+function isoDay(dt: Date): string {
   const p = (n: number) => String(n).padStart(2, '0')
   return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`
+}
+
+function shiftDate(st: string, days: number): string {
+  const [y, m, d] = st.split('-').map(Number)
+  return isoDay(new Date(y, m - 1, d + days))
 }
 
 export default function NewsBoardPage() {
@@ -218,7 +223,7 @@ export default function NewsBoardPage() {
   const list = useMemo(() => {
     const q = search.trim().toLowerCase()
     const filtered = rows.filter(
-      (r) => (!channel || r.name_rss === channel) && (!themeFilter || r._themes.includes(themeFilter)) && (!q || r._haystack.includes(q)),
+      (r) => (!channel || (r.name_rss ?? '').trim() === channel) && (!themeFilter || r._themes.includes(themeFilter)) && (!q || r._haystack.includes(q)),
     )
     const value = (r: Prepared): string | number => {
       if (sortKey === 'time') return r._time
@@ -458,13 +463,34 @@ export default function NewsBoardPage() {
               return (
                 <TableRow key={r.id} id={`nb_row_${r.id}`} hover selected={r.id === selectedId}>
                   <TableCell sx={{ whiteSpace: 'nowrap', verticalAlign: 'top' }}>
-                    {r._dateText}
+                    {/* дата и канал — как темы: нажатие задаёт фильтр (сутки этой новости, канал) */}
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={r._dateText}
+                      title={t('Новости за эти сутки')}
+                      disabled={!r._day}
+                      onClick={() => {
+                        select(r.id)
+                        scrollTo.current = r.id
+                        if (r._day !== par.st_date) submit(fields({ st_date: r._day }))
+                      }}
+                    />
                     <Typography variant="caption" color="text.secondary" component="div">
                       #{r.id}
                     </Typography>
                   </TableCell>
                   <TableCell sx={{ verticalAlign: 'top' }}>
-                    {r.name_rss}
+                    {r.name_rss && (
+                      <Chip
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        label={r.name_rss}
+                        title={t('Новости этого канала')}
+                        onClick={() => setChannel(r.name_rss!.trim())}
+                      />
+                    )}
                     {r.author && (
                       <Typography variant="caption" color="text.secondary" component="div">
                         {r.author}

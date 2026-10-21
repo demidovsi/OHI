@@ -10,7 +10,8 @@ Flask отдаёт JSON API, интерфейс — SPA (React + MUI). Клас�
 
 Точка входа — `web/main_ohi_web.py`. Деплой — Google Cloud Run (`web/Dockerfile`, `.github/workflows/deploy-web.yml`): сервис
 `ohi-web` (europe-central2, https://ohi-web-16542874441.europe-central2.run.app; до 21.10.2026 — `llm-web`), секреты
-Secret Manager `ohi-web-url`, `ohi-web-kirill`, `ohi-web-flask-secret`. Адрес сайта для ссылок чат-бота — параметр
+Secret Manager `ohi-web-url`, `ohi-web-kirill`, `ohi-web-flask-secret`. Сервис `llm-web` только перенаправляет на `ohi-web`
+(`tools/llm_web_redirect`) — для ранее отправленных ссылок чат-бота. Адрес сайта для ссылок чат-бота — параметр
 `url` функции `web` («Параметры сервисов»).
 
 ## Архитектура
@@ -61,6 +62,7 @@ Secret Manager `ohi-web-url`, `ohi-web-kirill`, `ohi-web-flask-secret`. Адре
   новости по ID — сутки новости), `delete_id` (удаление — администратор). Выбранная новость запоминается и
   подсвечивается. Пустая дата («Все даты») — все новости, самые свежие 3000: тогда фильтры канала, темы и поиск
   (`channel`, `theme`, `search`) применяются уже в БД, и их смена перезапрашивает данные.
+  Дата, канал и темы в строках таблицы — кнопки: нажатие задаёт фильтр (сутки этой новости, канал, тему).
 - **Карточка новости** (`new`): `new_id`, `open` (открытие — читать из БД), `select_lang`, `title`, `description`,
   `full`; действия `save`, `refresh`, `translate_ru/en/he` (ChatGPT), `need_article` (перечитать статью с сайта,
   `article_parser.py`), `load_file`. Полный текст статьи — в Google Cloud Storage (`cloud.py`, бакет `llm_news`).
