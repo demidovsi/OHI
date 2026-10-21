@@ -43,7 +43,9 @@ import { TablePagination, TableToolbar } from '@shared-web/components/TableContr
 
 // Лента новостей за сутки (бывшие templates/news_board.html + static/js/news_board.js). Сервер (news_board.py)
 // отдаёт все новости суток сразу со всеми языковыми вариантами — поиск, фильтры по каналу и теме, язык
-// отображения и сортировка работают в браузере. Поля формы: st_date, find_id, delete_id.
+// отображения и сортировка работают в браузере. Поля формы: st_date, find_id, delete_id. Пустая дата — все новости
+// (свежие max_rows): тогда фильтры канала, темы и поиск (channel, theme, search) применяет и сервер, а их смена
+// перезапрашивает данные.
 
 interface NewsRow {
   id: number
@@ -170,6 +172,7 @@ export default function NewsBoardPage() {
   const scrollTo = useRef<number | null>(null)
   const openAfterFind = useRef<number | null>(null)
   const startDone = useRef(false)
+  const lastFilters = useRef<{ channel: string; theme: string; search: string } | null>(null)
 
   const { upr } = useAuth()
   const admin = Boolean(upr?.admin)
@@ -272,11 +275,23 @@ export default function NewsBoardPage() {
     requestAnimationFrame(() => document.getElementById(`nb_row_${id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
   })
 
+  // Все новости (без даты): фильтры применяет сервер — их смена перезапрашивает данные (поиск — с паузой на набор)
+  const allDates = Boolean(par) && !par?.st_date
+  useEffect(() => {
+    const next = { channel, theme: themeFilter, search: search.trim() }
+    const prev = lastFilters.current
+    lastFilters.current = next
+    if (!allDates || !prev || JSON.stringify(prev) === JSON.stringify(next)) return
+    const timer = setTimeout(() => submit(fields({})), prev.search !== next.search ? 600 : 0)
+    return () => clearTimeout(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- только при смене фильтров
+  }, [channel, themeFilter, search])
+
   if (error) return <Typography color="error">{error}</Typography>
   if (!par) return <LoadingBar loading />
 
   function fields(extra: FormFields): FormFields {
-    return { st_date: par?.st_date ?? '', ...extra }
+    return { st_date: par?.st_date ?? '', channel, theme: themeFilter, search: search.trim(), ...extra }
   }
 
   const setSort = (key: SortKey) => {
@@ -328,16 +343,26 @@ export default function NewsBoardPage() {
       <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, flexShrink: 0 }}>
         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <IconButton size="small" title={t('Предыдущий день')} onClick={() => submit(fields({ st_date: shiftDate(par.st_date, -1) }))}>
+            <IconButton size="small" title={t('Предыдущий день')} onClick={() => submit(fields({ st_date: shiftDate(par.st_date || par.today, -1) }))}>
               <PrevIcon />
             </IconButton>
-            <DateField value={par.st_date} required width={160} onCommit={(v) => submit(fields({ st_date: v }))} />
-            <IconButton size="small" title={t('Следующий день')} onClick={() => submit(fields({ st_date: shiftDate(par.st_date, 1) }))}>
+            <DateField
+              value={par.st_date}
+              width={160}
+              title={t('Пустая дата — все новости')}
+              onCommit={(v) => submit(fields({ st_date: v }))}
+            />
+            <IconButton size="small" title={t('Следующий день')} onClick={() => submit(fields({ st_date: shiftDate(par.st_date || par.today, 1) }))}>
               <NextIcon />
             </IconButton>
             {par.st_date !== par.today && (
               <Button size="small" onClick={() => submit(fields({ st_date: par.today }))}>
                 {t('Сегодня')}
+              </Button>
+            )}
+            {par.st_date && (
+              <Button size="small" title={t('Все новости без учёта даты')} onClick={() => submit(fields({ st_date: '' }))}>
+                {t('Все даты')}
               </Button>
             )}
           </Box>

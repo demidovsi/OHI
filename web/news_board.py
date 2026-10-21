@@ -33,15 +33,10 @@ def load_themes(answer):
     answer['themes'] = sorted({r['sh_name'] for r in json.loads(ans) if r.get('sh_name')})
 
 
-def load_day(year, month, day):
-    """За сутки (локальное время пользователя) все новости сразу со всеми языковыми вариантами заголовка/описания -
-    выбор языка отображения, поиск, фильтры и сортировка происходят в браузере, без повторного запроса к серверу.
+def load_news(where):
+    """Новости (не больше MAX_ROWS, самые свежие) сразу со всеми языковыми вариантами заголовка/описания - выбор
+    языка отображения, поиск, фильтры и сортировка происходят в браузере, без повторного запроса к серверу.
     LEFT JOIN + агрегация тем: сообщения без темы не теряются, с несколькими темами - не задваиваются."""
-    tz = get('time_zone') or 0
-    date_begin = common.get_date_sql([year, month, day], tz)
-    t = datetime.datetime(year, month, day) + datetime.timedelta(days=1)
-    date_end = common.get_date_sql([t.year, t.month, t.day], tz)
-
     query = """
         select a.id, a.rss, a.name_rss, a.author, a.lang, a.url, a.file, a.error_translator,
                a.public_date, a.at_date_time,
@@ -50,14 +45,13 @@ def load_day(year, month, day):
                string_agg(distinct b.sh_name, ', ') as themes
         from {schema}.v_nsi_rss_history a
         left join {schema}.get_list_theme_for_history b on a.id=b.id
-        where (public_date is not NULL and public_date>='{begin}' and public_date<'{end}'
-               or at_date_time>='{begin}' and at_date_time<'{end}')
+        {where}
         group by a.id, a.rss, a.name_rss, a.author, a.lang, a.url, a.file, a.error_translator,
                  a.public_date, a.at_date_time, a.title_ru, a.title_en, a.title_he,
                  a.description_ru, a.description_en, a.description_he
         order by coalesce(a.at_date_time, a.public_date) desc
         limit {limit};
-    """.format(schema=config.SCHEMA, begin=date_begin, end=date_end, limit=MAX_ROWS)
+    """.format(schema=config.SCHEMA, where=('where ' + where) if where else '', limit=MAX_ROWS)
     ans, is_ok, status_code = common.send_rest('v2/execute', 'PUT', params={"script": query},
                                                token_user=get('token'))
     if not is_ok:
@@ -70,6 +64,34 @@ def load_day(year, month, day):
                 row[key] = row[key][:-3]
         row['themes'] = row['themes'] or ''
     return rows
+
+
+def load_day(year, month, day):
+    """Новости за сутки (локальное время пользователя)."""
+    tz = get('time_zone') or 0
+    date_begin = common.get_date_sql([year, month, day], tz)
+    t = datetime.datetime(year, month, day) + datetime.timedelta(days=1)
+    date_end = common.get_date_sql([t.year, t.month, t.day], tz)
+    return load_news("""(a.public_date is not NULL and a.public_date>='{begin}' and a.public_date<'{end}'
+               or a.at_date_time>='{begin}' and a.at_date_time<'{end}')""".format(begin=date_begin, end=date_end))
+
+
+def load_all(channel, theme, search):
+    """Новости без даты (все, самые свежие MAX_ROWS) — фильтры канала, темы и поиска применяются уже в БД, иначе
+    браузер фильтровал бы только последние MAX_ROWS новостей. Поиск — по тем же полям, что и в браузере."""
+    where = []
+    if channel:
+        where.append("trim(a.name_rss)='{0}'".format(common.escape_sql_literal(channel)))
+    if theme:
+        where.append("a.id in (select id from {schema}.get_list_theme_for_history where sh_name='{0}')".format(
+            common.escape_sql_literal(theme), schema=config.SCHEMA))
+    if search:
+        like = common.escape_sql_literal(search.replace('\\', '\\\\').replace('%', r'\%').replace('_', r'\_'))
+        where.append("""(concat_ws(' ', a.title_ru, a.title_en, a.title_he, a.description_ru, a.description_en,
+                                  a.description_he, a.author, a.name_rss, a.id::text) ilike '%{0}%'
+               or a.id in (select id from {schema}.get_list_theme_for_history where sh_name ilike '%{0}%'))""".format(
+            like, schema=config.SCHEMA))
+    return load_news(' and '.join(where))
 
 
 def find_date(news_id):
@@ -88,8 +110,9 @@ def find_date(news_id):
 
 
 def prepare_form(request):
-    """Лента новостей за сутки. POST-поля: st_date (сутки, YYYY-MM-DD), find_id (перейти к новости по ID: сутки этой
-    новости, par['select_id']), delete_id (удалить новость — только администратор)."""
+    """Лента новостей за сутки. POST-поля: st_date (сутки, YYYY-MM-DD; пустая — все новости, тогда в БД
+    применяются и фильтры channel, theme, search), find_id (перейти к новости по ID: сутки этой новости,
+    par['select_id']), delete_id (удалить новость — только администратор)."""
     answer = dict()
     st = common.init_form(request, '/news_board/')
     if st:
@@ -100,7 +123,8 @@ def prepare_form(request):
     answer['select_id'] = None
     if request.method == 'POST':
         common.choose_language(request)
-        st_date = common.sql_date(request.form.get('st_date'), st_date)
+        if 'st_date' in request.form:
+            st_date = common.sql_date(request.form.get('st_date'))
         find_id = common.sql_digits(request.form.get('find_id'))
         if find_id:
             found = find_date(find_id)
@@ -120,9 +144,14 @@ def prepare_form(request):
     add('news_board_st_date', st_date)
     load_list_rss(answer)
     load_themes(answer)
-    year, month, day = (int(x) for x in st_date.split('-'))
     answer['st_date'] = st_date
     answer['today'] = common.local_today()
-    answer['data'] = load_day(year, month, day)
+    if st_date:
+        year, month, day = (int(x) for x in st_date.split('-'))
+        answer['data'] = load_day(year, month, day)
+    else:
+        form = request.form if request.method == 'POST' else {}
+        answer['data'] = load_all(str(form.get('channel') or '').strip(), str(form.get('theme') or '').strip(),
+                                  str(form.get('search') or '').strip())
     answer['max_rows'] = MAX_ROWS
     return answer

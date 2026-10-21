@@ -9,6 +9,9 @@ export const EN_OHI: Record<string, string> = {
 
   // news board
   'Предыдущий день': 'Previous day',
+  'Все даты': 'All dates',
+  'Все новости без учёта даты': 'All news regardless of date',
+  'Пустая дата — все новости': 'Empty date — all news',
   'Следующий день': 'Next day',
   'Поиск по заголовку, описанию, автору, каналу...': 'Search by title, description, author, channel...',
   'Канал': 'Channel',
