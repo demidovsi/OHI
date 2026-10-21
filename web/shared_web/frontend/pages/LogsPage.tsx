@@ -17,6 +17,7 @@ import FlashMessages from '@app/components/FlashMessages'
 import DayNavigator, { showDoUpdate, useAutoRefresh } from '@shared-web/components/DayNavigator'
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
 import { formatLogTime } from '@shared-web/components/logTime'
+import ClampedText from '@shared-web/components/ClampedText'
 import { useT } from '@app/i18n'
 import { FILL_SX, PAGE_SX } from '@app/components/layout'
 import LoadingBar from '@app/components/LoadingBar'
@@ -178,8 +179,8 @@ export default function LogsPage() {
                   </TableCell>
                   <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', minWidth: 120 }}>{r.law_id ?? ''}</TableCell>
                   <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', minWidth: 140 }}>{r.file_name ?? ''}</TableCell>
-                  <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', minWidth: 320, color: KIND_COLOR[ck] }}>
-                    {r.comment ?? ''}
+                  <TableCell sx={{ fontSize: 12, verticalAlign: 'top', minWidth: 320, color: KIND_COLOR[ck] }}>
+                    <ClampedText text={r.comment ?? ''} />
                   </TableCell>
                 </TableRow>
               )
