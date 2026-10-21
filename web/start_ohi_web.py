@@ -1,7 +1,7 @@
 """Точка входа сайта OHI (web/).
 
-Локально (PyCharm: Run → этот файл; или python main_ohi_web.py из любой папки) — встроенный сервер Flask на
-OHI_WEB_HOST:PORT (по умолчанию 127.0.0.1:8082); в Cloud Run — gunicorn main_ohi_web:app (Dockerfile).
+Локально (PyCharm: Run → этот файл; или python start_ohi_web.py из любой папки) — встроенный сервер Flask на
+OHI_WEB_HOST:PORT (по умолчанию 127.0.0.1:8082); в Cloud Run — gunicorn start_ohi_web:app (Dockerfile).
 Интерфейс — SPA (frontend/dist, собирается npm run build), API — api_v2.py. Устройство — как у сайтов parlaments
 (sozd-web, kns-web); общие формы Log / Гости сайта / Параметры сервисов — копия parlaments/shared_web (shared_web/).
 """

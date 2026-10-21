@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# локальный запуск (python main_ohi_web.py); в Cloud Run — gunicorn на $PORT (Dockerfile)
+# локальный запуск (python start_ohi_web.py); в Cloud Run — gunicorn на $PORT (Dockerfile)
 OWN_PORT = int(os.environ.get('PORT', 8082))
 OWN_HOST = os.environ.get('OHI_WEB_HOST', '127.0.0.1')
 URL = os.environ['URL']

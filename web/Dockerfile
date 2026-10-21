@@ -38,4 +38,4 @@ COPY --from=frontend /repo/web/frontend/dist ./frontend/dist
 EXPOSE 8080
 
 # exec-форма: gunicorn читает $PORT, заданный Cloud Run. Один процесс: состояние форм — в памяти (common.py)
-CMD exec gunicorn --bind "0.0.0.0:${PORT:-8080}" --workers 1 --threads 8 --timeout 0 main_ohi_web:app
+CMD exec gunicorn --bind "0.0.0.0:${PORT:-8080}" --workers 1 --threads 8 --timeout 0 start_ohi_web:app

@@ -92,7 +92,7 @@ FORMS = {
 }
 
 # Служебные формы администратора (меню «Сайт»): меню их только скрывает — права проверяются на сервере
-# (main_ohi_web.admin_forms_only).
+# (start_ohi_web.admin_forms_only).
 ADMIN_FORMS = ('guests', 'logs', 'functions')
 
 

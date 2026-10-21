@@ -9,7 +9,7 @@ const SHARED_WEB = fileURLToPath(new URL('../shared_web/frontend', import.meta.u
 const APP_SRC = fileURLToPath(new URL('./src', import.meta.url))
 
 // SPA раздаётся Flask'ом из корня сайта (см. api_v2.py), поэтому base = '/'.
-// В dev-режиме (npm run dev) API и статика проксируются на локальный Flask (main_ohi_web.py, PORT=8082).
+// В dev-режиме (npm run dev) API и статика проксируются на локальный Flask (start_ohi_web.py, PORT=8082).
 export default defineConfig({
   base: '/',
   plugins: [react()],

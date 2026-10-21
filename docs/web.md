@@ -8,7 +8,7 @@
 Flask отдаёт JSON API, интерфейс — SPA (React + MUI). Классический интерфейс (Jinja-шаблоны, jQuery, Bootstrap,
 `users_session.py`, `language.py`) удалён. Языки интерфейса — русский, английский, иврит (иврит — справа налево).
 
-Точка входа — `web/main_ohi_web.py`. Деплой — Google Cloud Run (`web/Dockerfile`, `.github/workflows/deploy-web.yml`): сервис
+Точка входа — `web/start_ohi_web.py`. Деплой — Google Cloud Run (`web/Dockerfile`, `.github/workflows/deploy-web.yml`): сервис
 `ohi-web` (europe-central2, https://ohi-web-16542874441.europe-central2.run.app; до 21.10.2026 — `llm-web`), секреты
 Secret Manager `ohi-web-url`, `ohi-web-kirill`, `ohi-web-flask-secret`. Сервис `llm-web` только перенаправляет на `ohi-web`
 (`tools/llm_web_redirect`) — для ранее отправленных ссылок чат-бота. Адрес сайта для ссылок чат-бота — параметр
@@ -28,7 +28,7 @@ Secret Manager `ohi-web-url`, `ohi-web-kirill`, `ohi-web-flask-secret`. Серв
   `GET|POST /api/v2/form/<форма>/` → `{par, upr, messages, redirect}`. Каждая форма — функция
   `prepare_form(request)` своего модуля; SPA шлёт form-encoded поля с теми же именами, что были у HTML-форм.
 - **Права**: формы `logs`, `guests`, `functions` — только администратору (проверка на сервере,
-  `main_ohi_web.admin_forms_only`); изменения в `new`, `rss`, `search_words` (управление) и удаление новостей —
+  `start_ohi_web.admin_forms_only`); изменения в `new`, `rss`, `search_words` (управление) и удаление новостей —
   тоже только администратору (проверка в модулях форм), меню лишь прячет кнопки.
 - **SPA** — `web/frontend` (Vite, React, MUI 9, react-chartjs-2), собирается в `frontend/dist`, отдаётся Flask'ом по
   всем адресам, кроме `/api/` и `/static/`. Каркас (тема, меню, сплиттеры, RTL, правила оформления) — из kns-web,
@@ -76,7 +76,7 @@ Secret Manager `ohi-web-url`, `ohi-web-kirill`, `ohi-web-flask-secret`. Серв
 
 ```
 cd web
-python main_ohi_web.py        # http://127.0.0.1:8082, перед стартом пересобирает frontend/dist, если он устарел
+python start_ohi_web.py        # http://127.0.0.1:8082, перед стартом пересобирает frontend/dist, если он устарел
 ```
 
 Нужны `web/.env` (`URL`, `KIRILL`, `FLASK_SECRET_KEY` — см. `.env.example`) и Node 20.19+ для сборки SPA.

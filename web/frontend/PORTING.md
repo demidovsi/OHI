@@ -81,7 +81,7 @@ theme.ts — без изменений, чтобы вид совпадал с с
 - `cd frontend && npx tsc -b` — без ошибок.
 - `cd frontend && npm run build` — сборка в `frontend/dist` (Node 20.19+; со старым Node — первой стадией Dockerfile,
   см. `project_docs/README.md`).
-- Данные формы — через API локального Flask (`main_ohi_web.py`, :8082) после входа (`POST /api/v2/login`):
+- Данные формы — через API локального Flask (`start_ohi_web.py`, :8082) после входа (`POST /api/v2/login`):
   `GET /api/v2/form/<page>/`.
 - Dev-сервер: `npm run dev` (http://localhost:5175, проксирует `/api` и `/static` на :8082, см. `vite.config.ts`).
 
