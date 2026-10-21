@@ -125,12 +125,14 @@ export default function GuestsPage() {
 
   /** Заголовок колонки с сортировкой на сервере (order_col / order_dir); повторный щелчок — обратный порядок.
    *  Текст по первому щелчку — по возрастанию, числа и даты — по убыванию. */
-  const sortCell = (key: string, label: string, opts: { align?: 'right'; text?: boolean } = {}) => {
+  // Колонки IP («IP-адрес» в посещениях, «Посл. IP» в пользователях) — одной ширины, по IPv4; IPv6 переносится
+  const IP_WIDTH = 160
+  const sortCell = (key: string, label: string, opts: { align?: 'right'; text?: boolean; width?: number } = {}) => {
     const active = par.order_col === key
     const first: 'asc' | 'desc' = opts.text ? 'asc' : 'desc'
     const dir: 'asc' | 'desc' = active ? (par.order_dir === 'asc' ? 'asc' : 'desc') : first
     return (
-      <TableCell align={opts.align} sortDirection={active ? dir : false}>
+      <TableCell align={opts.align} sx={opts.width ? { width: opts.width } : undefined} sortDirection={active ? dir : false}>
         <TableSortLabel
           active={active}
           direction={dir}
@@ -305,7 +307,7 @@ export default function GuestsPage() {
                 <>
                   <TableHead>
                     <TableRow>
-                      {sortCell('sh_name', t('IP-адрес'), { text: true })}
+                      {sortCell('sh_name', t('IP-адрес'), { text: true, width: IP_WIDTH })}
                       {sortCell('country', t('Страна'), { text: true })}
                       {sortCell('city', t('Город'), { text: true })}
                       {sortCell('visits', t('Визитов'), { align: 'right' })}
@@ -315,7 +317,7 @@ export default function GuestsPage() {
                   <TableBody>
                     {(par.data as GuestRow[] | undefined)?.map((r) => (
                       <TableRow key={r.id} hover>
-                        <TableCell sx={{ fontFamily: 'monospace', color: 'primary.main' }}>{r.sh_name || '—'}</TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace', color: 'primary.main', wordBreak: 'break-all' }}>{r.sh_name || '—'}</TableCell>
                         <TableCell>{r.country ? t(r.country) : '—'}</TableCell>
                         <TableCell>{r.city || '—'}</TableCell>
                         <TableCell align="right" sx={{ fontWeight: 700 }}>
@@ -340,7 +342,7 @@ export default function GuestsPage() {
                       {sortCell('username', t('Пользователь'), { text: true })}
                       {sortCell('logins', t('Входов'), { align: 'right' })}
                       {sortCell('unique_ips', 'IP', { align: 'right' })}
-                      {sortCell('last_ip', t('Посл. IP'), { text: true })}
+                      {sortCell('last_ip', t('Посл. IP'), { text: true, width: IP_WIDTH })}
                       {sortCell('country', t('Страна'), { text: true })}
                       {sortCell('last_login', t('Последний вход'))}
                     </TableRow>
@@ -353,7 +355,7 @@ export default function GuestsPage() {
                           {r.logins || 0}
                         </TableCell>
                         <TableCell align="right">{r.unique_ips || 0}</TableCell>
-                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 12 }}>{r.last_ip || '—'}</TableCell>
+                        <TableCell sx={{ fontFamily: 'monospace', fontSize: 12, wordBreak: 'break-all' }}>{r.last_ip || '—'}</TableCell>
                         <TableCell>
                           {r.country ? t(r.country) : '—'}
                           {r.city ? `, ${r.city}` : ''}

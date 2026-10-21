@@ -20,7 +20,7 @@ import colors
 from ohi_shared.text_utils import decode, encode, str1000, get_duration  # noqa: F401
 from shared_web import visits  # учёт посетителей — общий для сайтов (копия parlaments/shared_web)
 
-version = 'version 2.0.1 - 21.10.2026'  # версия программы вэб сайта
+version = 'version 2.0.2 - 21.10.2026'  # версия программы вэб сайта
 app_lang = 'ru'
 current_path = ''
 
