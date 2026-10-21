@@ -24,7 +24,13 @@ import rss_complete
 import clear_logs
 
 common.current_path = os.path.abspath(os.curdir)
+version = 'version 3.47 от 21 октября 2026 г.'
 t0 = 0
+
+CHECK_PERIOD = 600.0      # как часто проверяются потоки, сек
+HEARTBEAT_PERIOD = 3600.0  # как часто повторять сводку при неизменном состоянии, сек
+_last_state = None        # состояние потоков в последней записанной сводке (без отметок времени)
+_last_state_time = 0.0
 
 
 def log_shutdown(reason):
@@ -72,8 +78,10 @@ def check_work(threads: list):
     Проверка работоспособности потоков и запись статуса в лог.
     Выводит информацию об активных, ошибочных и остановленных потоках.
     """
+    global _last_state, _last_state_time
     count_work = 0
     parts = []
+    state = []  # то же без длительностей: по нему видно, изменилось ли что-то с прошлой сводки
     error = 0
     for elem in threads:
         if elem is None:
@@ -97,6 +105,13 @@ def check_work(threads: list):
             st_duration = common.get_duration(time.time() - elem.t0) if not is_stopped else 'stop'
             parts.append(st + st_duration + '; ID=' + str(elem.rss['id']) + ' [' + elem.rss['sh_name'] + '] ' +
                          st_count)
+            state.append((st, elem.rss['id'], st_count))
+    # Повторяющуюся сводку не пишем: только при изменении состояния лент, иначе — раз в HEARTBEAT_PERIOD
+    state = (count_work, len(threads), error, common.count_tg_err, tuple(state))
+    now = time.time()
+    if state == _last_state and now - _last_state_time < HEARTBEAT_PERIOD:
+        return
+    _last_state, _last_state_time = state, now
     if common.count_tg_err:
         parts.append('\t❗Ошибок в TG: ' + str(common.count_tg_err))
     st_work = '\n'.join(parts)
@@ -175,8 +190,8 @@ if __name__ == '__main__':
                         list_threads.append(elem)
                     time.sleep(1)  # Минимальная пауза, чтобы не перегружать API при старте
 
-            # Каждые 10 минут — проверка работоспособности потоков
-            if time.time() - time_cycle >= 600.0:
+            # Каждые 10 минут — проверка работоспособности потоков (в лог — только при изменении состояния)
+            if time.time() - time_cycle >= CHECK_PERIOD:
                 check_work(list_threads)
                 # Удаляем завершённые потоки, чтобы они не удерживали память
                 list_threads = [t for t in list_threads if t.is_alive()]
