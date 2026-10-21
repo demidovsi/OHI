@@ -3,7 +3,7 @@ import Box from '@mui/material/Box'
 import Link from '@mui/material/Link'
 import { useT } from '@app/i18n'
 
-// Длинный текст ячейки таблицы (Log, колонка Message): не больше `lines` строк (по умолчанию 3, с учётом переносов
+// Длинный текст ячейки таблицы (Log, колонка Message): не больше `lines` строк (по умолчанию 4, с учётом переносов
 // строк и переноса по ширине колонки); если текст не помещается — ссылка «Показать весь текст» под ним, а у раскрытого
 // текста «Скрыть текст» — в самом начале (чтобы не искать её в конце длинного текста). Обрезка определяется по высоте
 // (и при смене ширины колонки).
@@ -13,7 +13,7 @@ interface Props {
   lines?: number
 }
 
-export default function ClampedText({ text, lines = 3 }: Props) {
+export default function ClampedText({ text, lines = 4 }: Props) {
   const t = useT()
   const ref = useRef<HTMLDivElement>(null)
   const [open, setOpen] = useState(false)

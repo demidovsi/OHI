@@ -86,43 +86,39 @@ def get_difference_config_params(par, answer):
     return st_difference, st_param_work
 
 
-_geo_cache = None  # кэш геолокации: (country, city)
+_geo_cache = None   # кэш геолокации: (ip, country, city); None — ещё не определяли или определить не удалось
+_geo_failed_at = 0.0
+_GEO_RETRY = 300    # после неудачи не повторять запрос к ip-api чаще, сек (запись в журнал не должна ждать сеть)
 
 
 def _get_geo():
-    """Определяет страну и город по внешнему IP через ip-api.com. Результат кэшируется."""
-    global _geo_cache
-    if _geo_cache is None:
+    """Внешний IP, страна и город по ip-api.com (запрос без адреса — про сам хост). Успешный результат
+    кэшируется. При неудаче — ('', '', ''), повтор не чаще _GEO_RETRY."""
+    global _geo_cache, _geo_failed_at
+    if _geo_cache is None and time.time() - _geo_failed_at >= _GEO_RETRY:
         try:
-            resp = requests.get('http://ip-api.com/json/?fields=country,city', timeout=5)
-            if resp.ok:
-                js = resp.json()
-                _geo_cache = (js.get('country', ''), js.get('city', ''))
-            else:
-                _geo_cache = ('', '')
+            resp = requests.get('http://ip-api.com/json/?lang=ru&fields=status,query,country,city', timeout=5)
+            js = resp.json() if resp.ok else {}
+            if js.get('status') == 'success':
+                _geo_cache = (js.get('query', ''), js.get('country', ''), js.get('city', ''))
         except Exception:
-            _geo_cache = ('', '')
-    return _geo_cache
-
-
-_computer_name_cache = None  # кэш: имя хоста не меняется за время работы процесса
+            pass
+        if _geo_cache is None:
+            _geo_failed_at = time.time()
+    return _geo_cache or ('', '', '')
 
 
 def get_computer_name():
-    """Возвращает имя компьютера, IP, страну и город в формате 'hostname; ip; country; city'."""
-    global _computer_name_cache
-    if _computer_name_cache is not None:
-        return _computer_name_cache
-    hostname = socket.gethostname()
-    ip = socket.gethostbyname(hostname)
-    ip = '' if ip == '127.0.0.1' else ip
-    country, city = _get_geo()
-    geo = '; '.join(filter(None, [country, city]))
-    result = hostname + '; ' + ip
-    if geo:
-        result += '; ' + geo
-    _computer_name_cache = result
-    return _computer_name_cache
+    """Подпись сервера для поля file_name журнала: 'IP; страна; город' (внешний адрес хоста — как у веба).
+    Если геолокацию определить не удалось — локальный адрес контейнера/хоста (в кэш не попадает)."""
+    ip, country, city = _get_geo()
+    if not ip:
+        try:
+            ip = socket.gethostbyname(socket.gethostname())
+        except Exception:
+            ip = ''
+        return '; '.join(filter(None, ['' if ip == '127.0.0.1' else ip]))
+    return '; '.join([ip, country, city])
 
 
 def invalidate_token_cache():

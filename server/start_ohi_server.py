@@ -25,7 +25,7 @@ import rss_complete
 import clear_logs
 
 common.current_path = os.path.abspath(os.curdir)
-version = 'version 3.48 от 21 октября 2026 г.'
+version = 'version 3.49 от 21 октября 2026 г.'
 t0 = 0
 
 CHECK_PERIOD = 600.0      # как часто проверяются потоки, сек
