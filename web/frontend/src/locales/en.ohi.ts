@@ -6,6 +6,8 @@ export const EN_OHI: Record<string, string> = {
   'Новостные ленты': 'News feeds',
   'Лог чата': 'Chat log',
   'Новости Израиля: ленты новостей и аналитика': 'Israel news: news feeds and analytics',
+  'Компьютер': 'Desktop device',
+  'Мобильное устройство': 'Mobile device',
 
   // news board
   'Предыдущий день': 'Previous day',

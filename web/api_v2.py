@@ -37,6 +37,7 @@ import search_words
 from shared_web import functions as shared_functions
 from shared_web import guests as shared_guests
 from shared_web import logs as shared_logs
+from shared_web import visits
 
 bp = Blueprint('api_v2', __name__, url_prefix='/api/v2')
 
@@ -112,6 +113,49 @@ def _api_error(er):
 
 
 # --- вход ----------------------------------------------------------------------
+
+def _device():
+    """Тип устройства по User-Agent (подвал формы входа, как в sozd-web); строка — ключ перевода SPA."""
+    user_agent = request.headers.get('User-Agent', '')
+    if any(mobile in user_agent for mobile in ['Mobi', 'Android', 'iPhone', 'iPad']):
+        return 'Мобильное устройство'
+    return 'Компьютер'
+
+
+_GEO_LANGS = ('ru', 'en')  # языки ip-api.com; для иврита — английский
+_geo_cache = {}  # (ip, lang) -> (country, city); ip '' — местоположение самого сервера
+
+
+def _geo(ip, lang):
+    """(страна, город) по IP на языке lang (ip-api.com). visits.geo отвечает всегда по-русски (пишется в БД),
+    поэтому для формы входа — отдельный запрос с языком формы. Ошибки сети не кэшируются."""
+    key = (ip, lang)
+    if key not in _geo_cache:
+        try:
+            import requests
+            r = requests.get(f'http://ip-api.com/json/{ip}?lang={lang}', timeout=5)
+            data = r.json() if r.ok else {}
+        except Exception:
+            return '', ''
+        if data.get('status') != 'success':
+            return '', ''
+        _geo_cache[key] = (data.get('country', ''), data.get('city', ''))
+    return _geo_cache[key]
+
+
+@bp.route('/info', methods=('GET',))
+def info():
+    """Сведения для формы входа (без логина): название сайта, версия, устройство, страна и город.
+    Страна и город — по IP клиента на языке ?lang=; для локального запуска — местоположение сервера."""
+    lang = request.args.get('lang', 'ru')
+    lang = lang if lang in _GEO_LANGS else 'en'
+    ip = visits.client_ip(request)
+    if visits.is_local(ip):
+        ip = ''
+    country, city = _geo(ip, lang)
+    return _json_response({'site': 'OHI-web', 'version': common.version, 'device': _device(),
+                           'country': country, 'city': city})
+
 
 @bp.route('/login', methods=('POST',))
 def login():

@@ -103,6 +103,20 @@ export async function login(userName: string, password: string, theme: string, l
   return parse<LoginResponse>(r)
 }
 
+export interface SiteInfo {
+  site: string
+  version: string
+  device: string
+  country: string
+  city: string
+}
+
+/** Сведения для формы входа (без логина): название сайта, версия, устройство, страна и город. */
+export async function info(lang = 'ru') {
+  const r = await fetch(`${BASE}/info?lang=${encodeURIComponent(lang)}`)
+  return parse<SiteInfo>(r)
+}
+
 export async function me() {
   const r = await fetch(`${BASE}/me`)
   return parse<{ ok: boolean; upr: Upr }>(r)

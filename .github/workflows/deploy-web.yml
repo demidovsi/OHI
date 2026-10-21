@@ -11,8 +11,8 @@ on:
 env:
   PROJECT_ID: playground-332710
   REGION: europe-central2
-  SERVICE: llm-web
-  IMAGE: gcr.io/playground-332710/llm-web
+  SERVICE: ohi-web
+  IMAGE: gcr.io/playground-332710/ohi-web
 
 permissions:
   contents: read
@@ -54,4 +54,4 @@ jobs:
             --project "$PROJECT_ID" \
             --allow-unauthenticated \
             --timeout=300 \
-            --set-secrets=URL=llm-web-url:latest,KIRILL=llm-web-kirill:latest,FLASK_SECRET_KEY=llm-web-flask-secret:latest
+            --set-secrets=URL=ohi-web-url:latest,KIRILL=ohi-web-kirill:latest,FLASK_SECRET_KEY=ohi-web-flask-secret:latest

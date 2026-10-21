@@ -8,7 +8,10 @@
 Flask отдаёт JSON API, интерфейс — SPA (React + MUI). Классический интерфейс (Jinja-шаблоны, jQuery, Bootstrap,
 `users_session.py`, `language.py`) удалён. Языки интерфейса — русский, английский, иврит (иврит — справа налево).
 
-Точка входа — `web/main_ohi_web.py`. Деплой — Google Cloud Run (`web/Dockerfile`, `.github/workflows/deploy-web.yml`).
+Точка входа — `web/main_ohi_web.py`. Деплой — Google Cloud Run (`web/Dockerfile`, `.github/workflows/deploy-web.yml`): сервис
+`ohi-web` (europe-central2, https://ohi-web-16542874441.europe-central2.run.app; до 21.10.2026 — `llm-web`), секреты
+Secret Manager `ohi-web-url`, `ohi-web-kirill`, `ohi-web-flask-secret`. Адрес сайта для ссылок чат-бота — параметр
+`url` функции `web` («Параметры сервисов»).
 
 ## Архитектура
 
@@ -34,6 +37,8 @@ Flask отдаёт JSON API, интерфейс — SPA (React + MUI). Клас�
   Файлы не правились — при обновлении в parlaments их можно скопировать заново. Единственная замена —
   `web/shared/secret_params.py`: сервисы OHI читают параметры функций открытым текстом, поэтому шифрования
   секретных параметров (`enc2:`) в OHI нет.
+- **Форма входа**: внизу — сайт, версия, устройство, страна и город (по IP, `GET /api/v2/info?lang=`), текущее
+  время с часовым поясом (как в sozd-web).
 - **Вход из чат-бота** `/one_new/<id>/` — вход пользователем `llm` (`common.user_from_chat`, часовой пояс — по IP),
   затем лента новостей с открытой новостью (`/news_board/?open_id=<id>`).
 

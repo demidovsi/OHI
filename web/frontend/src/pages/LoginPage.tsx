@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
@@ -18,14 +18,32 @@ import DarkModeIcon from '@mui/icons-material/DarkMode'
 import LightModeIcon from '@mui/icons-material/LightMode'
 import type { ThemeName } from '../theme'
 import { useAuth } from '../auth'
-import type { FlashMessage } from '../api'
-import { ApiError, legacyRedirectToRoute } from '../api'
+import type { FlashMessage, SiteInfo } from '../api'
+import { ApiError, info as apiInfo, legacyRedirectToRoute } from '../api'
 import { LANGS, isLang, useI18n } from '../i18n'
 import { HOME_PAGE } from '../menu'
 
-// Вход: имя, пароль, язык и тема оформления (как на входе sozd-web).
+// Вход: имя, пароль, язык и тема оформления; внизу — сайт, версия, устройство, страна и город, текущее время с
+// часовым поясом (как на входе sozd-web).
 // Форма — по высоте окна (сама страница не прокручивается; при очень низком окне прокручивается
 // карточка), отступы и выравнивание — логические (start/end), поэтому в RTL (иврит) зеркалятся.
+
+const CLOCK_LOCALE: Record<string, string> = { ru: 'ru-RU', en: 'en-GB', he: 'he-IL' }
+
+/** Текущее время браузера с часовым поясом (по нему сервер при входе берёт пояс пользователя). */
+function useClock(lang: string) {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000)
+    return () => window.clearInterval(id)
+  }, [])
+  const offset = -now.getTimezoneOffset()
+  const sign = offset >= 0 ? '+' : '-'
+  const hh = String(Math.floor(Math.abs(offset) / 60)).padStart(2, '0')
+  const mm = String(Math.abs(offset) % 60).padStart(2, '0')
+  return `${now.toLocaleString(CLOCK_LOCALE[lang] ?? 'ru-RU')} (GMT${sign}${hh}:${mm})`
+}
+
 interface Props {
   themeName: ThemeName
   onToggleTheme: () => void
@@ -39,6 +57,13 @@ export default function LoginPage({ themeName, onToggleTheme }: Props) {
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [messages, setMessages] = useState<FlashMessage[]>([])
+  const [site, setSite] = useState<SiteInfo | null>(null)
+  const clock = useClock(lang)
+
+  // страна и город приходят на языке формы — перезапрашиваем при смене языка
+  useEffect(() => {
+    apiInfo(lang).then(setSite).catch(() => undefined)
+  }, [lang])
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault()
@@ -130,6 +155,17 @@ export default function LoginPage({ themeName, onToggleTheme }: Props) {
               </Button>
             </Stack>
           </form>
+          <Box sx={{ mt: 3, textAlign: 'center' }}>
+            <Typography variant="caption" color="text.secondary" component="div">
+              {site ? `${site.site} · ${t(site.device)} · [${site.version}]` : 'OHI-web'}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" component="div">
+              {[site?.country, site?.city].filter(Boolean).join(', ')}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" component="div" dir="ltr">
+              {clock}
+            </Typography>
+          </Box>
         </CardContent>
       </Card>
     </Box>
