@@ -6,14 +6,19 @@ knesset/web/kns_web — схема `kns`, будущие сайты). Сайты
 | Форма | Бэкенд | Страница SPA | Объекты БД (в схеме сайта) |
 |---|---|---|---|
 | Log (`/logs/`) | `logs.py` | `frontend/pages/LogsPage.tsx` | `v_logs` |
-| Гости сайта (`/guests/`) | `guests.py` | `frontend/pages/GuestsPage.tsx` | `nsi_guests`, `his_guests_page` |
+| Гости сайта (`/guests/`) | `guests.py` | `frontend/pages/GuestsPage.tsx` | `nsi_guests`, `his_guests_page`, `nsi_emails`, `his_emails_hist` (модель из четырёх таблиц, см. ниже) |
 | Параметры сервисов (`/functions/`) | `functions.py` | `frontend/pages/FunctionsPage.tsx` | `nsi_parser_functions`, `v_nsi_functions_params`, объекты `parser_functions`, `functions_params` |
 
-Учёт посетителей, по которому строится «Гости сайта», — тоже общий: `visits.py`. IP клиента — первый адрес
-`X-Forwarded-For` (дальше — прокси), гость — по IP (`nsi_guests`: `sh_name`, `country`, `city`), вход —
-`register_login(request, user_name)` (запись `Login (<пользователь>)` в историю, из неё — режим «Пользователи»),
-открытая страница — `register_page(name)`; локальные заходы (127.0.0.1) не учитываются. Сайты вызывают его из
-`login.py` и `common.write_log` (sozd-web — также через прежние `define_guest` / `write_quest` / `st_address`).
+Учёт посетителей, по которому строится «Гости сайта», — тоже общий: `visits.py`. Модель данных — четыре таблицы схемы сайта
+(объекты `emails` и `guests`): `nsi_emails` — пользователи (`sh_name` — email, `first_date`, `last_date`, `count` — входов),
+`nsi_guests` — гости: пара «IP + пользователь» (`sh_name` — IP, `country`, `city`, `email`; пусто — аноним),
+`his_guests_page` — история гостя: открытые страницы, `his_emails_hist` — история пользователя: каждый вход — строка
+`LOGIN; IP=<ip>; country=<страна>; city=<город>`. IP клиента — первый адрес `X-Forwarded-For` (дальше — прокси), локальные
+заходы (127.0.0.1) не учитываются, вход — `register_login(request, user_name)`, открытая страница — `register_page(name)`.
+Сайты вызывают его из `login.py` и `common.write_log`. Таблицы в схеме создаёт кнопка **Guests** формы «Классы» в modeler_web
+(классы и параметры записываются в метаданные, затем создаются реальные таблицы БД; на схеме с прежней моделью из двух таблиц
+достраиваются только emails и guests.email). Перенос накопленных данных прежней модели (входы как «Login (<имя>)» в
+`his_guests_page`) — `migrations/guests_two_to_four_tables.sql`.
 
 Все три формы — только для администратора: сайт закрывает их на сервере (sozd-web — `admin_forms_only` в
 `start_sozd_web.py`, kns-web — в `start_kns_web.py` по `api_v2.ADMIN_FORMS`).
