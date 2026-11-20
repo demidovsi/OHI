@@ -8,12 +8,14 @@ import DialogActions from '@mui/material/DialogActions'
 import DialogContent from '@mui/material/DialogContent'
 import DialogTitle from '@mui/material/DialogTitle'
 import FormControl from '@mui/material/FormControl'
+import FormControlLabel from '@mui/material/FormControlLabel'
 import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
 import Link from '@mui/material/Link'
 import MenuItem from '@mui/material/MenuItem'
 import Paper from '@mui/material/Paper'
 import Select from '@mui/material/Select'
+import Switch from '@mui/material/Switch'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -22,6 +24,7 @@ import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import TableSortLabel from '@mui/material/TableSortLabel'
 import TextField from '@mui/material/TextField'
+import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import { useTheme } from '@mui/material/styles'
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
@@ -39,6 +42,7 @@ import SearchField from '../components/SearchField'
 import NewsDialog, { type NewsUnit } from '../components/NewsDialog'
 import { FILL_SX, PAGE_SX } from '../components/layout'
 import DateField from '@shared-web/components/DateField'
+import { useAutoRefresh } from '@shared-web/components/DayNavigator'
 import { TablePagination, TableToolbar } from '@shared-web/components/TableControls'
 import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
@@ -79,6 +83,8 @@ type SortKey = 'time' | 'name_rss' | 'title' | 'themes' | 'lang'
 const LANG_KEY = 'ohi_news_board_lang'
 const SELECTED_KEY = 'ohi_news_board_selected_id'
 const ROWS_KEY = 'ohi_news_board_rows'
+const AUTO_KEY = 'ohi_news_board_auto'
+const AUTO_REFRESH_MS = 60 * 1000 // цикл автообновления текущих суток
 const ROW_COUNTS = [5, 10, 15, 25, 50, 100] // как в общих TableControls
 
 function readStorage(key: string): string | null {
@@ -155,6 +161,8 @@ export default function NewsBoardPage() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const [rows, setRows] = useState<Prepared[]>([])
+  const [autoOn, setAutoOn] = useState<boolean>(() => readStorage(AUTO_KEY) === '1')
+  const autoRefreshing = useRef(false) // идёт автообновление: страница таблицы и раскрытые описания сохраняются
   const [showLang, setShowLang] = useState<ShowLang>(() => {
     const v = readStorage(LANG_KEY)
     return v === 'ru' || v === 'en' || v === 'he' ? v : uiLang
@@ -197,7 +205,7 @@ export default function NewsBoardPage() {
   useEffect(() => {
     if (!par) return
     setRows(prepare((par.data ?? []) as NewsRow[]))
-    setExpanded({})
+    if (!autoRefreshing.current) setExpanded({})
     if (par.select_id) {
       select(par.select_id)
       scrollTo.current = par.select_id
@@ -245,7 +253,13 @@ export default function NewsBoardPage() {
 
   // Пагинация — в браузере (сутки приходят целиком): смена фильтров/сортировки/суток — первая страница
   const pageCount = Math.max(1, Math.ceil(list.length / rowsPerPage))
-  useEffect(() => setPage(1), [rows, search, channel, themeFilter, sortKey, sortDir, rowsPerPage])
+  useEffect(() => {
+    if (autoRefreshing.current) {
+      autoRefreshing.current = false
+      return
+    }
+    setPage(1)
+  }, [rows, search, channel, themeFilter, sortKey, sortDir, rowsPerPage])
   const pageRows = useMemo(() => list.slice((page - 1) * rowsPerPage, page * rowsPerPage), [list, page, rowsPerPage])
   // Пагинация как в Log — общие TableToolbar / TablePagination; их par собирается здесь, а «отправку» формы
   // (row_count, page) страница обрабатывает сама, без запроса к серверу
@@ -297,6 +311,18 @@ export default function NewsBoardPage() {
     return () => clearTimeout(timer)
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при смене фильтров
   }, [channel, themeFilter, search])
+
+  // Автообновление раз в 60 с для текущих суток при включённом «Обновлять» (как в Log): useAutoRefresh берёт do_update/is_today
+  const autoPar = useMemo(() => (par ? { ...par, is_today: par.st_date === par.today, do_update: autoOn } : null), [par, autoOn])
+  const refreshIn = useAutoRefresh(
+    autoPar,
+    () => {
+      autoRefreshing.current = true
+      submit(fields({}))
+    },
+    false,
+    AUTO_REFRESH_MS,
+  )
 
   if (error) return <Typography color="error">{error}</Typography>
   if (!par) return <LoadingBar loading />
@@ -375,6 +401,33 @@ export default function NewsBoardPage() {
               <Button size="small" title={t('Все новости без учёта даты')} onClick={() => submit(fields({ st_date: '' }))}>
                 {t('Все даты')}
               </Button>
+            )}
+            {par.st_date && par.st_date === par.today && (
+              // подсказка MUI: секунды до обновления идут вживую
+              <Tooltip
+                title={
+                  autoOn
+                    ? refreshIn != null
+                      ? t('Автообновление через {n} с', { n: refreshIn })
+                      : t('Режим автоматического обновления с заданным периодом')
+                    : t('Режим автоматического обновления ОТКЛЮЧЕН')
+                }
+              >
+                <FormControlLabel
+                  sx={{ ml: 1 }}
+                  control={
+                    <Switch
+                      size="small"
+                      checked={autoOn}
+                      onChange={(e) => {
+                        setAutoOn(e.target.checked)
+                        writeStorage(AUTO_KEY, e.target.checked ? '1' : null)
+                      }}
+                    />
+                  }
+                  label={<Typography variant="body2">{t('Обновлять')}</Typography>}
+                />
+              </Tooltip>
             )}
           </Box>
           <SearchField
