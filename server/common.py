@@ -251,6 +251,18 @@ def is_transient_db_error(text: str) -> bool:
     return any(m in text for m in _TRANSIENT_DB_ERRORS)
 
 
+_RE_TG_TOKEN = re.compile(r'(api\.telegram\.org/(?:file/)?bot)[^/\s?&]+')
+_RE_TG_TOKEN_BARE = re.compile(r'(?<![A-Za-z0-9])\d{8,10}:[A-Za-z0-9_-]{30,}')
+
+
+def mask_secrets(msg):
+    """Маскирует токен Telegram-бота в тексте (URL из исключений requests и т.п.)."""
+    if not isinstance(msg, str):
+        return msg
+    msg = _RE_TG_TOKEN.sub(lambda m: m.group(1) + '***', msg)
+    return _RE_TG_TOKEN_BARE.sub('***', msg)
+
+
 def write_log_db(level, src, msg, page=None, file_name='', law_id='', td=None, write_to_db=True,
                  write_to_console=True, token=None):
     # Временная недоступность БД (рестарт PG): понижаем ❌error до предупреждения,
@@ -258,6 +270,7 @@ def write_log_db(level, src, msg, page=None, file_name='', law_id='', td=None, w
     if level == '❌error' and is_transient_db_error(msg):
         level = '⚠️db-restart'
         write_to_db = False
+    msg = mask_secrets(msg)
     st_td = '' if td is None else "td=%.1f sec;" % td
     st_file_name = '' if file_name is None or file_name == '' else 'file=' + file_name + ';'
     st_law_id = '' if law_id is None or law_id == '' else 'law_id=' + str(law_id) + ';'
@@ -327,7 +340,12 @@ def send_tg(st):
     """Отправляет HTML-сообщение в Telegram-канал. Возвращает ответ Telegram API."""
     token_bot, chat_id = get_param_telegram()
     url = f'https://api.telegram.org/bot{token_bot}/sendMessage'
-    answer = requests.get(url, params={'chat_id': chat_id, 'text': st, 'parse_mode': 'HTML'}, timeout=TG_TIMEOUT).json()
+    try:
+        answer = requests.get(url, params={'chat_id': chat_id, 'text': st, 'parse_mode': 'HTML'},
+                              timeout=TG_TIMEOUT).json()
+    except requests.RequestException as er:
+        # исключение requests содержит полный URL с токеном — пробрасываем без него и без цепочки
+        raise RuntimeError(f'Telegram: {type(er).__name__}: {mask_secrets(str(er))}') from None
     return answer
 
 

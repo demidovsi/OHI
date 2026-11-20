@@ -593,7 +593,11 @@ class SearchRSS(trafaret_thread.TrafaretThread):
                                 for theme in values['themes']:
                                     themes = themes + ', ' if themes else themes
                                     themes += common.get_name_theme(self.rss_themes, theme)
-                                common.make_tg(self.source, themes, values, rss, j, self.global_count)  # уведомление в ТГ
+                                try:
+                                    common.make_tg(self.source, themes, values, rss, j, self.global_count)  # уведомление в ТГ
+                                except Exception as er_tg:  # сбой сети/Telegram не должен рвать обработку новости
+                                    common.write_log_db('❌error', SRC, f"Telegram: {type(er_tg).__name__}",
+                                                    law_id=self.source, token=self.token)
                                 # Запись связей тема <-> новость
                                 for theme in values['themes']:
                                     common.make_theme(theme, values, self.source, self.token)

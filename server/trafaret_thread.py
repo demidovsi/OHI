@@ -141,7 +141,9 @@ class TrafaretThread(threading.Thread):
             self.page = None
             self.t0 = time.time()
             answer = cd.load_config_params(self.code_function)
-            if answer is not None:
+            # Пустой ответ (таймаут/сбой REST) — не затираем self.par, пропускаем цикл:
+            # иначе get_value_config_param вернёт None и упадёт "None * int"
+            if answer:
                 self.analysis_changing_parameters(answer)  # анализ изменения параметров
                 if time.time() >= self.next_time:  # подошло время работать
                     last_time = self.next_time
