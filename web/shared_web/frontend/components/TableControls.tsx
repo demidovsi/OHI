@@ -51,6 +51,28 @@ export function TableToolbar({ par, onSubmit, base, hideSearch, hideSort }: Prop
   useEffect(() => setSearch(par.search ?? ''), [par.search])
   const fields = (extra: FormFields): FormFields => ({ ...baseFields(par), ...base, ...extra })
 
+  const mainSearch = !hideSearch && !par.no_search && (
+    <SearchField
+      onClear={() => {
+        setSearch('')
+        onSubmit(fields({ search: '', page: 1 }))
+      }}
+      name="search"
+      label={par.search_label ? String(par.search_label).replace(/:\s*$/, '') : t('Поиск')}
+      value={search}
+      onChange={(e) => setSearch(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onSubmit(fields({ search, page: 1 }))
+      }}
+      onBlur={() => {
+        if (search !== (par.search ?? '')) onSubmit(fields({ search, page: 1 }))
+      }}
+      title={par.title_search ? t(par.title_search) : t('Фильтрация выводимых строк таблицы')}
+      // рядом с поисками по отдельным колонкам (logs: Operation/Source/Who) — той же ширины
+      sx={(par.extra_searches ?? []).length ? SEARCH_FIELD_SX : { width: 300 }}
+    />
+  )
+
   return (
     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, alignItems: 'center', mb: 1.5, flexShrink: 0 }}>
       {!par.no_pages && (
@@ -82,32 +104,15 @@ export function TableToolbar({ par, onSubmit, base, hideSearch, hideSort }: Prop
         </IconButton>
       )}
 
-      {!hideSearch && !par.no_search && (
-        <SearchField
-          onClear={() => {
-            setSearch('')
-            onSubmit(fields({ search: '', page: 1 }))
-          }}
-          label={par.search_label ? String(par.search_label).replace(/:\s*$/, '') : t('Поиск')}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') onSubmit(fields({ search, page: 1 }))
-          }}
-          onBlur={() => {
-            if (search !== (par.search ?? '')) onSubmit(fields({ search, page: 1 }))
-          }}
-          title={par.title_search ? t(par.title_search) : t('Фильтрация выводимых строк таблицы')}
-          // рядом с поисками по отдельным колонкам (logs: Operation/Source/Who) — той же ширины
-          sx={(par.extra_searches ?? []).length ? SEARCH_FIELD_SX : { width: 300 }}
-        />
-      )}
+      {!par.search_last && mainSearch}
 
       {!hideSearch &&
         !par.no_search &&
         (par.extra_searches ?? []).map((extra: ExtraSearch) => (
           <ExtraSearchField key={extra.name} extra={extra} onSubmit={(value) => onSubmit(fields({ [extra.name]: value, page: 1 }))} />
         ))}
+
+      {par.search_last && mainSearch}
 
       {!hideSort && Array.isArray(par.array_sort) && par.array_sort.length > 0 && (
         <>
@@ -169,6 +174,7 @@ function ExtraSearchField({ extra, onSubmit }: { extra: ExtraSearch; onSubmit: (
         setValue('')
         onSubmit('')
       }}
+      name={extra.name}
       label={extra.label.replace(/:\s*$/, '')}
       value={value}
       onChange={(e) => setValue(e.target.value)}
@@ -199,13 +205,15 @@ export function TablePagination({ par, onSubmit, base }: Props) {
         siblingCount={2}
         onChange={(_, p) => onSubmit(fields({ page: p }))}
         color="primary"
+        // кнопки страниц переносятся на следующую строку, если не помещаются
+        sx={{ '& .MuiPagination-ul': { flexWrap: 'wrap', justifyContent: 'center', rowGap: 0.5 } }}
       />
     </Box>
   )
 }
 
 /** Поле номера страницы (как «Page:» в старом UI): Enter или уход из поля — переход на страницу. */
-function PageInput({ page, pageCount, onGo }: { page: number; pageCount: number; onGo: (page: number) => void }) {
+export function PageInput({ page, pageCount, onGo }: { page: number; pageCount: number; onGo: (page: number) => void }) {
   const t = useT()
   const [value, setValue] = useState(String(page))
   useEffect(() => setValue(String(page)), [page])

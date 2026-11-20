@@ -662,7 +662,7 @@ class SearchRSS(trafaret_thread.TrafaretThread):
                                 try:
                                     common.make_tg(self.source, themes, values, rss, j, self.global_count)  # уведомление в ТГ
                                 except Exception as er_tg:  # сбой сети/Telegram не должен рвать обработку новости
-                                    common.write_log_db('❌error', SRC, f"Telegram: {type(er_tg).__name__}",
+                                    common.write_log_db('❌error', SRC, f"Telegram: {er_tg}"[:500],
                                                     law_id=self.source, token=self.token)
                                 # Запись связей тема <-> новость
                                 for theme in values['themes']:

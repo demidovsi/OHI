@@ -19,7 +19,7 @@ import DayNavigator, { showDoUpdate, useAutoRefresh } from '@shared-web/componen
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
 import { formatLogTime } from '@shared-web/components/logTime'
 import ClampedText from '@shared-web/components/ClampedText'
-import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
+import { ResizeHandle, useColumnWidths } from '@shared-web/components/columnResize'
 import { useT } from '@app/i18n'
 import { FILL_SX, PAGE_SX } from '@app/components/layout'
 import LoadingBar from '@app/components/LoadingBar'
@@ -36,6 +36,26 @@ interface LogRow {
   comment: string | null
   request?: string | null
 }
+
+// ширины колонок по умолчанию (px); пользователь меняет их мышью (ручка на границе заголовка), ширины запоминаются в localStorage.
+// Operation: значения вроде «✔️ChatGPT-ERROR», «💾Write to DB» должны помещаться без переноса по символам; Message занимает остаток
+const COL_DEFAULTS = { time: 150, level: 170, source: 150, td: 80, page: 100, who: 130, server: 150 } as const
+const MESSAGE_MIN_WIDTH = 320
+const COL_STORAGE_KEY = 'logs.columnWidths'
+// переносы по ширине колонки: при tableLayout: fixed длинные слова без пробелов не должны раздвигать соседей
+const CELL_WRAP_SX = { overflowWrap: 'anywhere' } as const
+
+type ColKey = keyof typeof COL_DEFAULTS
+const COL_KEYS = Object.keys(COL_DEFAULTS) as ColKey[]
+const HEADERS: [ColKey, string, 'left' | 'right'][] = [
+  ['time', 'Time', 'left'],
+  ['level', 'Operation', 'left'],
+  ['source', 'Source', 'left'],
+  ['td', 'TD', 'right'],
+  ['page', 'Page/Count', 'right'],
+  ['who', 'Who/Where', 'left'],
+  ['server', 'Comment/Server', 'left'],
+]
 
 const AUTO_REFRESH_MS = 30 * 1000
 
@@ -76,13 +96,9 @@ const KIND_COLOR: Record<LevelKind, string | undefined> = {
 // logs_table.html + static/js/logs.js. Поля старой формы: all_days/one_day,
 // left/right/current_day/dt_start/st_date, do_update, row_count/page/search/refresh_table,
 // search_level/search_source/search_who (поиск по OPERATION, SOURCE и WHO; search — только по MESSAGE).
-// Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
-const COLS = { time: 170, level: 130, source: 130, td: 70, page: 100, who: 170, server: 200, message: 520 }
-const COL_KEYS = Object.keys(COLS)
-
 export default function LogsPage() {
   const t = useT()
-  const widths = useColumnWidths('logs_cols', COLS)
+  const widths = useColumnWidths(COL_STORAGE_KEY, COL_DEFAULTS)
   const { par, messages, loading, error, submit, dismiss } = useForm('logs')
   // Раскрытые записи Message помнит страница: обновление таблицы (автообновление, смена страницы/сутки) их не закрывает
   const [opened, setOpened] = useState<Set<number>>(() => new Set())
@@ -97,9 +113,8 @@ export default function LogsPage() {
     ...baseFields(par ?? {}),
     dt_start: par?.st_date ?? '',
     st_date: par?.st_date ?? '',
-    search_level: par?.search_level ?? '',
-    search_source: par?.search_source ?? '',
-    search_who: par?.search_who ?? '',
+    // все поиски по отдельным колонкам (par.extra_searches): их значения идут в каждый запрос — обновление, автообновление, страницы, сутки
+    ...Object.fromEntries((par?.extra_searches ?? []).map((e: { name: string }) => [e.name, par?.[e.name] ?? ''])),
     // чекбокс есть только на первой странице текущих суток (dates.html)
     do_update: par && showDoUpdate(par) && par.do_update ? 'Обновлять' : undefined,
     ...extra,
@@ -115,6 +130,7 @@ export default function LogsPage() {
   const rows: LogRow[] = par.data ?? []
   const errorsOn = par.search_level === ERRORS_SEARCH
   const formatDt: string = par.format_dt ?? 'HH:mm:ss'
+  const fixedWidth = COL_KEYS.reduce((sum, k) => sum + widths.width(k), 0)
 
   return (
     <Box sx={PAGE_SX}>
@@ -162,18 +178,22 @@ export default function LogsPage() {
       </Paper>
 
       <TableContainer component={Paper} variant="outlined" sx={FILL_SX}>
-        <Table size="small" stickyHeader sx={resizableTableSx(COL_KEYS, widths)}>
-          <ColGroup keys={COL_KEYS} widths={widths} />
+        <Table size="small" stickyHeader sx={{ tableLayout: 'fixed', width: '100%', minWidth: fixedWidth + MESSAGE_MIN_WIDTH }}>
+          <colgroup>
+            {COL_KEYS.map((k) => (
+              <col key={k} style={{ width: widths.width(k) }} />
+            ))}
+            <col />
+          </colgroup>
           <TableHead>
             <TableRow>
-              <ResizableHeadCell colKey="time" widths={widths}>Time</ResizableHeadCell>
-              <ResizableHeadCell colKey="level" widths={widths}>Operation</ResizableHeadCell>
-              <ResizableHeadCell colKey="source" widths={widths}>Source</ResizableHeadCell>
-              <ResizableHeadCell colKey="td" widths={widths} align="right">TD</ResizableHeadCell>
-              <ResizableHeadCell colKey="page" widths={widths} align="right">Page/Count</ResizableHeadCell>
-              <ResizableHeadCell colKey="who" widths={widths}>Who/Where</ResizableHeadCell>
-              <ResizableHeadCell colKey="server" widths={widths}>Comment/Server</ResizableHeadCell>
-              <ResizableHeadCell colKey="message" widths={widths}>Message</ResizableHeadCell>
+              {HEADERS.map(([k, label, align]) => (
+                <TableCell key={k} align={align} sx={{ ...CELL_WRAP_SX, pr: 2 }}>
+                  {label}
+                  <ResizeHandle colKey={k} widths={widths} title={t('Потяните, чтобы изменить ширину колонки; двойной клик — ширина по умолчанию')} />
+                </TableCell>
+              ))}
+              <TableCell>Message</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -182,20 +202,20 @@ export default function LogsPage() {
               const ck = commentKind(r)
               return (
                 <TableRow key={r.id} hover>
-                  <TableCell sx={{ whiteSpace: 'nowrap', verticalAlign: 'top' }}>{formatLogTime(r.at_date_time, formatDt)}</TableCell>
-                  <TableCell sx={{ verticalAlign: 'top', color: KIND_COLOR[lk], fontWeight: lk === 'plain' ? 400 : 700 }}>
+                  <TableCell sx={{ ...CELL_WRAP_SX, verticalAlign: 'top' }}>{formatLogTime(r.at_date_time, formatDt)}</TableCell>
+                  <TableCell sx={{ ...CELL_WRAP_SX, verticalAlign: 'top', color: KIND_COLOR[lk], fontWeight: lk === 'plain' ? 400 : 700 }}>
                     {r.level}
                   </TableCell>
-                  <TableCell sx={{ verticalAlign: 'top' }}>{r.source}</TableCell>
-                  <TableCell align="right" sx={{ whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                  <TableCell sx={{ ...CELL_WRAP_SX, verticalAlign: 'top' }}>{r.source}</TableCell>
+                  <TableCell align="right" sx={{ ...CELL_WRAP_SX, verticalAlign: 'top' }}>
                     {r.td || ''}
                   </TableCell>
-                  <TableCell align="right" sx={{ verticalAlign: 'top' }}>
+                  <TableCell align="right" sx={{ ...CELL_WRAP_SX, verticalAlign: 'top' }}>
                     {r.page || ''}
                   </TableCell>
-                  <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', minWidth: 120 }}>{r.law_id ?? ''}</TableCell>
-                  <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', minWidth: 140 }}>{r.file_name ?? ''}</TableCell>
-                  <TableCell sx={{ fontSize: 12, verticalAlign: 'top', minWidth: 320, color: KIND_COLOR[ck] }}>
+                  <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', ...CELL_WRAP_SX }}>{r.law_id ?? ''}</TableCell>
+                  <TableCell sx={{ whiteSpace: 'pre-wrap', fontSize: 12, verticalAlign: 'top', ...CELL_WRAP_SX }}>{r.file_name ?? ''}</TableCell>
+                  <TableCell sx={{ fontSize: 12, verticalAlign: 'top', color: KIND_COLOR[ck], ...CELL_WRAP_SX }}>
                     <ClampedText text={r.comment ?? ''} open={opened.has(r.id)} onToggle={() => toggleOpened(r.id)} />
                   </TableCell>
                 </TableRow>

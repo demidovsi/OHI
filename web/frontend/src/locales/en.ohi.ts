@@ -189,4 +189,6 @@ export const EN_OHI: Record<string, string> = {
   'Потяните, чтобы изменить размер': 'Drag to resize',
   'Образы': 'Terms',
   'Подсвечивать в тексте слова поисковых образов (при включении текст доступен только для чтения)': 'Highlight the search terms in the text (the text is read-only while on)',
+  'Развернуть: показать весь текст целиком': 'Expand: show the full text',
+  'Свернуть текст до нескольких строк': 'Collapse the text to a few lines',
 }

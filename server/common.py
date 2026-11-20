@@ -252,6 +252,7 @@ def is_transient_db_error(text: str) -> bool:
 
 
 _RE_TG_TOKEN = re.compile(r'(api\.telegram\.org/(?:file/)?bot)[^/\s?&]+')
+_RE_TG_TOKEN_PATH = re.compile(r'(/bot)\d{6,12}:[A-Za-z0-9_-]{20,}')  # url: /bot<токен>/sendMessage (хост — отдельно, как в ошибках requests)
 _RE_TG_TOKEN_BARE = re.compile(r'(?<![A-Za-z0-9])\d{8,10}:[A-Za-z0-9_-]{30,}')
 
 
@@ -260,6 +261,7 @@ def mask_secrets(msg):
     if not isinstance(msg, str):
         return msg
     msg = _RE_TG_TOKEN.sub(lambda m: m.group(1) + '***', msg)
+    msg = _RE_TG_TOKEN_PATH.sub(lambda m: m.group(1) + '***', msg)
     return _RE_TG_TOKEN_BARE.sub('***', msg)
 
 
@@ -340,13 +342,17 @@ def send_tg(st):
     """Отправляет HTML-сообщение в Telegram-канал. Возвращает ответ Telegram API."""
     token_bot, chat_id = get_param_telegram()
     url = f'https://api.telegram.org/bot{token_bot}/sendMessage'
-    try:
-        answer = requests.get(url, params={'chat_id': chat_id, 'text': st, 'parse_mode': 'HTML'},
-                              timeout=TG_TIMEOUT).json()
-    except requests.RequestException as er:
-        # исключение requests содержит полный URL с токеном — пробрасываем без него и без цепочки
-        raise RuntimeError(f'Telegram: {type(er).__name__}: {mask_secrets(str(er))}') from None
-    return answer
+    last = None
+    for attempt in range(3):  # сетевые сбои (таймаут, обрыв соединения) бывают разовыми — повторяем с паузой
+        try:
+            return requests.get(url, params={'chat_id': chat_id, 'text': st, 'parse_mode': 'HTML'},
+                                timeout=TG_TIMEOUT).json()
+        except requests.RequestException as er:
+            last = er
+            if attempt < 2:
+                time.sleep(3 * (attempt + 1))
+    # исключение requests содержит полный URL с токеном и текстом — пробрасываем без цепочки, токен маскируется
+    raise RuntimeError(f'Telegram: {type(last).__name__}: {mask_secrets(str(last))[:300]}') from None
 
 
 def set_value_config_param(key, par, value, token_admin=None, code_function=None):

@@ -16,6 +16,7 @@ array_default = [
     {'key': 'search_level', 'value': ''},
     {'key': 'search_source', 'value': ''},
     {'key': 'search_who', 'value': ''},
+    {'key': 'search_file', 'value': ''},
     {'key': 'row_count', 'value': 100},
     {'key': 'page', 'value': 1},
     {'key': 'st_date', 'value': common.st_today()},
@@ -38,6 +39,15 @@ SEARCH_COLUMNS = [
     ('search_level', 'level'),
     ('search_source', 'source'),
     ('search_who', 'law_id'),
+    ('search_file', 'file_name'),
+]
+
+# Поиски по отдельным колонкам (кроме Message): поле формы, подпись, колонка таблицы для подсказки. Порядок = порядок колонок таблицы.
+EXTRA_SEARCHES = [
+    ('search_level', 'Operation: ', 'OPERATION'),
+    ('search_source', 'Source: ', 'SOURCE'),
+    ('search_who', 'Who: ', 'WHO/WHERE'),
+    ('search_file', 'Comment: ', 'COMMENT/SERVER'),
 ]
 
 
@@ -115,7 +125,7 @@ def prepare_form(request):
         common.define_param_for_page(request, answer)
         answer['do_update'] = 'do_update' in request.form
         changed_search = answer['change_search']
-        for key in ('search_level', 'search_source', 'search_who'):
+        for key, _label, _column in EXTRA_SEARCHES:
             if key in request.form and request.form.get(key) != answer[key]:
                 answer[key] = request.form.get(key)
                 changed_search = True
@@ -185,15 +195,11 @@ def prepare_form(request):
         format_dt = 'HH:mm:ss'
     answer['format_dt'] = format_dt
     answer['search_label'] = 'Message: '
+    answer['search_last'] = True      # Message — последняя колонка таблицы: её поиск стоит после поисков по остальным колонкам
     answer['title_search'] = 'Поиск (фильтрация) производится по колонке MESSAGE'
     answer['extra_searches'] = [
-        {'name': 'search_level', 'label': 'Operation: ', 'value': answer['search_level'],
-         'title': 'Поиск (фильтрация) производится по колонке OPERATION'},
-        {'name': 'search_source', 'label': 'Source: ', 'value': answer['search_source'],
-         'title': 'Поиск (фильтрация) производится по колонке SOURCE'},
-        {'name': 'search_who', 'label': 'Who: ', 'value': answer['search_who'],
-         'title': 'Поиск (фильтрация) производится по колонке WHO/WHERE'},
-    ]
+        {'name': key, 'label': label, 'value': answer[key], 'title': 'Поиск (фильтрация) производится по колонке ' + column}
+        for key, label, column in EXTRA_SEARCHES]
     answer['title'] = 'Содержимое лог файла'
     answer['ajax_form'] = True
     # для возврата в форму из других форм
