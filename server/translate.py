@@ -195,6 +195,15 @@ def load_article(values, init_lang='', delay=1):
             if article.text and len(article.text) > 100 and not _is_challenge_page(article.text):
                 meta_img = article.meta_img
                 txt = article.text
+                # og:image у многих сайтов — баннер для соцсетей (заголовок поверх затемнённого фото);
+                # настоящая фотография статьи — в JSON-LD (NewsArticle.image), как это делает hill_article
+                try:
+                    import hill_article
+                    j_img = hill_article.extract_jsonld_article(article.html, url)[2]
+                    if j_img:
+                        meta_img = j_img
+                except Exception:
+                    pass
     except Exception:
         pass
 
