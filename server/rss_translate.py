@@ -106,6 +106,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
         self.global_error = 0   # кол-во ошибок
         self.last_length = 0    # длина последнего обработанного текста
         self.limit = 0          # лимит символов для разбиения текста
+        self.rss_names = {}     # кэш: id ленты -> sh_name
 
     def initiation_parameters(self):
         super(TranslateRSS, self).initiation_parameters()
@@ -147,6 +148,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
         text_en = ''
         text_he = ''
         error_translator = False
+        failed = {}  # целевой язык -> текст ошибки переводчика
         for unit in text:  # Перевод текста на три языка
             if values['lang'] != 'ru':
                 try:
@@ -157,8 +159,9 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                     else:
                         text_ru += unit
                         error_translator = True
+                        failed.setdefault('ru', res)
                 except Exception as er:
-                    return False, er
+                    return False, f"{type(er).__name__}: {er}; язык статьи: {lang}"
             if values['lang'] != 'en':
                 try:
                     # res = GoogleTranslator(target='en').translate(unit)
@@ -168,8 +171,9 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                     else:
                         error_translator = True
                         text_en += unit
+                        failed.setdefault('en', res)
                 except Exception as er:
-                    return False, er
+                    return False, f"{type(er).__name__}: {er}; язык статьи: {lang}"
             if values['lang'] != 'he':
                 try:
                     is_ok, res = translate.translator.translate(unit, 'iw')
@@ -179,8 +183,9 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                     else:
                         error_translator = True
                         text_he += unit
+                        failed.setdefault('he', res)
                 except Exception as er:
-                    return False, er
+                    return False, f"{type(er).__name__}: {er}; язык статьи: {lang}"
 
         if not error_translator:
             # Сохраняем переведённые тексты в облако
@@ -231,7 +236,24 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                     '❌error', SRC, f"make_translate\nОшибка: {ans}\n id={values['id']}", law_id=self.source)
             return True, ''
         else:
-            return False, 'Ошибка перевода'
+            st_failed = '; '.join(f"{k}: {v}" for k, v in failed.items())
+            return False, (f"Ошибка перевода с языка '{lang}' на язык(и): {', '.join(failed) or '?'}"
+                           f" ({st_failed})")
+
+    def describe_article(self, data):
+        """Строка с описанием статьи для логов: id, канал, дата, язык, заголовок, ссылка."""
+        try:
+            rss_id = data.get('rss')
+            if rss_id and rss_id not in self.rss_names:
+                is_ok, rss = common.load_rss(rss_id, self.source)
+                self.rss_names[rss_id] = rss.get('sh_name', '') if is_ok else ''
+            lang = data.get('lang') or 'he'
+            title = data.get('title_' + lang) or data.get('title_ru') or data.get('title_en') or data.get('title_he') or ''
+            return (f"id={data['id']}\nканал: {self.rss_names.get(rss_id, '')} (rss={rss_id})\n"
+                    f"дата: {data.get('public_date') or data.get('at_date_time') or ''}; язык: {lang}\n"
+                    f"заголовок: {title}\n{data.get('url') or ''}")
+        except Exception:
+            return f"id={data.get('id')}"
 
     def work(self):
         super(TranslateRSS, self).work()
@@ -247,7 +269,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                     if not is_ok:
                         self.global_error += 1
                         common.write_log_db(
-                            '⚠️warning', SRC, f"Ошибка: {er}\n id={data['id']}", law_id=self.source, page=j+1, td=time.time() - t0)
+                            '⚠️warning', SRC, f"Ошибка: {er}\n{self.describe_article(data)}", law_id=self.source, page=j+1, td=time.time() - t0)
                     else:
                         # FIX: global_new не инкрементировался при успехе
                         self.global_new += 1
@@ -257,7 +279,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                 except Exception as er:
                     self.global_error += 1
                     common.write_log_db(
-                        '❌error', SRC, f"work\nОшибка: {er}\n id={data['id']}", law_id=self.source, page=j+1, td=time.time() - t0)
+                        '❌error', SRC, f"work\nОшибка: {er}\n{self.describe_article(data)}", law_id=self.source, page=j+1, td=time.time() - t0)
             self.list_complete = []  # освобождаем список после обработки
             self.finish_text += 'Трансляция статей новостей:\nВсего пропусков={global_count}\n' \
                                 'Добавлено={global_new}\nОшибок={global_error}'.format(
