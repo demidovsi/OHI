@@ -40,6 +40,7 @@ import NewsDialog, { type NewsUnit } from '../components/NewsDialog'
 import { FILL_SX, PAGE_SX } from '../components/layout'
 import DateField from '@shared-web/components/DateField'
 import { TablePagination, TableToolbar } from '@shared-web/components/TableControls'
+import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
 // Лента новостей за сутки (бывшие templates/news_board.html + static/js/news_board.js). Сервер (news_board.py)
 // отдаёт все новости суток сразу со всеми языковыми вариантами — поиск, фильтры по каналу и теме, язык
@@ -143,6 +144,9 @@ function shiftDate(st: string, days: number): string {
   return isoDay(new Date(y, m - 1, d + days))
 }
 
+// Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
+const COLS = { time: 150, name_rss: 190, title: 560, themes: 180, lang: 80, actions: 50 }
+
 export default function NewsBoardPage() {
   const { t, lang: uiLang } = useI18n()
   const theme = useTheme()
@@ -181,6 +185,8 @@ export default function NewsBoardPage() {
 
   const { upr } = useAuth()
   const admin = Boolean(upr?.admin)
+  const widths = useColumnWidths('news_board_cols', COLS)
+  const colKeys = admin ? Object.keys(COLS) : Object.keys(COLS).filter((k) => k !== 'actions')
 
   const select = (id: number | null) => {
     setSelectedId(id)
@@ -307,12 +313,12 @@ export default function NewsBoardPage() {
     }
   }
 
-  const sortHead = (key: SortKey, label: string, sx?: object) => (
-    <TableCell sx={sx} sortDirection={sortKey === key ? (sortDir === 1 ? 'asc' : 'desc') : false}>
+  const sortHead = (key: SortKey, label: string) => (
+    <ResizableHeadCell colKey={key} widths={widths} sortDirection={sortKey === key ? (sortDir === 1 ? 'asc' : 'desc') : false}>
       <TableSortLabel active={sortKey === key} direction={sortKey === key && sortDir === 1 ? 'asc' : 'desc'} onClick={() => setSort(key)}>
         {label}
       </TableSortLabel>
-    </TableCell>
+    </ResizableHeadCell>
   )
 
   const goto = () => {
@@ -444,15 +450,16 @@ export default function NewsBoardPage() {
       </Paper>
 
       <TableContainer component={Paper} variant="outlined" sx={FILL_SX}>
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={resizableTableSx(colKeys, widths)}>
+          <ColGroup keys={colKeys} widths={widths} />
           <TableHead>
             <TableRow>
-              {sortHead('time', t('Дата/время'), { width: 140 })}
-              {sortHead('name_rss', t('Канал / автор'), { width: 180 })}
+              {sortHead('time', t('Дата/время'))}
+              {sortHead('name_rss', t('Канал / автор'))}
               {sortHead('title', t('Заголовок / описание'))}
-              {sortHead('themes', t('Темы'), { width: 170 })}
-              {sortHead('lang', t('Язык'), { width: 70 })}
-              {admin && <TableCell sx={{ width: 44 }} />}
+              {sortHead('themes', t('Темы'))}
+              {sortHead('lang', t('Язык'))}
+              {admin && <ResizableHeadCell colKey="actions" widths={widths} />}
             </TableRow>
           </TableHead>
           <TableBody>

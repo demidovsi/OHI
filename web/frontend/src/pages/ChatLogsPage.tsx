@@ -30,6 +30,7 @@ import { FILL_SX, PAGE_SX } from '../components/layout'
 import DayNavigator, { showDoUpdate, useAutoRefresh } from '@shared-web/components/DayNavigator'
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
 import { formatLogTime } from '@shared-web/components/logTime'
+import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
 // Лог чат-сообщений (бывший templates/chat_logs.html, бэкенд chat_logs.py): вся информация / выбранные сутки,
 // фильтры по IP, стране, городу, типу запроса и email. Поля — как у старой формы.
@@ -64,8 +65,13 @@ function Clamp({ text, onOpen }: { text: string | null; onOpen: () => void }) {
   )
 }
 
+// Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
+const COLS = { id: 70, time: 170, ip: 130, country: 110, city: 110, type: 120, message: 300, answer: 380, td: 70, email: 180 }
+const COL_KEYS = Object.keys(COLS)
+
 export default function ChatLogsPage() {
   const t = useT()
+  const widths = useColumnWidths('chat_logs_cols', COLS)
   const { par, messages, loading, error, submit, dismiss } = useForm('chat_logs')
   const [filters, setFilters] = useState<Record<string, string>>({})
   const [shown, setShown] = useState<{ title: string; text: string } | null>(null)
@@ -165,19 +171,20 @@ export default function ChatLogsPage() {
       </Paper>
 
       <TableContainer component={Paper} variant="outlined" sx={FILL_SX}>
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={resizableTableSx(COL_KEYS, widths)}>
+          <ColGroup keys={COL_KEYS} widths={widths} />
           <TableHead>
             <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>{t('Дата/Время')}</TableCell>
-              <TableCell>IP</TableCell>
-              <TableCell>{t('Страна')}</TableCell>
-              <TableCell>{t('Город')}</TableCell>
-              <TableCell>{t('Тип запроса')}</TableCell>
-              <TableCell sx={{ minWidth: 260 }}>{t('Запрос')}</TableCell>
-              <TableCell sx={{ minWidth: 320 }}>{t('Ответ')}</TableCell>
-              <TableCell align="right">TD</TableCell>
-              <TableCell>Email</TableCell>
+              <ResizableHeadCell colKey="id" widths={widths}>ID</ResizableHeadCell>
+              <ResizableHeadCell colKey="time" widths={widths}>{t('Дата/Время')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="ip" widths={widths}>IP</ResizableHeadCell>
+              <ResizableHeadCell colKey="country" widths={widths}>{t('Страна')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="city" widths={widths}>{t('Город')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="type" widths={widths}>{t('Тип запроса')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="message" widths={widths}>{t('Запрос')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="answer" widths={widths}>{t('Ответ')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="td" widths={widths} align="right">TD</ResizableHeadCell>
+              <ResizableHeadCell colKey="email" widths={widths}>Email</ResizableHeadCell>
             </TableRow>
           </TableHead>
           <TableBody>

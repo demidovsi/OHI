@@ -35,6 +35,7 @@ import LoadingBar from '../components/LoadingBar'
 import SplitPane from '../components/SplitPane'
 import { COLUMN_SX, FILL_SX, PAGE_SX } from '../components/layout'
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
+import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
 // Новостные ленты (бывший templates/rss.html, бэкенд rss.py): список лент и — для администратора — правка ленты
 // справа. Поля и кнопки старой формы: corr_obj_<id>, del_obj_<id>, new_object, nsi_save, nsi_refresh,
@@ -63,8 +64,13 @@ function unitFrom(u: Record<string, unknown> | undefined, suffix = ''): Unit {
   return { ...r, stop: Boolean(u?.['stop' + suffix]) }
 }
 
+// Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
+const COLS = { id: 100, name: 160, url: 280, lang: 70, description: 240, type_rss: 110, type_article: 110, categories: 160 }
+const COL_KEYS = Object.keys(COLS)
+
 export default function RssPage() {
   const t = useT()
+  const widths = useColumnWidths('rss_cols', COLS)
   const { upr } = useAuth()
   const admin = Boolean(upr?.admin)
   const { par, messages, loading, error, submit, dismiss } = useForm('rss')
@@ -97,17 +103,18 @@ export default function RssPage() {
   const table = (
     <Box sx={COLUMN_SX}>
       <TableContainer component={Paper} variant="outlined" sx={FILL_SX}>
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={resizableTableSx(COL_KEYS, widths)}>
+          <ColGroup keys={COL_KEYS} widths={widths} />
           <TableHead>
             <TableRow>
-              <TableCell>{t('ID ленты')}</TableCell>
-              <TableCell>{t('Название ленты')}</TableCell>
-              <TableCell>{t('URL ленты')}</TableCell>
-              <TableCell>{t('Язык')}</TableCell>
-              <TableCell>{t('Описание сайта')}</TableCell>
-              <TableCell>{t('Тип ленты')}</TableCell>
-              <TableCell>{t('Тип статьи')}</TableCell>
-              <TableCell>{t('Категории')}</TableCell>
+              <ResizableHeadCell colKey="id" widths={widths}>{t('ID ленты')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="name" widths={widths}>{t('Название ленты')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="url" widths={widths}>{t('URL ленты')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="lang" widths={widths}>{t('Язык')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="description" widths={widths}>{t('Описание сайта')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="type_rss" widths={widths}>{t('Тип ленты')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="type_article" widths={widths}>{t('Тип статьи')}</ResizableHeadCell>
+              <ResizableHeadCell colKey="categories" widths={widths}>{t('Категории')}</ResizableHeadCell>
             </TableRow>
           </TableHead>
           <TableBody>

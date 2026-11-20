@@ -19,6 +19,7 @@ import DayNavigator, { showDoUpdate, useAutoRefresh } from '@shared-web/componen
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
 import { formatLogTime } from '@shared-web/components/logTime'
 import ClampedText from '@shared-web/components/ClampedText'
+import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 import { useT } from '@app/i18n'
 import { FILL_SX, PAGE_SX } from '@app/components/layout'
 import LoadingBar from '@app/components/LoadingBar'
@@ -75,8 +76,13 @@ const KIND_COLOR: Record<LevelKind, string | undefined> = {
 // logs_table.html + static/js/logs.js. Поля старой формы: all_days/one_day,
 // left/right/current_day/dt_start/st_date, do_update, row_count/page/search/refresh_table,
 // search_level/search_source/search_who (поиск по OPERATION, SOURCE и WHO; search — только по MESSAGE).
+// Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
+const COLS = { time: 170, level: 130, source: 130, td: 70, page: 100, who: 170, server: 200, message: 520 }
+const COL_KEYS = Object.keys(COLS)
+
 export default function LogsPage() {
   const t = useT()
+  const widths = useColumnWidths('logs_cols', COLS)
   const { par, messages, loading, error, submit, dismiss } = useForm('logs')
   // Раскрытые записи Message помнит страница: обновление таблицы (автообновление, смена страницы/сутки) их не закрывает
   const [opened, setOpened] = useState<Set<number>>(() => new Set())
@@ -156,17 +162,18 @@ export default function LogsPage() {
       </Paper>
 
       <TableContainer component={Paper} variant="outlined" sx={FILL_SX}>
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={resizableTableSx(COL_KEYS, widths)}>
+          <ColGroup keys={COL_KEYS} widths={widths} />
           <TableHead>
             <TableRow>
-              <TableCell>Time</TableCell>
-              <TableCell>Operation</TableCell>
-              <TableCell>Source</TableCell>
-              <TableCell align="right">TD</TableCell>
-              <TableCell align="right">Page/Count</TableCell>
-              <TableCell>Who/Where</TableCell>
-              <TableCell>Comment/Server</TableCell>
-              <TableCell>Message</TableCell>
+              <ResizableHeadCell colKey="time" widths={widths}>Time</ResizableHeadCell>
+              <ResizableHeadCell colKey="level" widths={widths}>Operation</ResizableHeadCell>
+              <ResizableHeadCell colKey="source" widths={widths}>Source</ResizableHeadCell>
+              <ResizableHeadCell colKey="td" widths={widths} align="right">TD</ResizableHeadCell>
+              <ResizableHeadCell colKey="page" widths={widths} align="right">Page/Count</ResizableHeadCell>
+              <ResizableHeadCell colKey="who" widths={widths}>Who/Where</ResizableHeadCell>
+              <ResizableHeadCell colKey="server" widths={widths}>Comment/Server</ResizableHeadCell>
+              <ResizableHeadCell colKey="message" widths={widths}>Message</ResizableHeadCell>
             </TableRow>
           </TableHead>
           <TableBody>

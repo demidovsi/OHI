@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent, ReactNode } from 'react'
 import Box from '@mui/material/Box'
+import TableCell from '@mui/material/TableCell'
+import type { TableCellProps } from '@mui/material/TableCell'
+import { useT } from '@app/i18n'
 
 // Ширины колонок таблицы, меняемые мышью и запоминаемые в localStorage (у каждого сайта своё хранилище — свой origin).
 // Таблица должна иметь tableLayout: 'fixed'; ширины колонок берутся из <ColGroupWidths/>, ручки — <ResizeHandle/> внутри ячеек заголовка.
@@ -127,5 +130,44 @@ export function ResizeHandle({ colKey, widths, title }: { colKey: string; widths
         '&:hover::after': { bgcolor: 'primary.main' },
       }}
     />
+  )
+}
+
+// ---- Готовые части для таблиц: <Table sx={resizableTableSx(keys, widths)}><ColGroup/> + <ResizableHeadCell/> в шапке ----
+
+/** Шапка: границы между ячейками (1px), место справа под ручку, перенос длинных слов по ширине колонки. */
+const RESIZABLE_TABLE_SX = {
+  tableLayout: 'fixed',
+  '& .MuiTableCell-root': { overflowWrap: 'anywhere' },
+  // position: relative — для ручки; закреплённой (stickyHeader) шапке оставляем sticky, иначе шапка прокручивается
+  '& .MuiTableHead-root .MuiTableCell-root:not(.MuiTableCell-stickyHeader)': { position: 'relative' },
+  '& .MuiTableHead-root .MuiTableCell-root': { borderRight: 1, borderColor: 'divider', pr: 2.5 },
+  '& .MuiTableHead-root .MuiTableCell-root:last-of-type': { borderRight: 0 },
+} as const
+
+/** sx таблицы: фиксированная раскладка и общая ширина колонок (больше области — горизонтальная прокрутка). */
+export function resizableTableSx(keys: string[], widths: ReturnType<typeof useColumnWidths>) {
+  return { ...RESIZABLE_TABLE_SX, width: keys.reduce((sum, k) => sum + widths.width(k), 0), minWidth: '100%' }
+}
+
+/** colgroup с текущими ширинами колонок; keys — в порядке колонок таблицы. */
+export function ColGroup({ keys, widths }: { keys: string[]; widths: ReturnType<typeof useColumnWidths> }) {
+  return (
+    <colgroup>
+      {keys.map((k) => (
+        <col key={k} style={{ width: widths.width(k) }} />
+      ))}
+    </colgroup>
+  )
+}
+
+/** Ячейка шапки с ручкой изменения ширины (children — подпись или TableSortLabel). */
+export function ResizableHeadCell({ colKey, widths, children, ...cell }: TableCellProps & { colKey: string; widths: ReturnType<typeof useColumnWidths> }) {
+  const t = useT()
+  return (
+    <TableCell {...cell}>
+      {children}
+      <ResizeHandle colKey={colKey} widths={widths} title={t('Потяните, чтобы изменить ширину колонки; двойной клик — ширина по умолчанию')} />
+    </TableCell>
   )
 }

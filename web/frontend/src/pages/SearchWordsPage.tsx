@@ -45,6 +45,7 @@ import { HorizontalBarChart } from '../components/charts'
 import { COLUMN_SX, FILL_SX, PAGE_SX } from '../components/layout'
 import DateField from '@shared-web/components/DateField'
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
+import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
 Chart.register(BarElement, CategoryScale, LinearScale, ChartTooltip)
 
@@ -138,8 +139,14 @@ function DatesBarChart({ labels, values }: { labels: string[]; values: number[] 
   return <Bar options={options} data={data} />
 }
 
+// Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
+const COLS_FOUND = { date: 130, number: 110, source: 160 }
+const COLS_HIS = { date: 130, number: 110, source: 160, actions: 60 }
+
 export default function SearchWordsPage() {
   const t = useT()
+  const wFound = useColumnWidths('search_words_cols_found', COLS_FOUND)
+  const wHis = useColumnWidths('search_words_cols_his', COLS_HIS)
   const { upr } = useAuth()
   const admin = Boolean(upr?.admin)
   const { par, messages, loading, error, submit, dismiss } = useForm('search_words')
@@ -241,12 +248,13 @@ export default function SearchWordsPage() {
           <Box sx={COLUMN_SX}>
             <TableToolbar par={{ ...par, no_search: true }} onSubmit={submit} base={fields({})} />
             <TableContainer component={Paper} variant="outlined" sx={FILL_SX}>
-              <Table size="small" stickyHeader>
+              <Table size="small" stickyHeader sx={resizableTableSx(Object.keys(COLS_FOUND), wFound)}>
+                <ColGroup keys={Object.keys(COLS_FOUND)} widths={wFound} />
                 <TableHead>
                   <TableRow>
-                    <TableCell>{t('Дата')}</TableCell>
-                    <TableCell align="right">{t('Номер новости')}</TableCell>
-                    <TableCell>{t('Источник')}</TableCell>
+                    <ResizableHeadCell colKey="date" widths={wFound}>{t('Дата')}</ResizableHeadCell>
+                    <ResizableHeadCell colKey="number" widths={wFound} align="right">{t('Номер новости')}</ResizableHeadCell>
+                    <ResizableHeadCell colKey="source" widths={wFound}>{t('Источник')}</ResizableHeadCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -408,13 +416,14 @@ export default function SearchWordsPage() {
             </Paper>
             <TableToolbar par={{ ...par, no_search: true }} onSubmit={submit} base={fields({})} hideSort />
             <TableContainer component={Paper} variant="outlined" sx={FILL_SX}>
-              <Table size="small" stickyHeader>
+              <Table size="small" stickyHeader sx={resizableTableSx(Object.keys(COLS_HIS), wHis)}>
+                <ColGroup keys={Object.keys(COLS_HIS)} widths={wHis} />
                 <TableHead>
                   <TableRow>
-                    <TableCell>{t('Дата')}</TableCell>
-                    <TableCell align="right">{t('Номер новости')}</TableCell>
-                    <TableCell>{t('Источник')}</TableCell>
-                    <TableCell />
+                    <ResizableHeadCell colKey="date" widths={wHis}>{t('Дата')}</ResizableHeadCell>
+                    <ResizableHeadCell colKey="number" widths={wHis} align="right">{t('Номер новости')}</ResizableHeadCell>
+                    <ResizableHeadCell colKey="source" widths={wHis}>{t('Источник')}</ResizableHeadCell>
+                    <ResizableHeadCell colKey="actions" widths={wHis} />
                   </TableRow>
                 </TableHead>
                 <TableBody>

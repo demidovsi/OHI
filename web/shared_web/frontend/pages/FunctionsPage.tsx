@@ -36,6 +36,7 @@ import { useForm } from '@app/useForm'
 import type { FormFields } from '@app/api'
 import FlashMessages from '@app/components/FlashMessages'
 import { useT } from '@app/i18n'
+import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 import { FILL_SX, PAGE_SX } from '@app/components/layout'
 import LoadingBar from '@app/components/LoadingBar'
 
@@ -89,8 +90,13 @@ function headerChanged(r: FnRow, init: FnRow | undefined): boolean {
 // dlg_select_function, dlg_code_parameter, dlg_is_number_parameter, dlg_comment_parameter;
 // кнопки refresh, save, create_function, create_parameter, corr_function_<fid>,
 // delete_function_<fid>, corr_parameter_<id>, delete_parameter_<id>.
+// Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
+const COLS = { code: 200, value: 280, number: 80, comment: 420, actions: 120, id: 70 }
+const COL_KEYS = Object.keys(COLS)
+
 export default function FunctionsPage() {
   const t = useT()
+  const widths = useColumnWidths('functions_cols', COLS)
   const theme = useTheme()
   const { par, messages, loading, error, submit, dismiss } = useForm('functions')
   const [rows, setRows] = useState<FnRow[]>([])
@@ -297,26 +303,27 @@ export default function FunctionsPage() {
           '& tbody .MuiInputBase-root.Mui-focused': { bgcolor: alpha(theme.palette.primary.main, 0.14) },
         }}
       >
-        <Table size="small" stickyHeader>
+        <Table size="small" stickyHeader sx={resizableTableSx(COL_KEYS, widths)}>
+          <ColGroup keys={COL_KEYS} widths={widths} />
           <TableHead>
             <TableRow>
-              <TableCell title={t('Код параметра')} sx={{ width: '15%', minWidth: 140 }}>
+              <ResizableHeadCell colKey="code" widths={widths} title={t('Код параметра')}>
                 {t('Код')}
-              </TableCell>
-              <TableCell title={t('Значение параметра')} sx={{ width: '25%', minWidth: 200 }}>
+              </ResizableHeadCell>
+              <ResizableHeadCell colKey="value" widths={widths} title={t('Значение параметра')}>
                 {t('Значение')}
-              </TableCell>
-              <TableCell title={t('Признак числового значения')} align="center">
+              </ResizableHeadCell>
+              <ResizableHeadCell colKey="number" widths={widths} title={t('Признак числового значения')} align="center">
                 {t('Число')}
-              </TableCell>
+              </ResizableHeadCell>
               {/* комментарий — самая широкая колонка */}
-              <TableCell title={t('Комментарий к параметру')} sx={{ width: '40%', minWidth: 260 }}>
+              <ResizableHeadCell colKey="comment" widths={widths} title={t('Комментарий к параметру')}>
                 {t('Комментарий')}
-              </TableCell>
-              <TableCell title={t('Действия со строкой')} sx={{ whiteSpace: 'nowrap' }}>
+              </ResizableHeadCell>
+              <ResizableHeadCell colKey="actions" widths={widths} title={t('Действия со строкой')}>
                 {t('Действия')}
-              </TableCell>
-              <TableCell align="right">ID</TableCell>
+              </ResizableHeadCell>
+              <ResizableHeadCell colKey="id" widths={widths} align="right">ID</ResizableHeadCell>
             </TableRow>
           </TableHead>
           <TableBody>
