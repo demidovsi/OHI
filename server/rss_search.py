@@ -253,6 +253,21 @@ async def _fetch_rss_playwright(url):
     return xml_bytes
 
 
+def rss_image(item):
+    """Картинка из самой записи ленты (enclosure / media:content / media:thumbnail) или ''. Запасной вариант для сайтов,
+    страницы которых закрыты от парсера (антибот): og:image со страницы получить нельзя, а лента даёт ссылку на фото."""
+    for child in item:
+        local = child.tag.split('}')[-1] if '}' in child.tag else child.tag
+        if local not in ('enclosure', 'content', 'thumbnail'):
+            continue
+        url = (child.get('url') or '').strip()
+        kind = (child.get('type') or child.get('medium') or '').lower()
+        if url and (kind.startswith('image') or kind == '' and re.search(r'\.(jpe?g|png|webp|gif)(\?|$)', url, re.I)
+                    or local == 'thumbnail'):
+            return url
+    return ''
+
+
 class SearchRSS(trafaret_thread.TrafaretThread):
     """
     Поток поиска новостей по RSS-лентам.
@@ -340,6 +355,8 @@ class SearchRSS(trafaret_thread.TrafaretThread):
                 if raw:
                     values['full_text_rss'] = raw
                     break
+
+        values['rss_image'] = rss_image(item)  # фото из ленты — если со страницы получить нельзя
 
         # Дата публикации новости
         # FIX: locale.setlocale() убран отсюда — вызывается один раз при загрузке модуля
@@ -596,6 +613,8 @@ class SearchRSS(trafaret_thread.TrafaretThread):
                         values = self.make_values(rss, item, lazy=True)  # только исходный язык: перевод — если подойдёт
                         common.seek(self.rss_themes, values)  # поиск вхождений поисковых образов
                         is_article = translate.load_article(values, lazy=True)
+                        if not values.get('meta_img') and values.get('rss_image'):
+                            values['meta_img'] = values['rss_image']  # страница недоступна — фото из ленты
                         # Если образы не найдены в заголовке/описании — ищем в тексте статьи
                         if len(values['themes']) == 0 and is_article:
                             common.seek_article(self.rss_themes, values)
