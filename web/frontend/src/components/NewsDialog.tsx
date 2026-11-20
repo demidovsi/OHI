@@ -20,6 +20,7 @@ import FlashMessages from './FlashMessages'
 import LoadingBar from './LoadingBar'
 import ModalWindow from './ModalWindow'
 import PlainTextArea from './PlainTextArea'
+import SplitPane from './SplitPane'
 
 // Карточка новости — окно поверх ленты (ModalWindow nonModal, как окна сайтов parlaments: перетаскивается, меняет размер,
 // запоминает положение; лента позади остаётся доступной — можно выбирать другие новости, не закрывая карточку); ранее модальное окно ленты (бывшие templates/new.html и модалка news_board.js).
@@ -143,7 +144,7 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
         <FlashMessages messages={messages} onDismiss={(i) => setMessages((m) => m.filter((_, j) => j !== i))} />
         {unit && (
           <>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mb: 1.5, flexShrink: 0 }}>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, alignItems: 'center', mb: 1.5, pt: 1, flexShrink: 0 }}>
               <FormControl size="small" sx={{ minWidth: 110 }}>
                 <InputLabel id="nd_lang">{t('Язык')}</InputLabel>
                 <Select
@@ -190,8 +191,11 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
                 </Tooltip>
               )}
             </Box>
-            <Box sx={{ flex: '1 1 auto', minHeight: 0, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
-              <Box sx={{ flex: { md: '0 0 40%' }, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+            <SplitPane
+              storageKey="news_card"
+              defaultSize="40%"
+              first={
+              <Box sx={{ flex: '1 1 0', minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1, pr: 1 }}>
                 <Typography variant="body2">
                   {t('Источник:')} <Box component="b" sx={{ color: 'error.main' }}>{unit.name_rss}</Box>{' '}
                   ({t('Время:')} {unit.public_date ?? ''})
@@ -243,7 +247,9 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
                   </Typography>
                 )}
               </Box>
-              <Box sx={{ flex: '1 1 0', minWidth: 0, minHeight: { xs: 300, md: 0 }, display: 'flex', flexDirection: 'column' }}>
+              }
+              second={
+              <Box sx={{ flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
                 <PlainTextArea
                   value={full}
                   onChange={admin ? setFull : undefined}
@@ -253,7 +259,8 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
                   sx={{ flex: '1 1 0', minHeight: 0, height: '100%', resize: 'none' }}
                 />
               </Box>
-            </Box>
+              }
+            />
           </>
         )}
       </Box>
