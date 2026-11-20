@@ -187,4 +187,6 @@ export const EN_OHI: Record<string, string> = {
   'Запрос': 'Request',
   'Ответ': 'Answer',
   'Потяните, чтобы изменить размер': 'Drag to resize',
+  'Образы': 'Terms',
+  'Подсвечивать в тексте слова поисковых образов (при включении текст доступен только для чтения)': 'Highlight the search terms in the text (the text is read-only while on)',
 }

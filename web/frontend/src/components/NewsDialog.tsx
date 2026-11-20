@@ -3,11 +3,13 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
 import FormControl from '@mui/material/FormControl'
+import FormControlLabel from '@mui/material/FormControlLabel'
 import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
 import Link from '@mui/material/Link'
 import MenuItem from '@mui/material/MenuItem'
 import Select from '@mui/material/Select'
+import Switch from '@mui/material/Switch'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
@@ -17,6 +19,7 @@ import type { FlashMessage, FormFields, Par } from '../api'
 import { useAuth } from '../auth'
 import { useT } from '../i18n'
 import FlashMessages from './FlashMessages'
+import HighlightedText from './HighlightedText'
 import LoadingBar from './LoadingBar'
 import ModalWindow from './ModalWindow'
 import PlainTextArea from './PlainTextArea'
@@ -73,6 +76,14 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [full, setFull] = useState('')
+  // Подсветка слов поисковых образов в тексте (режим просмотра: текст только для чтения); запоминается в браузере
+  const [hl, setHl] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('ohi_news_card_hl') !== '0'
+    } catch {
+      return true
+    }
+  })
   const onChangedRef = useRef(onChanged)
   useEffect(() => {
     onChangedRef.current = onChanged
@@ -116,6 +127,7 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
   }, [newsId, run])
 
   const unit = (par?.unit ?? null) as NewsUnit | null
+  const searchWords = (par?.search_words ?? []) as string[]
   const admin = Boolean(par?.admin)
   const selectLang: string = par?.select_lang ?? 'ru'
   const changed =
@@ -179,6 +191,26 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
                   {t('Статья')}
                 </Button>
               )}
+              <Tooltip title={t('Подсвечивать в тексте слова поисковых образов (при включении текст доступен только для чтения)')}>
+                <FormControlLabel
+                  sx={{ ml: 0.5, mr: 0 }}
+                  control={
+                    <Switch
+                      size="small"
+                      checked={hl}
+                      onChange={(e) => {
+                        setHl(e.target.checked)
+                        try {
+                          localStorage.setItem('ohi_news_card_hl', e.target.checked ? '1' : '0')
+                        } catch {
+                          /* не запоминается */
+                        }
+                      }}
+                    />
+                  }
+                  label={<Typography variant="body2">{t('Образы')}</Typography>}
+                />
+              </Tooltip>
               <Box sx={{ flexGrow: 1 }} />
               <Typography variant="body2" color="text.secondary">
                 {t('Длина текста')}: <b>{unit.file ?? ''}</b>, {t('Исходный язык')}: <b>{unit.lang ?? ''}</b>
@@ -210,24 +242,47 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
                       <Chip key={s} size="small" label={s} color="secondary" variant="outlined" />
                     ))}
                 </Box>
-                <TextField
-                  label={t('Заголовок')}
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  multiline
-                  minRows={2}
-                  slotProps={{ input: { readOnly: !admin }, htmlInput: { dir: textDir } }}
-                  sx={{ '& textarea': { fontWeight: 600 } }}
-                />
-                <TextField
-                  label={t('Описание')}
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  multiline
-                  minRows={3}
-                  maxRows={10}
-                  slotProps={{ input: { readOnly: !admin }, htmlInput: { dir: textDir } }}
-                />
+                {hl ? (
+                  <>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {t('Заголовок')}
+                      </Typography>
+                      <Box dir={textDir} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1, fontWeight: 600, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', minHeight: 40 }}>
+                        <HighlightedText text={title} words={searchWords} />
+                      </Box>
+                    </Box>
+                    <Box>
+                      <Typography variant="caption" color="text.secondary">
+                        {t('Описание')}
+                      </Typography>
+                      <Box dir={textDir} sx={{ border: 1, borderColor: 'divider', borderRadius: 1, p: 1, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', minHeight: 40, maxHeight: 260, overflow: 'auto' }}>
+                        <HighlightedText text={description} words={searchWords} />
+                      </Box>
+                    </Box>
+                  </>
+                ) : (
+                  <>
+                  <TextField
+                    label={t('Заголовок')}
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    multiline
+                    minRows={2}
+                    slotProps={{ input: { readOnly: !admin }, htmlInput: { dir: textDir } }}
+                    sx={{ '& textarea': { fontWeight: 600 } }}
+                  />
+                  <TextField
+                    label={t('Описание')}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    multiline
+                    minRows={3}
+                    maxRows={10}
+                    slotProps={{ input: { readOnly: !admin }, htmlInput: { dir: textDir } }}
+                  />
+                  </>
+                )}
                 <Typography variant="body2">
                   {t('Сайт:')}{' '}
                   {unit.url ? (
@@ -250,14 +305,23 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
               }
               second={
               <Box sx={{ flex: '1 1 0', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-                <PlainTextArea
-                  value={full}
-                  onChange={admin ? setFull : undefined}
-                  readOnly={!admin}
-                  dir={textDir}
-                  placeholder={t('Текст статьи отсутствует')}
-                  sx={{ flex: '1 1 0', minHeight: 0, height: '100%', resize: 'none' }}
-                />
+                {hl ? (
+                  <Box
+                    dir={textDir}
+                    sx={{ flex: '1 1 0', minHeight: 0, overflow: 'auto', border: 1, borderColor: 'divider', borderRadius: 1, p: 1.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', color: full ? 'text.primary' : 'text.disabled' }}
+                  >
+                    {full ? <HighlightedText text={full} words={searchWords} /> : t('Текст статьи отсутствует')}
+                  </Box>
+                ) : (
+                  <PlainTextArea
+                    value={full}
+                    onChange={admin ? setFull : undefined}
+                    readOnly={!admin}
+                    dir={textDir}
+                    placeholder={t('Текст статьи отсутствует')}
+                    sx={{ flex: '1 1 0', minHeight: 0, height: '100%', resize: 'none' }}
+                  />
+                )}
               </Box>
               }
             />

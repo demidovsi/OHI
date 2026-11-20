@@ -20,6 +20,23 @@ array_default = [
 api_key = 'w5TDjcKQwrTDhcOHwpTCrMKxwprDjsKywq3CssKXw43CssOXw5XCscORwqrCvMK4wpTCpMOPw4bDjMKowq3CrsKrwpPCpMKxwrXCq8ORwpXCuMONwrfCq8OLwqvCqsKZwqzDk8Kk'
 
 
+def load_search_words():
+    """Слова активных поисковых образов (rss_themes.value, через ';') — для подсветки в тексте новости на карточке.
+    Слово вида ^СЛОВО^ — с учётом регистра (как при поиске на сервере)."""
+    url = 'v2/entity/values?app_code={schema}&object_code=rss_themes&where=stop is null or not stop'.format(
+        schema=config.SCHEMA)
+    ans, is_ok, status = common.send_rest(url, params={"columns": "value"})
+    if not is_ok:
+        return []
+    words = []
+    for row in json.loads(ans):
+        for word in (row.get('value') or '').split(';'):
+            word = word.strip()
+            if len(word) > 1 and word not in words:
+                words.append(word)
+    return words
+
+
 def load_inform(answer):
     answer['unit'] = dict()
     ans, is_ok, status = common.send_rest(
@@ -239,6 +256,7 @@ def prepare_form(request):
 
     common.save_form(array_default, answer, 'one_new_')
     answer['admin'] = admin
+    answer['search_words'] = load_search_words()
     return answer
 
 
