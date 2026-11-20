@@ -537,7 +537,7 @@ export default function NewsBoardPage() {
                   <TableCell sx={{ verticalAlign: 'top' }}>
                     <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
                       {r._themes.map((s) => (
-                        <Chip key={s} size="small" label={s} color="secondary" variant="outlined" onClick={() => setThemeFilter(s)} />
+                        <Chip key={s} size="small" label={s} color="secondary" variant="outlined" title={t('Новости по этой теме')} onClick={() => setThemeFilter(s)} />
                       ))}
                     </Box>
                   </TableCell>

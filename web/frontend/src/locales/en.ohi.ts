@@ -14,6 +14,7 @@ export const EN_OHI: Record<string, string> = {
   'Все даты': 'All dates',
   'Новости за эти сутки': 'News of this day',
   'Новости этого канала': 'News of this channel',
+  'Новости по этой теме': 'News on this theme',
   'Все новости без учёта даты': 'All news regardless of date',
   'Пустая дата — все новости': 'Empty date — all news',
   'Следующий день': 'Next day',
