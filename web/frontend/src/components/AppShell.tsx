@@ -28,6 +28,7 @@ import UnfoldMoreIcon from '@mui/icons-material/UnfoldMore'
 import { MENU, visibleGroups } from '../menu'
 import { useAuth } from '../auth'
 import { LANGS, useI18n } from '../i18n'
+import { menuSelectedSx } from '@shared-web/components/menuSelected'
 
 /** Надстрочная пометка «adm» у строк меню, которые видит только администратор. */
 function AdmMark() {
@@ -189,6 +190,7 @@ export default function AppShell({ title, themeName, onToggleTheme, children }: 
                 component={RouterLink}
                 to={`/${it.path}/`}
                 selected={currentPage === it.path}
+                sx={menuSelectedSx}
                 onClick={() => setMobileOpen(false)}
               >
                 <ListItemText primary={<>{t(g.label)}{(g.adminOnly || it.adminOnly) && <AdmMark />}</>} />
@@ -206,7 +208,7 @@ export default function AppShell({ title, themeName, onToggleTheme, children }: 
                   {g.items.map((it) => (
                     <ListItemButton
                       key={it.path}
-                      sx={{ pl: 4 }}
+                      sx={{ pl: 4, ...menuSelectedSx }}
                       component={RouterLink}
                       to={`/${it.path}/`}
                       selected={currentPage === it.path}

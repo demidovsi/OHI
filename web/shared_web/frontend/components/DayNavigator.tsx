@@ -2,9 +2,9 @@
 import { useEffect, useRef, useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import IconButton from '@mui/material/IconButton'
+import Switch from '@mui/material/Switch'
 import Tooltip from '@mui/material/Tooltip'
 import { useTheme } from '@mui/material/styles'
 import Typography from '@mui/material/Typography'
@@ -103,7 +103,7 @@ export default function DayNavigator({ par, onSubmit, base, refreshIn }: Props) 
         <FormControlLabel
           sx={{ ml: 1 }}
           control={
-            <Checkbox
+            <Switch
               size="small"
               checked={Boolean(par.do_update)}
               onChange={(e) => onSubmit(fields({ do_update: e.target.checked ? 'Обновлять' : undefined }))}
