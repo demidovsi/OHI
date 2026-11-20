@@ -257,6 +257,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
 
     def work(self):
         super(TranslateRSS, self).work()
+        translate.translator.set_low_priority(True)  # накопленное уступает переводам свежих новостей (SearchRSS и др.)
         if self.load_list_translate() and self.make_login():
             self.limit = common.get_value_config_param('limit', self.par)
             self.global_count = len(self.list_complete)

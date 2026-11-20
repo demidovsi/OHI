@@ -91,7 +91,9 @@ class TranslationManager:
         self.consecutive_errors = 0
         self.queue = queue.Queue()
         self.results = {}
-        self._tls = threading.local()  # причина последнего сбоя перевода в текущем потоке (для лога)
+        self._tls = threading.local()  # причина последнего сбоя перевода и признак низкого приоритета потока
+        self._high_active = 0          # сколько обычных (приоритетных) переводов выполняется или ждёт замка
+        self._prio_lock = threading.Lock()
         self._setup_logger()
 
     def _setup_logger(self):
@@ -144,7 +146,27 @@ class TranslationManager:
         """Причина последнего неудачного перевода в текущем потоке (тип исключения и начало сообщения) или ''."""
         return getattr(self._tls, 'error', '')
 
+    def set_low_priority(self, low=True):
+        """Поток-фон (перевод накопленных новостей): его запросы уступают переводам свежих новостей."""
+        self._tls.low = low
+
     def translate(self, text, target_lang, source_lang=None, request_id=None):
+        """Перевод с приоритетом: фоновый поток (set_low_priority) перед каждым запросом ждёт, пока не освободятся
+        все обычные переводы (до 10 мин), поэтому свежие новости не стоят в очереди за накопленными."""
+        if getattr(self._tls, 'low', False):
+            deadline = time.time() + 600
+            while self._high_active > 0 and time.time() < deadline:
+                time.sleep(0.2)
+            return self._translate(text, target_lang, source_lang, request_id)
+        with self._prio_lock:
+            self._high_active += 1
+        try:
+            return self._translate(text, target_lang, source_lang, request_id)
+        finally:
+            with self._prio_lock:
+                self._high_active -= 1
+
+    def _translate(self, text, target_lang, source_lang=None, request_id=None):
         """
         Переводит текст на указанный язык с обработкой ошибок
 
