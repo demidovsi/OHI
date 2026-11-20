@@ -31,6 +31,7 @@ export const MENU: MenuGroup[] = [
       { label: 'Log', path: 'logs', adminOnly: true },
       { label: 'Гости сайта', path: 'guests', adminOnly: true },
       { label: 'Параметры сервисов', path: 'functions', adminOnly: true },
+      { label: 'Документы', path: 'documents', adminOnly: true },
     ],
   },
 ]

@@ -30,7 +30,7 @@ def check_exist_blob(bucket, filename):
     return any(blob.name == filename for blob in bucket.list_blobs(prefix=filename))
 
 
-def get_bucket():
+def get_bucket(name=None):
     """
     Создает и возвращает объект bucket для работы с Google Cloud Storage.
 
@@ -39,7 +39,7 @@ def get_bucket():
     """
     credentials = service_account.Credentials.from_service_account_info(json.loads(common.decode(config.kirill, t)))
     client = storage.Client(credentials=credentials)
-    return client.bucket(bucket_name)
+    return client.bucket(name or bucket_name)
 
 
 def load_file(filename, delete_after_load=True):
