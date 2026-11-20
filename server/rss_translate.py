@@ -152,38 +152,38 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
         for unit in text:  # Перевод текста на три языка
             if values['lang'] != 'ru':
                 try:
-                    is_ok, res = translate.translator.translate(unit, 'ru')
+                    is_ok, res = translate.translator.translate(unit, 'ru', lang)
                     # res = GoogleTranslator(target='ru').translate(unit)
                     if is_ok:
                         text_ru += res
                     else:
                         text_ru += unit
                         error_translator = True
-                        failed.setdefault('ru', res)
+                        failed.setdefault('ru', translate.translator.last_error() or '?')
                 except Exception as er:
                     return False, f"{type(er).__name__}: {er}; язык статьи: {lang}"
             if values['lang'] != 'en':
                 try:
                     # res = GoogleTranslator(target='en').translate(unit)
-                    is_ok, res = translate.translator.translate(unit, 'en')
+                    is_ok, res = translate.translator.translate(unit, 'en', lang)
                     if is_ok:
                         text_en += res
                     else:
                         error_translator = True
                         text_en += unit
-                        failed.setdefault('en', res)
+                        failed.setdefault('en', translate.translator.last_error() or '?')
                 except Exception as er:
                     return False, f"{type(er).__name__}: {er}; язык статьи: {lang}"
             if values['lang'] != 'he':
                 try:
-                    is_ok, res = translate.translator.translate(unit, 'iw')
+                    is_ok, res = translate.translator.translate(unit, 'iw', lang)
                     # res = GoogleTranslator(target='iw').translate(unit)
                     if is_ok:
                         text_he += res
                     else:
                         error_translator = True
                         text_he += unit
-                        failed.setdefault('he', res)
+                        failed.setdefault('he', translate.translator.last_error() or '?')
                 except Exception as er:
                     return False, f"{type(er).__name__}: {er}; язык статьи: {lang}"
 

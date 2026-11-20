@@ -1,0 +1,24 @@
+# Свой переводчик LibreTranslate (Argos Translate) для ohi-server: бесплатно, без блокировок Google.
+# Запуск на сервере:  docker compose -f docker-compose.libretranslate.yml up -d
+# ohi-server по умолчанию использует его (TRANSLATE_BACKEND=local, TRANSLATE_LOCAL_URL=http://172.17.0.1:5099/translate);
+# TRANSLATE_BACKEND=free вернёт бесплатный Google, =cloud — Cloud Translation API.
+# Модели только ru, en, he (~2-3 ГБ диска, ~2 ГБ памяти); скачиваются при первом запуске — первый старт долгий.
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: libretranslate
+    restart: unless-stopped
+    ports:
+      - "172.17.0.1:5099:5000"   # только docker0 хоста: доступен контейнерам и хосту, снаружи — нет
+    environment:
+      LT_LOAD_ONLY: ru,en,he
+      LT_DISABLE_WEB_UI: "true"
+      LT_CHAR_LIMIT: "6000"      # наши куски текста до 5000 символов
+      LT_THREADS: "2"
+    mem_limit: 3g
+    cpus: 2
+    volumes:
+      - lt_models:/home/libretranslate/.local
+
+volumes:
+  lt_models:

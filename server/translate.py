@@ -95,11 +95,12 @@ def make_translate(txt, init_lang):
     text_en = ''
     text_he = ''
     error_translator = False
+    src = init_lang if init_lang in ('ru', 'en', 'he') else None  # язык исходного текста (пусто — определяет переводчик)
     for unit in text:
         if init_lang == 'ru':
             text_ru += unit
         else:
-            is_ok, res = translator.translate(unit, 'ru')
+            is_ok, res = translator.translate(unit, 'ru', src)
             text_ru += res or ''
             if not is_ok:
                 error_translator = True
@@ -107,7 +108,7 @@ def make_translate(txt, init_lang):
         if init_lang == 'en':
             text_en += unit
         else:
-            is_ok, res = translator.translate(unit, 'en')
+            is_ok, res = translator.translate(unit, 'en', src)
             text_en += res or ''
             if not is_ok:
                 error_translator = True
@@ -115,7 +116,7 @@ def make_translate(txt, init_lang):
         if init_lang == 'he':
             text_he += unit
         else:
-            is_ok, res = translator.translate(unit, 'iw')
+            is_ok, res = translator.translate(unit, 'iw', src)
             text_he += res or ''
             if not is_ok:
                 error_translator = True

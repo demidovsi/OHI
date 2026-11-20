@@ -8,11 +8,10 @@ import trafaret_thread
 import common
 import config
 from common import SRC
+import translate
 from translate import _is_challenge_page
-from TranslateManager import _is_google_error_page
 import json
 import asyncio
-from deep_translator import GoogleTranslator
 from google.cloud import storage
 from google.oauth2 import service_account
 import py7zr
@@ -209,46 +208,18 @@ class CompleteRSS(trafaret_thread.TrafaretThread):
             text_ru = ''
             text_en = ''
             text_he = ''
-            # Создаём три транслятора один раз перед циклом — каждый хранит HTTP-сессию внутри.
-            # Ранее GoogleTranslator(...) создавался на каждую итерацию (десятки объектов на статью).
-            translator_ru = GoogleTranslator(target='ru')
-            translator_en = GoogleTranslator(target='en')
-            translator_iw = GoogleTranslator(target='iw')
+            # Переводы — через общий TranslationManager (Cloud Translation API, повторы, охлаждение при 429)
+            src = values.get('lang') if values.get('lang') in ('ru', 'en', 'he') else None  # язык исходного текста
             for unit in text:
-                try:
-                    res = translator_ru.translate(unit)
-                    if res and not _is_google_error_page(res):
-                        text_ru += res
-                    else:
-                        text_ru += unit
-                        values['error_translator'] = True
-                except Exception as er:
-                    text_ru += unit
-                    values['error_translator'] = True
-                    print('--> ru', f'{er}')
-                try:
-                    res = translator_en.translate(unit)
-                    if res and not _is_google_error_page(res):
-                        text_en += res
-                    else:
-                        text_en += unit
-                        values['error_translator'] = True
-                except Exception as er:
-                    text_en += unit
-                    values['error_translator'] = True
-                    print('--> en', f'{er}')
-                try:
-                    res = translator_iw.translate(unit)
-                    if res and not _is_google_error_page(res):
-                        text_he += res
-                    else:
-                        text_he += unit
-                        values['error_translator'] = True
-                except Exception as er:
-                    text_he += unit
-                    values['error_translator'] = True
-                    print('--> he', f'{er}')
-            del translator_ru, translator_en, translator_iw  # освобождаем HTTP-сессии после перевода
+                is_ok, res = translate.translator.translate(unit, 'ru', src)
+                text_ru += res if is_ok and res else unit
+                values['error_translator'] = values['error_translator'] or not is_ok
+                is_ok, res = translate.translator.translate(unit, 'en', src)
+                text_en += res if is_ok and res else unit
+                values['error_translator'] = values['error_translator'] or not is_ok
+                is_ok, res = translate.translator.translate(unit, 'iw', src)
+                text_he += res if is_ok and res else unit
+                values['error_translator'] = values['error_translator'] or not is_ok
             save_file_bucket('en_' + str(values['id']), text_en)
             save_file_bucket('ru_' + str(values['id']), text_ru)
             save_file_bucket('he_' + str(values['id']), text_he)

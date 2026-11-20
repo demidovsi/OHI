@@ -3,7 +3,9 @@ import threading
 import queue
 from deep_translator import GoogleTranslator
 from deep_translator.exceptions import TooManyRequests
+import json
 import logging
+import os
 
 import requests
 import deep_translator.google as _dt_google
@@ -42,6 +44,36 @@ def _is_google_error_page(text):
     return any(m in low for m in _GOOGLE_ERROR_PAGE_MARKERS)
 
 
+# Бэкенд перевода (env TRANSLATE_BACKEND):
+#   'local' (по умолчанию) — свой LibreTranslate на сервере (server/docker-compose.libretranslate.yml, адрес TRANSLATE_LOCAL_URL):
+#       бесплатно, без блокировок;
+#   'free' — бесплатный Google Translate через deep_translator (с серверного IP блокируется: 429 / google.com/sorry);
+#   'cloud' — официальный Google Cloud Translation API v2 от имени сервисного аккаунта (config.credential; в проекте GCP
+#       включить Cloud Translation API, роль «Cloud Translation API User»; платный).
+TRANSLATE_BACKEND = os.environ.get('TRANSLATE_BACKEND', 'local').lower()
+CLOUD_URL = 'https://translation.googleapis.com/language/translate/v2'
+CLOUD_TIMEOUT = 30
+LOCAL_URL = os.environ.get('TRANSLATE_LOCAL_URL', 'http://172.17.0.1:5099/translate')  # docker0 хоста: контейнер ohi-server в bridge-сети
+LOCAL_TIMEOUT = 120
+
+
+class CloudTranslateError(Exception):
+    """Ошибка Cloud Translation API; retryable — имеет смысл повторить (429, 5xx)."""
+
+    def __init__(self, message, retryable=False):
+        super().__init__(message)
+        self.retryable = retryable
+
+
+def _cloud_lang(code):
+    return 'he' if code == 'iw' else code  # v2 принимает и iw, и he; he — актуальный код
+
+
+def _std_lang(code):
+    """Единый код языка: иврит — 'he' (в коде встречается и 'iw')."""
+    return 'he' if code == 'iw' else code
+
+
 class TranslationManager:
     """
     Класс для управления переводами текстов из нескольких потоков с обработкой ограничений API.
@@ -59,6 +91,7 @@ class TranslationManager:
         self.consecutive_errors = 0
         self.queue = queue.Queue()
         self.results = {}
+        self._tls = threading.local()  # причина последнего сбоя перевода в текущем потоке (для лога)
         self._setup_logger()
 
     def _setup_logger(self):
@@ -69,6 +102,47 @@ class TranslationManager:
             formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
+
+    def _cloud_session(self):
+        """HTTP-сессия с авторизацией сервисного аккаунта (создаётся один раз, токен обновляется сам)."""
+        session = getattr(self, '_session', None)
+        if session is None:
+            import config
+            from google.auth.transport.requests import AuthorizedSession
+            from google.oauth2 import service_account
+            credentials = service_account.Credentials.from_service_account_info(
+                json.loads(config.credential), scopes=['https://www.googleapis.com/auth/cloud-translation'])
+            session = self._session = AuthorizedSession(credentials)
+        return session
+
+    def _cloud_translate(self, text, target_lang, source_lang=None):
+        """Перевод через Cloud Translation API v2 (format=text: без HTML-экранирования результата)."""
+        body = {'q': text, 'target': _cloud_lang(target_lang), 'format': 'text'}
+        if source_lang:
+            body['source'] = _cloud_lang(source_lang)
+        resp = self._cloud_session().post(CLOUD_URL, json=body, timeout=CLOUD_TIMEOUT)
+        if resp.status_code != 200:
+            try:
+                msg = resp.json()['error']['message']
+            except Exception:
+                msg = resp.text[:200]
+            raise CloudTranslateError(f'Cloud Translation HTTP {resp.status_code}: {msg}',
+                                      retryable=resp.status_code == 429 or resp.status_code >= 500)
+        return resp.json()['data']['translations'][0]['translatedText']
+
+    def _local_translate(self, text, target_lang, source_lang=None):
+        """Перевод через свой LibreTranslate; язык исходного текста — явный (auto хуже на коротких заголовках)."""
+        body = {'q': text, 'source': _std_lang(source_lang) if source_lang else 'auto',
+                'target': _std_lang(target_lang), 'format': 'text'}
+        resp = requests.post(LOCAL_URL, json=body, timeout=LOCAL_TIMEOUT)
+        if resp.status_code != 200:
+            raise CloudTranslateError(f'LibreTranslate HTTP {resp.status_code}: {resp.text[:150]}',
+                                      retryable=resp.status_code >= 500)
+        return resp.json()['translatedText']
+
+    def last_error(self):
+        """Причина последнего неудачного перевода в текущем потоке (тип исключения и начало сообщения) или ''."""
+        return getattr(self._tls, 'error', '')
 
     def translate(self, text, target_lang, source_lang=None, request_id=None):
         """
@@ -83,6 +157,9 @@ class TranslationManager:
         if not text or text.strip() == '':
             return True, ''
 
+        self._tls.error = ''
+        if source_lang and _std_lang(source_lang) == _std_lang(target_lang):
+            return True, text  # язык исходного текста совпадает с целевым — переводить нечего
         self._cooldown_wait()
         current_delay = self.initial_delay
 
@@ -92,10 +169,17 @@ class TranslationManager:
                 # Паузы повторов и охлаждение — вне замка: прежде они стояли под замком и останавливали
                 # переводы во всех потоках сразу.
                 with self.lock:
-                    if source_lang:
-                        result = GoogleTranslator(source=source_lang, target=target_lang).translate(text)
+                    if TRANSLATE_BACKEND == 'local':
+                        result = self._local_translate(text, target_lang, source_lang)
+                    elif TRANSLATE_BACKEND == 'free':
+                        if source_lang:
+                            # deep_translator знает иврит только как 'iw'
+                            src = 'iw' if _std_lang(source_lang) == 'he' else source_lang
+                            result = GoogleTranslator(source=src, target=target_lang).translate(text)
+                        else:
+                            result = GoogleTranslator(target=target_lang).translate(text)
                     else:
-                        result = GoogleTranslator(target=target_lang).translate(text)
+                        result = self._cloud_translate(text, target_lang, source_lang)
 
                 # GoogleTranslator.translate() может вернуть None для некоторых входных текстов
                 if result is None:
@@ -111,7 +195,8 @@ class TranslationManager:
                 self.consecutive_errors = 0
                 return True, result
 
-            except TooManyRequests:
+            except TooManyRequests as e:
+                self._tls.error = f'TooManyRequests (Google отклонил запрос: 429/sorry, блокировка по частоте или IP): {str(e)[:80]}'
                 self.consecutive_errors += 1
                 self.last_error_time = time.time()
 
@@ -128,7 +213,11 @@ class TranslationManager:
                     return False, text
 
             except Exception as e:
+                self._tls.error = f'{type(e).__name__}: {str(e)[:150]}'
                 self.logger.error(f"Ошибка перевода: {str(e)}")
+                # 403/400 и т.п. (API не включён, нет прав, неверный язык) повторять бессмысленно
+                if isinstance(e, CloudTranslateError) and not e.retryable:
+                    return False, text
                 if attempt < self.max_retries - 1:
                     time.sleep(current_delay)
                     current_delay *= 2
