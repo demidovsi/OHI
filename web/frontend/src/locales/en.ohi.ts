@@ -187,4 +187,5 @@ export const EN_OHI: Record<string, string> = {
   'Дата/Время': 'Date/Time',
   'Запрос': 'Request',
   'Ответ': 'Answer',
+  'Потяните, чтобы изменить размер': 'Drag to resize',
 }

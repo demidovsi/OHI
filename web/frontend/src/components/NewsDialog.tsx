@@ -2,10 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
-import Dialog from '@mui/material/Dialog'
-import DialogActions from '@mui/material/DialogActions'
-import DialogContent from '@mui/material/DialogContent'
-import DialogTitle from '@mui/material/DialogTitle'
 import FormControl from '@mui/material/FormControl'
 import IconButton from '@mui/material/IconButton'
 import InputLabel from '@mui/material/InputLabel'
@@ -15,9 +11,6 @@ import Select from '@mui/material/Select'
 import TextField from '@mui/material/TextField'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
-import useMediaQuery from '@mui/material/useMediaQuery'
-import { useTheme } from '@mui/material/styles'
-import CloseIcon from '@mui/icons-material/Close'
 import DownloadIcon from '@mui/icons-material/Download'
 import * as api from '../api'
 import type { FlashMessage, FormFields, Par } from '../api'
@@ -25,9 +18,11 @@ import { useAuth } from '../auth'
 import { useT } from '../i18n'
 import FlashMessages from './FlashMessages'
 import LoadingBar from './LoadingBar'
+import ModalWindow from './ModalWindow'
 import PlainTextArea from './PlainTextArea'
 
-// Карточка новости — модальное окно ленты новостей (бывшие templates/new.html и модалка news_board.js).
+// Карточка новости — окно поверх ленты (ModalWindow nonModal, как окна сайтов parlaments: перетаскивается, меняет размер,
+// запоминает положение; лента позади остаётся доступной — можно выбирать другие новости, не закрывая карточку); ранее модальное окно ленты (бывшие templates/new.html и модалка news_board.js).
 // Бэкенд — форма new (new.py): поля new_id, select_lang, title, description, full; кнопки refresh, save,
 // translate_ru/en/he, need_article, load_file. Изменять новость может только администратор.
 
@@ -70,8 +65,6 @@ const norm = (s: string | null | undefined) => (s ?? '').trim()
 
 export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: Props) {
   const t = useT()
-  const theme = useTheme()
-  const fullScreen = useMediaQuery(theme.breakpoints.down('md'))
   const { setUpr } = useAuth()
   const [par, setPar] = useState<Par | null>(null)
   const [messages, setMessages] = useState<FlashMessage[]>([])
@@ -144,20 +137,9 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
   const textDir = selectLang === 'he' ? 'rtl' : 'ltr'
 
   return (
-    <Dialog open={newsId != null} onClose={onClose} maxWidth="xl" fullWidth fullScreen={fullScreen}>
+    <ModalWindow open={newsId != null} nonModal storageKey="news_card" onClose={onClose} title={`${t('Информация по новости')} #${newsId ?? ''}`}>
       <LoadingBar loading={loading} inDialog />
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, pe: 1 }}>
-        <Box component="span" sx={{ flexGrow: 1 }}>
-          {t('Информация по новости')}{' '}
-          <Box component="span" sx={{ opacity: 0.6 }}>
-            #{newsId}
-          </Box>
-        </Box>
-        <IconButton onClick={onClose} aria-label={t('Закрыть')} title={t('Закрыть')}>
-          <CloseIcon />
-        </IconButton>
-      </DialogTitle>
-      <DialogContent dividers sx={{ display: 'flex', flexDirection: 'column', minHeight: { md: '70vh' } }}>
+      <Box sx={{ flex: '1 1 auto', minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
         <FlashMessages messages={messages} onDismiss={(i) => setMessages((m) => m.filter((_, j) => j !== i))} />
         {unit && (
           <>
@@ -274,8 +256,8 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
             </Box>
           </>
         )}
-      </DialogContent>
-      <DialogActions>
+      </Box>
+      <Box sx={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
         {changed && (
           <>
             <Button onClick={() => run(fields({ refresh: 1 }))} title={t('Отменить сделанные изменения')}>
@@ -287,7 +269,7 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
           </>
         )}
         <Button onClick={onClose}>{t('Закрыть')}</Button>
-      </DialogActions>
-    </Dialog>
+      </Box>
+    </ModalWindow>
   )
 }
