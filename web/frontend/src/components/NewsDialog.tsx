@@ -264,19 +264,17 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
           </>
         )}
       </Box>
-      <Box sx={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
-        {changed && (
-          <>
-            <Button onClick={() => run(fields({ refresh: 1 }))} title={t('Отменить сделанные изменения')}>
-              {t('Восстановить')}
-            </Button>
-            <Button variant="contained" onClick={() => run(fields({ save: 1 }))} title={t('Записать изменения в базу данных')}>
-              {t('Сохранить')}
-            </Button>
-          </>
-        )}
-        <Button onClick={onClose}>{t('Закрыть')}</Button>
-      </Box>
+      {/* закрывается крестиком в заголовке окна; панель действий — только при изменённых полях (админ) */}
+      {changed && (
+        <Box sx={{ flexShrink: 0, display: 'flex', justifyContent: 'flex-end', gap: 1, pt: 1 }}>
+          <Button onClick={() => run(fields({ refresh: 1 }))} title={t('Отменить сделанные изменения')}>
+            {t('Восстановить')}
+          </Button>
+          <Button variant="contained" onClick={() => run(fields({ save: 1 }))} title={t('Записать изменения в базу данных')}>
+            {t('Сохранить')}
+          </Button>
+        </Box>
+      )}
     </ModalWindow>
   )
 }
