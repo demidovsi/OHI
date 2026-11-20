@@ -195,7 +195,7 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
               storageKey="news_card"
               defaultSize="40%"
               first={
-              <Box sx={{ flex: '1 1 0', minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1, pr: 1 }}>
+              <Box sx={{ flex: '1 1 0', minHeight: 0, overflow: 'auto', display: 'flex', flexDirection: 'column', gap: 1.5, pt: 1, pr: 1, '& > *': { flexShrink: 0 } }}>
                 <Typography variant="body2">
                   {t('Источник:')} <Box component="b" sx={{ color: 'error.main' }}>{unit.name_rss}</Box>{' '}
                   ({t('Время:')} {unit.public_date ?? ''})
@@ -239,7 +239,7 @@ export default function NewsDialog({ newsId, lang = 'ru', onClose, onChanged }: 
                   )}
                 </Typography>
                 {unit.meta_img && (
-                  <Box component="img" src={unit.meta_img} alt="" sx={{ maxWidth: '100%', maxHeight: 260, objectFit: 'contain', alignSelf: 'flex-start' }} />
+                  <Box component="img" src={unit.meta_img} alt="" sx={{ display: 'block', maxWidth: '100%', maxHeight: 260, width: 'auto', height: 'auto', objectFit: 'contain', alignSelf: 'flex-start', position: 'relative', zIndex: 0 }} />
                 )}
                 {unit.author && (
                   <Typography variant="body2">
