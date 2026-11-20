@@ -119,7 +119,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
         self.list_complete = []  # освобождаем старые данные перед загрузкой
         where = 'error_translator'
         ans, is_ok, status = common.send_rest(
-            'v2/entity/values?app_code={app_code}&object_code=rss_history&where={where}&column_order=id'.format(
+            'v2/entity/values?app_code={app_code}&object_code=rss_history&where={where}&column_order=id desc'.format(
                 app_code=config.schema_name, where=where))
         if not is_ok:
             common.write_log_db(
