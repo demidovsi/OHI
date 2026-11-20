@@ -27,8 +27,6 @@ export const EN_OHI: Record<string, string> = {
   'Обновить': 'Refresh',
   'Перейти к новости по ID': 'Go to news by ID',
   'Новость с ID={id} не найдена': 'News with ID={id} not found',
-  'Показано {n} из {total}': 'Shown {n} of {total}',
-  'показаны первые {n}': 'first {n} shown',
   'Дата/время': 'Date/time',
   'Канал / автор': 'Channel / author',
   'Заголовок / описание': 'Title / description',

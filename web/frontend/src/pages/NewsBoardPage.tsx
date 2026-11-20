@@ -370,7 +370,6 @@ export default function NewsBoardPage() {
 
   const PrevIcon = rtl ? ChevronRightIcon : ChevronLeftIcon
   const NextIcon = rtl ? ChevronLeftIcon : ChevronRightIcon
-  const total = rows.length
 
   return (
     <Box sx={PAGE_SX}>
@@ -492,10 +491,6 @@ export default function NewsBoardPage() {
               {t('Новость с ID={id} не найдена', { id: par.not_found })}
             </Typography>
           ) : null}
-          <Typography variant="body2" color="text.secondary">
-            {t('Показано {n} из {total}', { n: list.length, total })}
-            {total >= (par.max_rows ?? 3000) ? ` (${t('показаны первые {n}', { n: par.max_rows })})` : ''}
-          </Typography>
         </Box>
         <Box sx={{ mt: 1.5 }}>
           <TableToolbar par={pagePar} onSubmit={onPageSubmit} hideSearch hideSort />
