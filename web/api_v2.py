@@ -64,7 +64,12 @@ def _json_response(payload, status=200):
 
 
 def _upr():
-    return get('upr') if exist() else None
+    """upr из сессии; версия сайта — всегда текущая (в сессии осталась версия на момент входа: после обновления сайта
+    тултип пользователя показывал бы старую версию до повторного входа)."""
+    upr = get('upr') if exist() else None
+    if upr:
+        upr = {**upr, 'version': common.version}
+    return upr
 
 
 def _respond(par):

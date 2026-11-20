@@ -123,6 +123,14 @@ def make_translate(txt, init_lang):
     return error_translator, text_ru, text_en, text_he
 
 
+def keep_or_translate(txt, lang, lazy):
+    """Перевод на три языка (make_translate) или, при lazy и известном языке источника, только исходный текст в поле
+    его языка (остальные пусты): перевод делается позже и только для новости, подошедшей под поисковые образы."""
+    if lazy and lang in ('ru', 'en', 'he'):
+        return False, txt if lang == 'ru' else '', txt if lang == 'en' else '', txt if lang == 'he' else ''
+    return make_translate(txt, lang)
+
+
 _CHALLENGE_MARKERS = (
     'пожалуйста, ожидайте',       # DDoSGuard (RU)
     'проверка доступа к браузеру', # DDoSGuard (RU)
@@ -146,7 +154,7 @@ def _is_challenge_page(text):
     return any(m in low for m in _CHALLENGE_MARKERS)
 
 
-def load_article(values, init_lang='', delay=1):
+def load_article(values, init_lang='', delay=1, lazy=False):
     """
     Загружает текст статьи по URL и переводит на три языка.
     Цепочка попыток (каждая следующая — если предыдущая не дала текст):
@@ -167,7 +175,7 @@ def load_article(values, init_lang='', delay=1):
             txt = cloud.make_description(txt)
             values['file'] = len(txt)
             lang = values.get('lang', '') or init_lang
-            error, values['text_ru'], values['text_en'], values['text_he'] = make_translate(txt, lang)
+            error, values['text_ru'], values['text_en'], values['text_he'] = keep_or_translate(txt, lang, lazy)
             values['error_translator'] = values.get('error_translator', False) or error
             return True
 
@@ -250,7 +258,8 @@ def load_article(values, init_lang='', delay=1):
         values['file'] = -1
         return False
     values['file'] = len(txt)
-    error, values['text_ru'], values['text_en'], values['text_he'] = make_translate(txt, init_lang)
+    error, values['text_ru'], values['text_en'], values['text_he'] = (
+        keep_or_translate(txt, values.get('lang'), True) if lazy else make_translate(txt, init_lang))
     values['error_translator'] = values.get('error_translator', False) or error
     return True
 

@@ -275,10 +275,11 @@ class SearchRSS(trafaret_thread.TrafaretThread):
         self.par.append({"code": "period", "value": 10})
         self.par.append({"code": "active", "value": 1})
 
-    def make_values(self, rss, item):
+    def make_values(self, rss, item, lazy=False):
         """
         Полный разбор элемента RSS-ленты: заголовок, ссылка, описание, автор, дата.
-        Переводит тексты на три языка (ru, en, he).
+        Переводит тексты на три языка (ru, en, he); при lazy — оставляет только исходный язык (перевод позже:
+        finish_translation, если новость подошла под поисковые образы).
         Возвращает словарь values с данными новости.
         """
         values = dict()
@@ -289,10 +290,10 @@ class SearchRSS(trafaret_thread.TrafaretThread):
         # Заголовок новости (title или HEADLINE для нестандартных форматов)
         if item.find('title') is not None:
             txt = common.extract_text(item.find('title'))
-            err, values['title_ru'], values['title_en'], values['title_he'] = translate.make_translate(txt, values["lang"])
+            err, values['title_ru'], values['title_en'], values['title_he'] = translate.keep_or_translate(txt, values["lang"], lazy)
         elif item.find('HEADLINE') is not None:
             txt = common.extract_text(item.find('HEADLINE'))
-            err, values['title_ru'], values['title_en'], values['title_he'] = translate.make_translate(txt, values["lang"])
+            err, values['title_ru'], values['title_en'], values['title_he'] = translate.keep_or_translate(txt, values["lang"], lazy)
 
         # Ссылка на источник (link или URL)
         txt = None
@@ -312,7 +313,7 @@ class SearchRSS(trafaret_thread.TrafaretThread):
         if txt:
             description = cloud.make_description(txt)
             error, values['description_ru'], values['description_en'], values['description_he'] = (
-                translate.make_translate(description, values["lang"]))
+                translate.keep_or_translate(description, values["lang"], lazy))
             values['error_translator'] = values['error_translator'] or error
 
         # Автор новости
@@ -352,6 +353,20 @@ class SearchRSS(trafaret_thread.TrafaretThread):
         # FIX: utcnow() deprecated в Python 3.12+, заменён на now(timezone.utc)
         values["at_date_time"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         return values
+
+    def finish_translation(self, values, is_article):
+        """Перевод на три языка новости, подошедшей под поисковые образы (до этого хранился только исходный язык)."""
+        lang = values.get('lang')
+        if lang not in ('ru', 'en', 'he'):
+            return  # язык неизвестен — make_values уже перевёл всё сразу
+        for key in ('title', 'description'):
+            src = values.get(f'{key}_{lang}')
+            if src:
+                err, values[f'{key}_ru'], values[f'{key}_en'], values[f'{key}_he'] = translate.make_translate(src, lang)
+                values['error_translator'] = values.get('error_translator', False) or err
+        if is_article and values.get(f'text_{lang}'):
+            err, values['text_ru'], values['text_en'], values['text_he'] = translate.make_translate(values[f'text_{lang}'], lang)
+            values['error_translator'] = values.get('error_translator', False) or err
 
     def make_values_init(self, rss, item):
         """
@@ -578,13 +593,14 @@ class SearchRSS(trafaret_thread.TrafaretThread):
                     exist = common.is_exist_object(values, self.token)
                     if exist is not None and not exist:
                         # Новость ещё не в БД — полный разбор с переводом
-                        values = self.make_values(rss, item)
+                        values = self.make_values(rss, item, lazy=True)  # только исходный язык: перевод — если подойдёт
                         common.seek(self.rss_themes, values)  # поиск вхождений поисковых образов
-                        is_article = translate.load_article(values)
+                        is_article = translate.load_article(values, lazy=True)
                         # Если образы не найдены в заголовке/описании — ищем в тексте статьи
                         if len(values['themes']) == 0 and is_article:
                             common.seek_article(self.rss_themes, values)
                         if values['themes']:  # есть совпадения с поисковыми образами
+                            self.finish_translation(values, is_article)  # перевод только подошедшей новости
                             # Записать новость в БД
                             ok_write = common.write_history(values, self.token, rss, self.source)
                             if ok_write:  # новость записана в БД

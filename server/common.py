@@ -435,20 +435,122 @@ def parse_russian_date(date_str):
 
     return date_str
 
+_RE_HE = re.compile('[א-ת]')
+_RE_RU = re.compile('[а-яА-ЯёЁ]')
+_RE_EN = re.compile('[a-zA-Z]')
+
+
 def make_search(word, txt):
-    """Ищет слово word в тексте txt с учётом границ слов. Возвращает количество совпадений."""
+    """Ищет слово word в тексте txt с учётом границ слов. Возвращает количество совпадений.
+    Слово на иврите ищется и с приставками (ל, ב, ה, ו, מ, ש, כ — они пишутся слитно со словом)."""
     result = 0
-    if word:
+    if word and txt:
         word = word.strip()
         if word:
             if word[0] == '^':
                 word_s = r"\b{word}\b".format(word=word[1:-1].strip())
+                matches = re.findall(word_s, txt)
+            elif _RE_HE.search(word):
+                word_s = r"(?<!\w)[ובכלמשה]{{0,2}}{word}\b".format(word=word)
                 matches = re.findall(word_s, txt)
             else:
                 word_s = r"\b{word}\b".format(word=word)
                 matches = re.findall(word_s, txt, re.IGNORECASE)
             return len(matches)  # количество вхождений в текст
     return result
+
+
+# --- Поисковые образы на трёх языках ---------------------------------------------------------------------------
+# Образы (rss_themes.value, rss_themes.exception) задаются в форме search_words на любом языке. Сервер дополняет каждый
+# образ переводами слов на два других языка (ru/en/he) и ищет и по исходным словам, и по переведённым — прямо в тексте
+# новости на её языке, без предварительного перевода самой новости. Образы читаются из БД в каждом цикле опроса, поэтому
+# добавленные/изменённые/удалённые через форму образы подхватываются сами; переводятся только новые слова (кэш в памяти).
+_WORD_TR = {}                      # слово образа -> список его переводов
+_WORD_TR_LOCK = threading.Lock()
+_AUGMENT_LOCK = threading.Lock()   # потоки лент не переводят одни и те же слова одновременно
+
+
+def _word_lang(word):
+    if _RE_HE.search(word):
+        return 'he'
+    if _RE_RU.search(word):
+        return 'ru'
+    if _RE_EN.search(word):
+        return 'en'
+    return None
+
+
+def translated_forms(word):
+    """Переводы слова образа на два других из языков ru/en/he; [] — слово не переводится или перевод не удался
+    (неудача не кэшируется: слово будет переведено в следующем цикле)."""
+    w = word.strip().strip('"«»').strip()
+    if len(w) < 3 or w[0] == '^':
+        return []
+    src = _word_lang(w)
+    if not src:
+        return []
+    with _WORD_TR_LOCK:
+        got = _WORD_TR.get(w)
+    if got is not None:
+        return got
+    import translate  # ленивый импорт: translate импортирует cloud, а он — common
+    result = []
+    failed = False
+    for tgt in ('ru', 'en', 'he'):
+        if tgt == src:
+            continue
+        ok, res = translate.translator.translate(w, 'iw' if tgt == 'he' else tgt, src)
+        res = (res or '').strip().strip('.').strip()
+        if not ok or not res:
+            failed = True
+            continue
+        if res.lower() != w.lower() and len(res) <= 80 and res not in result:
+            result.append(res)
+    if not failed:
+        with _WORD_TR_LOCK:
+            _WORD_TR[w] = result
+    return result
+
+
+def _is_name(word):
+    """Имя собственное: слово с заглавной буквы или на иврите (в иврите заглавных нет)."""
+    w = word.strip().strip('"«»').strip()
+    return bool(w) and w[0] != '^' and (w[0].isupper() or bool(_RE_HE.search(w)))
+
+
+def _with_translations(text, translate_first=True):
+    """Слова из строки через ';' и перевод первого слова (базовой формы имени) на два других языка, без повторов.
+    Склонения, общие слова и исключения не переводятся: английскому и ивриту склонения не нужны, а перевод общих слов
+    («выборы», «голосование») совпадал бы с новостями о любых выборах в мире. Дополнительные написания на любом языке
+    добавляются в форме search_words самим пользователем — они ищутся как есть."""
+    words = [x.strip() for x in (text or '').split(';') if x.strip()]
+    result = list(words)
+    seen = {x.lower() for x in words}
+    if translate_first and words and _is_name(words[0]):
+        for tr in translated_forms(words[0]):
+            if tr.lower() not in seen:
+                seen.add(tr.lower())
+                result.append(tr)
+    return result
+
+
+def augment_themes(themes):
+    """Добавляет к образам списки слов: data['words'] (исходные слова + перевод имени-первого слова на два других
+    языка) и data['exception_words'] (исходные исключения). Поля value/exception не меняются. При сбое перевода
+    остаются только исходные слова."""
+    with _AUGMENT_LOCK:
+        for data in themes:
+            try:
+                data['words'] = _with_translations(data.get('value'))
+                data['exception_words'] = _with_translations(data.get('exception'), translate_first=False)
+            except Exception as er:
+                write_log_db('⚠️warning', SRC, f"Перевод поисковых образов: {er}\naugment_themes")
+    return themes
+
+
+def theme_words(data):
+    """Слова образа для поиска: исходные и переведённые."""
+    return data.get('words') or (data.get('value') or '').split(';')
 
 
 def extract_text(element, default=''):
@@ -557,7 +659,8 @@ def load_list_themes(source):
             '❌error', SRC, f"Ошибка {ans} для {url}\nload_list_themes", law_id=source)
         return False, []
     else:
-        return True, json.loads(ans)
+        # к образам добавляются переводы слов на три языка (кэш в памяти; при сбое перевода — только исходные слова)
+        return True, augment_themes(json.loads(ans))
 
 
 def _has_exception(data, *text_fields):
@@ -565,7 +668,7 @@ def _has_exception(data, *text_fields):
     exc = data.get('exception') or ''
     if not exc:
         return False
-    for exc_word in exc.split(';'):
+    for exc_word in (data.get('exception_words') or exc.split(';')):
         for text in text_fields:
             if text and make_search(exc_word, text):
                 return True
@@ -576,7 +679,7 @@ def seek(rss_themes, values):
     """Ищет поисковые образы в заголовках и описаниях (ru/en/he). Записывает найденные ID тем в values['themes']."""
     values['themes'] = []
     for data in rss_themes:
-        words = data['value'].split(';')
+        words = theme_words(data)
         count = 0
         for word in words:
             if 'title_ru' in values:
@@ -602,7 +705,7 @@ def seek_article(rss_themes, values):
     """Ищет поисковые образы в полном тексте статьи (text_ru/en/he). Записывает найденные ID тем в values['themes']."""
     values['themes'] = []
     for data in rss_themes:
-        words = data['value'].split(';')
+        words = theme_words(data)
         count = 0
         for word in words:
             count += make_search(word, values['text_en'])
