@@ -123,6 +123,20 @@ def make_translate(txt, init_lang):
     return error_translator, text_ru, text_en, text_he
 
 
+def translate_to(txt, source, target):
+    """Перевод txt с языка source на один язык target (ru/en/he) по частям, как make_translate.
+    Возвращает (успех, текст); при сбое хотя бы одной части — (False, '') — исходный текст за перевод не выдаётся."""
+    if not txt:
+        return True, ''
+    out = ''
+    for unit in get_array_text(txt):
+        ok, res = translator.translate(unit, 'iw' if target == 'he' else target, source)
+        if not ok or res is None:
+            return False, ''
+        out += res
+    return True, out
+
+
 def keep_or_translate(txt, lang, lazy):
     """Перевод на три языка (make_translate) или, при lazy и известном языке источника, только исходный текст в поле
     его языка (остальные пусты): перевод делается позже и только для новости, подошедшей под поисковые образы."""

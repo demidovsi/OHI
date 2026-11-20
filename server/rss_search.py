@@ -371,19 +371,46 @@ class SearchRSS(trafaret_thread.TrafaretThread):
         values["at_date_time"] = datetime.datetime.now(datetime.timezone.utc).isoformat()
         return values
 
+    def translate_for_search(self, values, keys):
+        """Перевод на русский частей новости (keys: 'title', 'description' или 'text') с английского/иврита — чтобы
+        определять совпадение с русскими поисковыми образами по русскому тексту. Русский перевод сохраняется в values и
+        повторно (при записи подошедшей новости) не делается. Русские и прочие тексты не переводятся.
+        Возвращает False, если перевод не удался (новость тогда не считается проверенной: values['_retry'])."""
+        lang = values.get('lang')
+        if lang not in ('en', 'he'):
+            return True
+        ok_all = True
+        for key in keys:
+            src = values.get(f'{key}_{lang}')
+            if src and not values.get(f'{key}_ru'):
+                ok, ru = translate.translate_to(src, lang, 'ru')
+                if ok:
+                    values[f'{key}_ru'] = ru
+                else:
+                    ok_all = False
+        if not ok_all:
+            values['_retry'] = True
+        return ok_all
+
     def finish_translation(self, values, is_article):
-        """Перевод на три языка новости, подошедшей под поисковые образы (до этого хранился только исходный язык)."""
+        """Перевод подошедшей под поисковые образы новости на недостающие языки: до этого хранились исходный язык и,
+        для английского/иврита, русский перевод (translate_for_search) — его повторно не переводим."""
         lang = values.get('lang')
         if lang not in ('ru', 'en', 'he'):
             return  # язык неизвестен — make_values уже перевёл всё сразу
-        for key in ('title', 'description'):
+        for key in ('title', 'description') + (('text',) if is_article else ()):
             src = values.get(f'{key}_{lang}')
-            if src:
-                err, values[f'{key}_ru'], values[f'{key}_en'], values[f'{key}_he'] = translate.make_translate(src, lang)
-                values['error_translator'] = values.get('error_translator', False) or err
-        if is_article and values.get(f'text_{lang}'):
-            err, values['text_ru'], values['text_en'], values['text_he'] = translate.make_translate(values[f'text_{lang}'], lang)
-            values['error_translator'] = values.get('error_translator', False) or err
+            if not src:
+                continue
+            for target in ('ru', 'en', 'he'):
+                if target == lang or values.get(f'{key}_{target}'):
+                    continue
+                ok, res = translate.translate_to(src, lang, target)
+                if ok:
+                    values[f'{key}_{target}'] = res
+                else:  # как и прежде: при сбое — исходный текст и признак ошибки (доделает TranslateRSS)
+                    values[f'{key}_{target}'] = src
+                    values['error_translator'] = True
 
     def make_values_init(self, rss, item):
         """
@@ -611,13 +638,17 @@ class SearchRSS(trafaret_thread.TrafaretThread):
                     if exist is not None and not exist:
                         # Новость ещё не в БД — полный разбор с переводом
                         values = self.make_values(rss, item, lazy=True)  # только исходный язык: перевод — если подойдёт
-                        common.seek(self.rss_themes, values)  # поиск вхождений поисковых образов
+                        common.seek(self.rss_themes, values)  # поиск образов (слова образов и их переводы) в оригинале
+                        if not values['themes'] and self.translate_for_search(values, ('title', 'description')):
+                            common.seek(self.rss_themes, values)  # ... и в русском переводе заголовка и описания
                         is_article = translate.load_article(values, lazy=True)
                         if not values.get('meta_img') and values.get('rss_image'):
                             values['meta_img'] = values['rss_image']  # страница недоступна — фото из ленты
                         # Если образы не найдены в заголовке/описании — ищем в тексте статьи
                         if len(values['themes']) == 0 and is_article:
                             common.seek_article(self.rss_themes, values)
+                            if not values['themes'] and self.translate_for_search(values, ('text',)):
+                                common.seek_article(self.rss_themes, values)  # ... и в русском переводе текста статьи
                         if values['themes']:  # есть совпадения с поисковыми образами
                             self.finish_translation(values, is_article)  # перевод только подошедшей новости
                             # Записать новость в БД
@@ -643,8 +674,8 @@ class SearchRSS(trafaret_thread.TrafaretThread):
                                     cloud.save_file_bucket('he_' + str(values['id']), values['text_he'])
                     # Помечаем новость как обработанную (в т.ч. если уже существовала)
                     exists = common.is_exist_object(values, self.token)
-                    if exists is not None and not exists:
-                        common.fix_new(values, self.token)
+                    if exists is not None and not exists and not values.get('_retry'):
+                        common.fix_new(values, self.token)  # _retry: перевод для проверки не удался — проверим в следующем цикле
                 except Exception as er:
                     import traceback as _tb
                     common.write_log_db(
