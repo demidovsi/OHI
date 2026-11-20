@@ -134,7 +134,7 @@ class TranslationManager:
         """Перевод через свой LibreTranslate; язык исходного текста — явный (auto хуже на коротких заголовках)."""
         body = {'q': text, 'source': _std_lang(source_lang) if source_lang else 'auto',
                 'target': _std_lang(target_lang), 'format': 'text'}
-        resp = requests.post(LOCAL_URL, json=body, timeout=LOCAL_TIMEOUT)
+        resp = requests.post(LOCAL_URL, json=body, timeout=(5, LOCAL_TIMEOUT))  # (соединение, ответ): недоступный переводчик — отказ за 5 с
         if resp.status_code != 200:
             raise CloudTranslateError(f'LibreTranslate HTTP {resp.status_code}: {resp.text[:150]}',
                                       retryable=resp.status_code >= 500)
