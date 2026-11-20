@@ -30,7 +30,6 @@ import login as c_login
 from common import exist, get
 import analyses
 import chat_logs
-import documents
 import new
 import news_board
 import rss
@@ -95,12 +94,11 @@ FORMS = {
     'logs': shared_logs.prepare_form,
     'guests': shared_guests.prepare_form,
     'functions': shared_functions.prepare_form,
-    'documents': documents.prepare_form,
 }
 
 # Служебные формы администратора (меню «Сайт»): меню их только скрывает — права проверяются на сервере
 # (start_ohi_web.admin_forms_only).
-ADMIN_FORMS = ('guests', 'logs', 'functions', 'documents')
+ADMIN_FORMS = ('guests', 'logs', 'functions')
 
 
 # --- ошибки ------------------------------------------------------------------
@@ -210,59 +208,6 @@ def form(page):
     if par is None:
         par = {}
     return _respond(par)
-
-
-# --- документы (только администратор) ---------------------------------------------------------
-# Загрузка файла — multipart (поле file, необязательное description); файл уходит в бакет, метаданные — в nsi_documents.
-
-def _admin_error():
-    """None — администратор вошёл; иначе JSON-ответ об отказе."""
-    if not exist():
-        return _json_response({'error': 'unauthorized'}, status=401)
-    if not common.is_admin():
-        return _json_response({'error': 'forbidden'}, status=403)
-    return None
-
-
-@bp.route('/documents/upload', methods=('POST',))
-def documents_upload():
-    denied = _admin_error()
-    if denied:
-        return denied
-    file = request.files.get('file')
-    if file is None or not file.filename:
-        return _json_response({'ok': False, 'message': 'Файл не выбран'}, status=400)
-    if request.content_length and request.content_length > documents.MAX_SIZE + 1024 * 1024:
-        return _json_response({'ok': False, 'message': 'Файл больше {} МБ'.format(documents.MAX_SIZE // (1024 * 1024))},
-                              status=413)
-    data = file.read(documents.MAX_SIZE + 1)
-    result = documents.upload(file.filename, data, request.form.get('description', ''), get('user_name') or '')
-    common.write_log_db('Загрузка документа', 'ohi_web',
-                        '{}: {}'.format(file.filename, result['message']), law_id='documents')
-    return _json_response(result, status=200 if result['ok'] else 400)
-
-
-@bp.route('/documents/<int:doc_id>/download', methods=('GET',))
-def documents_download(doc_id):
-    denied = _admin_error()
-    if denied:
-        return denied
-    data, name, content_type = documents.download(doc_id)
-    if data is None:
-        return _json_response({'error': name}, status=404)
-    from urllib.parse import quote
-    return Response(data, mimetype=content_type, headers={
-        'Content-Disposition': "attachment; filename*=UTF-8''" + quote(name)})
-
-
-@bp.route('/documents/<int:doc_id>/delete', methods=('POST',))
-def documents_delete(doc_id):
-    denied = _admin_error()
-    if denied:
-        return denied
-    ok, message = documents.delete(doc_id)
-    common.write_log_db('Удаление документа', 'ohi_web', 'id={}: {}'.format(doc_id, message), law_id='documents')
-    return _json_response({'ok': ok, 'message': message}, status=200 if ok else 400)
 
 
 @bp.route('/forms', methods=('GET',))
