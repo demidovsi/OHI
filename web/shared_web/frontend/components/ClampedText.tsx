@@ -38,7 +38,7 @@ export default function ClampedText({ text, lines = 4, open: openProp, onToggle,
   }, [text, lines, open])
 
   const toggle = (label: string, tip: string) => (
-    <Link component="button" type="button" underline="hover" onClick={toggleOpen} title={tip} sx={{ fontSize: 12, display: 'block' }}>
+    <Link component="button" type="button" underline="hover" onClick={toggleOpen} title={tip} sx={{ fontSize: 12, display: 'block', color: 'success.main' }}>
       {label}
     </Link>
   )
