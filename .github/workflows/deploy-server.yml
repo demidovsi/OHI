@@ -72,10 +72,11 @@ jobs:
             docker pull ghcr.io/demidovsi/llm-server:latest
 
             # Перезапускаем контейнер
-            docker stop llm-server 2>/dev/null || true
-            docker rm   llm-server 2>/dev/null || true
+            # (llm-server — прежнее имя контейнера, убираем на случай, если он ещё остался)
+            docker stop ohi-server llm-server 2>/dev/null || true
+            docker rm   ohi-server llm-server 2>/dev/null || true
             docker run -d \
-              --name llm-server \
+              --name ohi-server \
               --restart unless-stopped \
               --env-file /opt/llm-server/.env \
               ghcr.io/demidovsi/llm-server:latest
