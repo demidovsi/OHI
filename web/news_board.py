@@ -1,5 +1,6 @@
 import json
 import datetime
+import time
 
 from flask import flash
 
@@ -9,49 +10,83 @@ import cloud
 from common import get, add
 
 MAX_ROWS = 3000
+DESCRIPTION_LIMIT = 1000  # описание в таблице не длиннее (обрезанное заканчивается «…»); полный текст — в карточке новости
 
 
-def load_list_rss(answer):
-    """Список новостных лент (для фильтра «Канал»)."""
-    answer['list_rss'] = []
+# Списки лент и тем почти не меняются (правятся в формах «Новостные ленты» и «Поисковые образы»): кэш в памяти процесса
+# на минуту — без двух обращений к REST при каждом открытии/обновлении формы.
+LIST_CACHE_TTL = 60
+_list_cache = {}
+
+
+def _cached(key, loader):
+    """Значение loader() из кэша (не старше LIST_CACHE_TTL секунд); при ошибке загрузки (None) кэш не обновляется."""
+    now = time.time()
+    hit = _list_cache.get(key)
+    if hit and now - hit[0] < LIST_CACHE_TTL:
+        return hit[1]
+    value = loader()
+    if value is not None:
+        _list_cache[key] = (now, value)
+    return value
+
+
+def _fetch_rss_names():
     url = 'v2/entity/values?app_code={schema}&object_code=rss_list&column_order=id desc'.format(schema=config.SCHEMA)
     ans, is_ok, status = common.send_rest(url, params={"columns": "id, sh_name, lang"})
     if not is_ok:
         flash(str(ans), 'warning')
-        return
-    answer['list_rss'] = sorted({r['sh_name'].strip() for r in json.loads(ans) if r.get('sh_name')})
+        return None
+    return sorted({r['sh_name'].strip() for r in json.loads(ans) if r.get('sh_name')})
 
 
-def load_themes(answer):
-    """Список тем поисковых образов (для фильтра «Тема»)."""
-    answer['themes'] = []
+def _fetch_theme_names():
     url = 'v2/entity/values?app_code={schema}&object_code=rss_themes'.format(schema=config.SCHEMA)
     ans, is_ok, status = common.send_rest(url)
     if not is_ok:
         flash(str(ans), 'warning')
-        return
-    answer['themes'] = sorted({r['sh_name'] for r in json.loads(ans) if r.get('sh_name')})
+        return None
+    return sorted({r['sh_name'] for r in json.loads(ans) if r.get('sh_name')})
+
+
+def load_list_rss(answer):
+    """Список новостных лент (для фильтра «Канал»)."""
+    answer['list_rss'] = _cached('rss', _fetch_rss_names) or []
+
+
+def load_themes(answer):
+    """Список тем поисковых образов (для фильтра «Тема»)."""
+    answer['themes'] = _cached('themes', _fetch_theme_names) or []
 
 
 def load_news(where):
     """Новости (не больше MAX_ROWS, самые свежие) сразу со всеми языковыми вариантами заголовка/описания - выбор
     языка отображения, поиск, фильтры и сортировка происходят в браузере, без повторного запроса к серверу.
-    LEFT JOIN + агрегация тем: сообщения без темы не теряются, с несколькими темами - не задваиваются."""
+    Темы собираются подзапросом только для отобранных строк (прежний LEFT JOIN с видом get_list_theme_for_history
+    читал вид целиком — все связи и всю историю — ещё до отбора, это были ~80% времени запроса); сообщения без темы не
+    теряются, с несколькими темами - не задваиваются. Фильтры (where) применяются к полным текстам в БД, а в ответ
+    описания отдаются не длиннее DESCRIPTION_LIMIT (иначе ответ «Все даты»/поиска — мегабайты)."""
+    def cut(column):
+        return ("case when length(a.{c}) > {n} then left(a.{c}, {n}) || '…' else a.{c} end as {c}").format(
+            c=column, n=DESCRIPTION_LIMIT)
+
     query = """
-        select a.id, a.rss, a.name_rss, a.author, a.lang, a.url, a.file, a.error_translator,
-               a.public_date, a.at_date_time,
-               a.title_ru, a.title_en, a.title_he,
-               a.description_ru, a.description_en, a.description_he,
-               string_agg(distinct b.sh_name, ', ') as themes
-        from {schema}.v_nsi_rss_history a
-        left join {schema}.get_list_theme_for_history b on a.id=b.id
-        {where}
-        group by a.id, a.rss, a.name_rss, a.author, a.lang, a.url, a.file, a.error_translator,
-                 a.public_date, a.at_date_time, a.title_ru, a.title_en, a.title_he,
-                 a.description_ru, a.description_en, a.description_he
-        order by coalesce(a.at_date_time, a.public_date) desc
-        limit {limit};
-    """.format(schema=config.SCHEMA, where=('where ' + where) if where else '', limit=MAX_ROWS)
+        select s.*,
+               (select string_agg(distinct b.sh_name, ', ') from {schema}.get_list_theme_for_history b
+                 where b.id=s.id) as themes
+        from (
+            select a.id, a.rss, a.name_rss, a.author, a.lang, a.url, a.file, a.error_translator,
+                   a.public_date, a.at_date_time,
+                   a.title_ru, a.title_en, a.title_he,
+                   {desc_ru}, {desc_en}, {desc_he}
+            from {schema}.v_nsi_rss_history a
+            {where}
+            order by coalesce(a.at_date_time, a.public_date) desc
+            limit {limit}
+        ) s
+        order by coalesce(s.at_date_time, s.public_date) desc;
+    """.format(schema=config.SCHEMA, where=('where ' + where) if where else '', limit=MAX_ROWS,
+               desc_ru=cut('description_ru'), desc_en=cut('description_en'), desc_he=cut('description_he'))
     ans, is_ok, status_code = common.send_rest('v2/execute', 'PUT', params={"script": query},
                                                token_user=get('token'))
     if not is_ok:

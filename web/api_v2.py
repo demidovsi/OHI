@@ -16,6 +16,7 @@
 """
 
 import datetime
+import gzip
 import decimal
 import json
 import os
@@ -40,6 +41,25 @@ from shared_web import logs as shared_logs
 from shared_web import visits
 
 bp = Blueprint('api_v2', __name__, url_prefix='/api/v2')
+
+GZIP_MIN_SIZE = 1024  # короче — сжатие не окупается
+
+
+@bp.after_request
+def _gzip_json(response):
+    """Ответы API (JSON) сжимаются gzip, если браузер это принимает: JSON новостей жмётся в 3-4 раза
+    (сутки: 624 КБ -> ~170 КБ; «Все даты»: 4,5 МБ -> ~1,2 МБ)."""
+    if (response.status_code < 200 or response.status_code >= 300 or response.direct_passthrough
+            or 'Content-Encoding' in response.headers or response.mimetype != 'application/json'
+            or 'gzip' not in request.headers.get('Accept-Encoding', '').lower()):
+        return response
+    data = response.get_data()
+    if len(data) < GZIP_MIN_SIZE:
+        return response
+    response.set_data(gzip.compress(data, compresslevel=5))
+    response.headers['Content-Encoding'] = 'gzip'
+    response.headers.add('Vary', 'Accept-Encoding')
+    return response
 
 
 # --- сериализация --------------------------------------------------------------
