@@ -168,6 +168,23 @@ def _is_challenge_page(text):
     return any(m in low for m in _CHALLENGE_MARKERS)
 
 
+_BLOCK_END_RE = re.compile(r'(?i)<\s*br\s*/?\s*>|</\s*(?:p|div|h[1-6]|li|ul|ol|blockquote|tr|table|section|article|figure|figcaption)\s*>')
+
+
+def rss_html_to_text(raw):
+    """Текст из поля RSS (full-text, content:encoded: HTML или обычный текст) с сохранением абзацев и заголовков:
+    концы блочных тегов и <br> превращаются в переводы строк, прочие теги убираются, пробелы внутри строки
+    схлопываются, пустых строк подряд не больше одной."""
+    txt = html_module.unescape(raw or '')
+    txt = _BLOCK_END_RE.sub('\n', txt)
+    txt = re.sub(r'<[^>]+>', ' ', txt)
+    txt = txt.replace('\xa0', ' ').replace('\r', '')
+    lines = [re.sub(r'[ \t]+', ' ', ln).strip() for ln in txt.split('\n')]
+    txt = '\n'.join(lines)
+    txt = re.sub(r'\n{3,}', '\n\n', txt)
+    return txt.strip()
+
+
 def load_article(values, init_lang='', delay=1, lazy=False):
     """
     Загружает текст статьи по URL и переводит на три языка.
@@ -181,9 +198,7 @@ def load_article(values, init_lang='', delay=1, lazy=False):
 
     # Если RSS-лента предоставила полный текст — используем его без запроса URL
     if values.get('full_text_rss'):
-        txt = html_module.unescape(values['full_text_rss'])
-        txt = re.sub(r'<[^>]+>', ' ', txt)
-        txt = re.sub(r'\s+', ' ', txt).strip()
+        txt = rss_html_to_text(values['full_text_rss'])
         if len(txt) > 100:
             values['meta_img'] = ''
             txt = cloud.make_description(txt)
