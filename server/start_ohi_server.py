@@ -25,7 +25,7 @@ import rss_complete
 import clear_logs
 
 common.current_path = os.path.abspath(os.curdir)
-version = 'version 3.54 от 20 ноября 2026 г.'
+version = 'version 3.55 от 23 ноября 2026 г.'
 t0 = 0
 
 CHECK_PERIOD = 600.0      # как часто проверяются потоки, сек
@@ -81,6 +81,13 @@ def _sigterm_handler(signum, _frame):
 
 # Регистрация обработчика SIGTERM (SIGINT обрабатывается через KeyboardInterrupt)
 signal.signal(signal.SIGTERM, _sigterm_handler)
+
+
+def rss_initial_delay(initial_pass, started_count, step=60):
+    """Задержка первого запуска потока ленты, секунд. При старте сервера (initial_pass) потоки стартуют ступенями по step
+    секунд — чтобы не нагружать API и переводчик все сразу; лента, включённая (или добавленная) в уже работающем
+    сервере, стартует сразу. Раньше ступень считалась и для таких лент (число потоков × 60 с ≈ 47 минут)."""
+    return started_count * step if initial_pass and started_count else 0
 
 
 def load_list_rss():
@@ -177,6 +184,7 @@ if __name__ == '__main__':
         # FIX: Вместо линейного поиска по list_rss_init (O(n²)) используем set ID-шников (O(1))
         seen_rss_ids = set()
         time_cycle = time.time()
+        initial_pass = True  # первый проход по списку лент (старт сервера) — потоки разносятся по времени
 
         # Главный цикл: создание потоков для новых RSS и мониторинг существующих
         while True:
@@ -209,14 +217,13 @@ if __name__ == '__main__':
                         # Разносим первый запуск: каждый новый поток ждёт дольше на RSS_JITTER_STEP.
                         # Для потоков, добавленных после старта (не при инициализации),
                         # initial_delay=0 — они запускаются немедленно.
-                        if not list_threads:
-                            elem.initial_delay = 0
-                        else:
-                            elem.initial_delay = len(list_threads) * RSS_JITTER_STEP
+                        elem.initial_delay = rss_initial_delay(initial_pass, len(list_threads), RSS_JITTER_STEP)
                         elem.start()
                         # FIX: append только если elem создан (раньше None попадали в список)
                         list_threads.append(elem)
                     time.sleep(1)  # Минимальная пауза, чтобы не перегружать API при старте
+
+            initial_pass = False  # дальше созданные потоки (включённые позже ленты) стартуют без задержки
 
             # Каждые 10 минут — проверка работоспособности потоков (в лог — только при изменении состояния)
             if time.time() - time_cycle >= CHECK_PERIOD:

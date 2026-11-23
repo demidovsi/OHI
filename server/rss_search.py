@@ -253,6 +253,9 @@ async def _fetch_rss_playwright(url):
     return xml_bytes
 
 
+STOPPED_RECHECK_SEC = 60  # как часто проверять, не включена ли лента, остановленная флагом stop
+
+
 def rss_image(item):
     """Картинка из самой записи ленты (enclosure / media:content / media:thumbnail) или ''. Запасной вариант для сайтов,
     страницы которых закрыты от парсера (антибот): og:image со страницы получить нельзя, а лента даёт ссылку на фото."""
@@ -709,7 +712,13 @@ class SearchRSS(trafaret_thread.TrafaretThread):
         if common.get_value_config_param('active', self.par) != 1:
             return False
         result, self.rss = common.load_rss(self.rss_id, self.source)
-        self.law_id = self.rss['sh_name']
+        self.law_id = self.rss.get('sh_name', '')
+        # Выключенная лента (stop): включение через форму «Новостные ленты» подхватывается за минуту, а не за 10 минут —
+        # паузу до следующей проверки задаёт wait_for_error; у включённой — штатная.
+        stopped = result and self.rss.get('stop') is True
+        self.wait_for_error = STOPPED_RECHECK_SEC if stopped else trafaret_thread.TrafaretThread.wait_for_error
+        if stopped:
+            return False
 
         if result:
             result, self.rss_themes = common.load_list_themes(self.source)
