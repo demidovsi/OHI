@@ -44,6 +44,7 @@ import { FILL_SX, PAGE_SX } from '../components/layout'
 import DateField from '@shared-web/components/DateField'
 import { useAutoRefresh } from '@shared-web/components/DayNavigator'
 import { useDayRollover } from '../components/useDayRollover'
+import { useOpened } from '../components/useOpened'
 import ClampedText from '@shared-web/components/ClampedText'
 import { TablePagination, TableToolbar } from '@shared-web/components/TableControls'
 import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
@@ -153,7 +154,7 @@ function shiftDate(st: string, days: number): string {
 }
 
 // Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
-const COLS = { time: 150, name_rss: 190, title: 560, themes: 180, lang: 80, actions: 50 }
+const COLS = { time: 150, name_rss: 170, title: 440, themes: 170, lang: 90, actions: 56 }
 
 export default function NewsBoardPage() {
   const { t, lang: uiLang } = useI18n()
@@ -175,6 +176,7 @@ export default function NewsBoardPage() {
   const [sortKey, setSortKey] = useState<SortKey>('time')
   const [sortDir, setSortDir] = useState<1 | -1>(-1)
   const [expanded, setExpanded] = useState<Record<number, boolean>>({})
+  const openedAuthors = useOpened() // раскрытые «автор / категории» (длинный список) помнит страница
   const [selectedId, setSelectedId] = useState<number | null>(() => {
     const v = Number(readStorage(SELECTED_KEY))
     return v > 0 ? v : null
@@ -552,7 +554,7 @@ export default function NewsBoardPage() {
                     )}
                     {r.author && (
                       <Typography variant="caption" color="text.secondary" component="div">
-                        {r.author}
+                        <ClampedText text={r.author} open={openedAuthors.has(`${r.id}:author`)} onToggle={() => openedAuthors.toggle(`${r.id}:author`)} />
                       </Typography>
                     )}
                   </TableCell>
