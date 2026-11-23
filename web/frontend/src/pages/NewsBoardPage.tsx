@@ -43,6 +43,7 @@ import NewsDialog, { type NewsUnit } from '../components/NewsDialog'
 import { FILL_SX, PAGE_SX } from '../components/layout'
 import DateField from '@shared-web/components/DateField'
 import { useAutoRefresh } from '@shared-web/components/DayNavigator'
+import { useDayRollover } from '../components/useDayRollover'
 import ClampedText from '@shared-web/components/ClampedText'
 import { TablePagination, TableToolbar } from '@shared-web/components/TableControls'
 import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
@@ -324,6 +325,8 @@ export default function NewsBoardPage() {
     false,
     AUTO_REFRESH_MS,
   )
+  // наступили следующие локальные сутки при включённом автообновлении текущих суток — перейти на новые текущие (st_date='today')
+  useDayRollover(Boolean(par && autoOn && par.st_date && par.st_date === par.today), par?.st_date, () => submit(fields({ st_date: 'today' })))
 
   if (error) return <Typography color="error">{error}</Typography>
   if (!par) return <LoadingBar loading />

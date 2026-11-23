@@ -19,6 +19,7 @@ import DayNavigator, { showDoUpdate, useAutoRefresh } from '@shared-web/componen
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
 import { formatLogTime } from '@shared-web/components/logTime'
 import ClampedText from '@shared-web/components/ClampedText'
+import { useDayRollover } from '@app/components/useDayRollover'
 import { ResizeHandle, useColumnWidths } from '@shared-web/components/columnResize'
 import { useT } from '@app/i18n'
 import { FILL_SX, PAGE_SX } from '@app/components/layout'
@@ -123,6 +124,8 @@ export default function LogsPage() {
   // Автообновление раз в 30 с при включённом do_update (как scheduleAutoRefresh в logs.js);
   // refreshIn — секунды до обновления, показываются в подсказке галочки «Обновлять».
   const refreshIn = useAutoRefresh(par, () => submit(fields({})), false, AUTO_REFRESH_MS)
+  // при включённом автообновлении текущих суток: наступили следующие локальные сутки — перейти на новые текущие
+  useDayRollover(Boolean(par && showDoUpdate(par) && par.do_update), par?.st_date, () => submit(fields({ current_day: 'current_day' })))
 
   if (error) return <Typography color="error">{error}</Typography>
   if (!par) return <LoadingBar loading />

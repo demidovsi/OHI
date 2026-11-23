@@ -27,6 +27,7 @@ import { TablePagination, TableToolbar, baseFields } from '@shared-web/component
 import { formatLogTime } from '@shared-web/components/logTime'
 import ClampedText from '@shared-web/components/ClampedText'
 import { useOpened } from '../components/useOpened'
+import { useDayRollover } from '../components/useDayRollover'
 import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
 // Лог чат-сообщений (бывший templates/chat_logs.html, бэкенд chat_logs.py): вся информация / выбранные сутки,
@@ -74,6 +75,8 @@ export default function ChatLogsPage() {
   })
 
   const refreshIn = useAutoRefresh(par, () => submit(fields({})), false, AUTO_REFRESH_MS)
+  // при включённом автообновлении текущих суток: наступили следующие локальные сутки — перейти на новые текущие
+  useDayRollover(Boolean(par && showDoUpdate(par) && par.do_update), par?.st_date, () => submit(fields({ current_day: 'current_day' })))
 
   if (error) return <Typography color="error">{error}</Typography>
   if (!par) return <LoadingBar loading />

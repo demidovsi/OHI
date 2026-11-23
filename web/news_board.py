@@ -124,7 +124,8 @@ def prepare_form(request):
     if request.method == 'POST':
         common.choose_language(request)
         if 'st_date' in request.form:
-            st_date = common.sql_date(request.form.get('st_date'))
+            # 'today' — текущие сутки пользователя (переход на новые сутки при автообновлении в полночь)
+            st_date = common.local_today() if request.form.get('st_date') == 'today' else common.sql_date(request.form.get('st_date'))
         find_id = common.sql_digits(request.form.get('find_id'))
         if find_id:
             found = find_date(find_id)
