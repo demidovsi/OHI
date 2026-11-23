@@ -101,14 +101,16 @@ def load_news(where):
     return rows
 
 
-def load_day(year, month, day):
-    """Новости за сутки (локальное время пользователя)."""
+def load_day(year, month, day, since_id=''):
+    """Новости за сутки (локальное время пользователя); since_id — только новости с id больше (автообновление
+    докачивает лишь новые, а не все сутки заново)."""
     tz = get('time_zone') or 0
     date_begin = common.get_date_sql([year, month, day], tz)
     t = datetime.datetime(year, month, day) + datetime.timedelta(days=1)
     date_end = common.get_date_sql([t.year, t.month, t.day], tz)
     return load_news("""(a.public_date is not NULL and a.public_date>='{begin}' and a.public_date<'{end}'
-               or a.at_date_time>='{begin}' and a.at_date_time<'{end}')""".format(begin=date_begin, end=date_end))
+               or a.at_date_time>='{begin}' and a.at_date_time<'{end}')""".format(begin=date_begin, end=date_end)
+                     + (' and a.id>{0}'.format(int(since_id)) if since_id else ''))
 
 
 def load_all(channel, theme, search):
@@ -147,7 +149,9 @@ def find_date(news_id):
 def prepare_form(request):
     """Лента новостей за сутки. POST-поля: st_date (сутки, YYYY-MM-DD; пустая — все новости, тогда в БД
     применяются и фильтры channel, theme, search), find_id (перейти к новости по ID: сутки этой новости,
-    par['select_id']), delete_id (удалить новость — только администратор)."""
+    par['select_id']), delete_id (удалить новость — только администратор), since_id (автообновление: вернуть
+    только новости суток с id больше этого, par['incremental']=True; страница добавляет их к уже загруженным;
+    игнорируется при смене суток, переходе к новости и удалении — тогда ответ полный)."""
     answer = dict()
     st = common.init_form(request, '/news_board/')
     if st:
@@ -155,6 +159,9 @@ def prepare_form(request):
         return answer
     common.default('news_board_st_date', common.local_today())
     st_date = get('news_board_st_date')
+    prev_date = st_date
+    since_id = ''
+    find_id = delete_id = ''
     answer['select_id'] = None
     if request.method == 'POST':
         common.choose_language(request)
@@ -170,6 +177,7 @@ def prepare_form(request):
             else:
                 answer['not_found'] = int(find_id)
         delete_id = common.sql_digits(request.form.get('delete_id'))
+        since_id = common.sql_digits(request.form.get('since_id'))
         if delete_id:
             if common.is_admin():
                 cloud.delete_new(delete_id, True)
@@ -182,9 +190,11 @@ def prepare_form(request):
     load_themes(answer)
     answer['st_date'] = st_date
     answer['today'] = common.local_today()
+    incremental = bool(since_id and st_date and st_date == prev_date and not find_id and not delete_id)
+    answer['incremental'] = incremental
     if st_date:
         year, month, day = (int(x) for x in st_date.split('-'))
-        answer['data'] = load_day(year, month, day)
+        answer['data'] = load_day(year, month, day, since_id if incremental else '')
     else:
         form = request.form if request.method == 'POST' else {}
         answer['data'] = load_all(str(form.get('channel') or '').strip(), str(form.get('theme') or '').strip(),

@@ -88,6 +88,9 @@ const SELECTED_KEY = 'ohi_news_board_selected_id'
 const ROWS_KEY = 'ohi_news_board_rows'
 const AUTO_KEY = 'ohi_news_board_auto'
 const AUTO_REFRESH_MS = 60 * 1000 // цикл автообновления текущих суток
+// Автообновление докачивает только новые новости (since_id); полная перезагрузка суток — каждое FULL_REFRESH_EVERY-е
+// обновление (правки переводов, удаления и темы, связанные уже после появления новости, догоняются ею)
+const FULL_REFRESH_EVERY = 10
 const ROW_COUNTS = [5, 10, 15, 25, 50, 100] // как в общих TableControls
 
 function readStorage(key: string): string | null {
@@ -166,6 +169,7 @@ export default function NewsBoardPage() {
   const [rows, setRows] = useState<Prepared[]>([])
   const [autoOn, setAutoOn] = useState<boolean>(() => readStorage(AUTO_KEY) === '1')
   const autoRefreshing = useRef(false) // идёт автообновление: страница таблицы и раскрытые описания сохраняются
+  const autoTicks = useRef(0) // номер автообновления подряд: каждое FULL_REFRESH_EVERY-е — полное
   const [showLang, setShowLang] = useState<ShowLang>(() => {
     const v = readStorage(LANG_KEY)
     return v === 'ru' || v === 'en' || v === 'he' ? v : uiLang
@@ -208,7 +212,19 @@ export default function NewsBoardPage() {
   // Новые данные суток с сервера
   useEffect(() => {
     if (!par) return
-    setRows(prepare((par.data ?? []) as NewsRow[]))
+    const incoming = prepare((par.data ?? []) as NewsRow[])
+    if (par.incremental) {
+      // докачка новых: добавляем к уже загруженным (раскрытые тексты, страница, правки из карточки сохраняются)
+      if (incoming.length) {
+        setRows((prev) => {
+          const have = new Set(prev.map((r) => r.id))
+          return [...incoming.filter((r) => !have.has(r.id)), ...prev]
+        })
+      } else autoRefreshing.current = false // новых нет — строки не менялись, флаг не оставляем висеть
+    } else {
+      setRows(incoming)
+      autoTicks.current = 0 // полная загрузка (смена суток, фильтры, ручное обновление) — счёт заново
+    }
     if (!autoRefreshing.current) setExpanded({})
     if (par.select_id) {
       select(par.select_id)
@@ -322,7 +338,9 @@ export default function NewsBoardPage() {
     autoPar,
     () => {
       autoRefreshing.current = true
-      submit(fields({}))
+      autoTicks.current += 1
+      const full = autoTicks.current % FULL_REFRESH_EVERY === 0 || rows.length === 0
+      submit(fields(full ? {} : { since_id: rows.reduce((m, r) => Math.max(m, r.id), 0) }))
     },
     false,
     AUTO_REFRESH_MS,
