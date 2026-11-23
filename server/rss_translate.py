@@ -154,10 +154,14 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
         # использует 'iw' для иврита. Теперь маппинг корректен для любого значения.
         lang_iw = 'iw' if lang == 'he' else lang
         txt, is_ok = load_file_bucket(lang + '_' + str(values['id']))
-        if not is_ok:
-            return False, txt
+        no_text = False  # файла с текстом статьи нет: текста не было вовсе (страница сайта недоступна, лид короткий) или файл
+        if not is_ok:    # потерян при сбое обработки новости — переводим заголовок и описание, а не считаем это ошибкой
+            if txt.startswith('Файл ') and txt.endswith('отсутствует в облаке'):
+                no_text, txt = True, ''
+            else:
+                return False, txt  # другая ошибка (облако недоступно и т.п.) — повторим в следующий раз
         self.last_length = len(txt)
-        text = get_array_text(txt, self.limit)
+        text = [] if no_text else get_array_text(txt, self.limit)
         text_ru = ''
         text_en = ''
         text_he = ''
@@ -202,13 +206,14 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                     return False, f"{type(er).__name__}: {er}; язык статьи: {lang}"
 
         if not error_translator:
-            # Сохраняем переведённые тексты в облако
-            if values['lang'] != 'ru':
-                cloud.save_file_bucket('ru_' + str(values['id']), text_ru)
-            if values['lang'] != 'en':
-                cloud.save_file_bucket('en_' + str(values['id']), text_en)
-            if values['lang'] != 'he':
-                cloud.save_file_bucket('he_' + str(values['id']), text_he)
+            # Сохраняем переведённые тексты в облако (если текст статьи был)
+            if not no_text:
+                if values['lang'] != 'ru':
+                    cloud.save_file_bucket('ru_' + str(values['id']), text_ru)
+                if values['lang'] != 'en':
+                    cloud.save_file_bucket('en_' + str(values['id']), text_en)
+                if values['lang'] != 'he':
+                    cloud.save_file_bucket('he_' + str(values['id']), text_he)
 
             # Переводим заголовок и описание, формируем запрос на обновление БД
             datas = {}
@@ -248,7 +253,11 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
             if not is_ok:
                 common.write_log_db(
                     '❌error', SRC, f"make_translate\nОшибка: {ans}\n id={values['id']}", law_id=self.source)
-            return True, ''
+            if not is_ok or value["error_translator"]:
+                # запись осталась с признаком ошибки (заголовок/описание не переведены или запись не сохранилась) —
+                # повторять в каждом проходе бессмысленно: не раньше чем через RETRY_FAILED_AFTER
+                self.failed[values['id']] = time.time()
+            return True, ('текста статьи нет — переведены заголовок и описание' if no_text else '')
         else:
             st_failed = '; '.join(f"{k}: {v}" for k, v in failed.items())
             return False, (f"Ошибка перевода с языка '{lang}' на язык(и): {', '.join(failed) or '?'}"
@@ -290,7 +299,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                         # FIX: global_new не инкрементировался при успехе
                         self.global_new += 1
                         common.write_log_db(
-                            '✔️translate', SRC, f"Трансляция статьи завершена\n id={data['id']}",
+                            '✔️translate', SRC, f"Трансляция статьи завершена{' (' + er + ')' if er else ''}\n id={data['id']}",
                             law_id=self.source, page=j+1, td=time.time() - t0)
                 except Exception as er:
                     self.global_error += 1
