@@ -254,6 +254,11 @@ async def _fetch_rss_playwright(url):
 
 
 STOPPED_RECHECK_SEC = 60  # как часто проверять, не включена ли лента, остановленная флагом stop
+# Текст статьи длиннее этого (символов) в потоке ленты не переводится: переводчик медленный (~250 символов в секунду на все
+# потоки сразу), и перевод одной статьи держал поток и уведомление в Telegram минутами. Новость записывается сразу (заголовок
+# и описание переводятся, текст пока на языке оригинала, error_translator=true), недостающие языки текста доделывает
+# фоновый TranslateRSS.
+DEFER_TEXT_OVER = 1500
 
 
 def rss_image(item):
@@ -397,7 +402,9 @@ class SearchRSS(trafaret_thread.TrafaretThread):
 
     def finish_translation(self, values, is_article):
         """Перевод подошедшей под поисковые образы новости на недостающие языки: до этого хранились исходный язык и,
-        для английского/иврита, русский перевод (translate_for_search) — его повторно не переводим."""
+        для английского/иврита, русский перевод (translate_for_search) — его повторно не переводим. Заголовок и описание
+        переводятся сразу; длинный текст статьи (DEFER_TEXT_OVER) откладывается: в недостающие языки пока записывается
+        оригинал с признаком error_translator — доделает TranslateRSS."""
         lang = values.get('lang')
         if lang not in ('ru', 'en', 'he'):
             return  # язык неизвестен — make_values уже перевёл всё сразу
@@ -407,6 +414,10 @@ class SearchRSS(trafaret_thread.TrafaretThread):
                 continue
             for target in ('ru', 'en', 'he'):
                 if target == lang or values.get(f'{key}_{target}'):
+                    continue
+                if key == 'text' and len(src) > DEFER_TEXT_OVER:
+                    values[f'{key}_{target}'] = src
+                    values['error_translator'] = True
                     continue
                 ok, res = translate.translate_to(src, lang, target)
                 if ok:
