@@ -88,6 +88,10 @@ def load_file_bucket(filename):
         return txt, False
 
 
+BATCH = 20                      # статей за проход (самые новые с error_translator)
+RETRY_FAILED_AFTER = 6 * 3600   # секунд: непереведённую статью повторно берём не раньше
+
+
 class TranslateRSS(trafaret_thread.TrafaretThread):
     """
     Поток перевода статей из RSS-ленты.
@@ -100,7 +104,8 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
     """
     def __init__(self, source, code_function, code_period, description):
         super(TranslateRSS, self).__init__(source, code_function, code_period, description)
-        self.list_complete = []  # список статей, требующих перевода
+        self.list_complete = []  # пачка статей, требующих перевода (самые новые)
+        self.failed = {}         # id статей, которые не удалось перевести -> время неудачи (в этой сессии не берутся заново RETRY_FAILED_AFTER с)
         self.global_count = 0   # общее кол-во статей в очереди
         self.global_new = 0     # кол-во успешно переведённых
         self.global_error = 0   # кол-во ошибок
@@ -110,17 +115,26 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
 
     def initiation_parameters(self):
         super(TranslateRSS, self).initiation_parameters()
-        self.par.append({"code": "period", "value": 10})
+        self.par.append({"code": "period", "value": 5})      # минут между проходами: пачки идут часто, свежие записи ждут недолго
         self.par.append({"code": "active", "value": 1})
         self.par.append({"code": "limit", "value": 5000})
+        self.par.append({"code": "batch", "value": BATCH})   # сколько самых новых статей берётся за проход
 
     def load_list_translate(self):
-        """Загружает из БД список статей, у которых перевод ещё не выполнен."""
+        """Загружает из БД пачку самых новых статей, у которых перевод ещё не выполнен (error_translator): не весь список
+        (в нём тысячи записей, проход по ним занимал дни, и новые записи с отложенным переводом ждали его конца), а
+        batch штук — список перечитывается каждый проход, поэтому свежие записи берутся первыми. Статьи, которые не удалось
+        перевести (нет файла в облаке и т.п.), на RETRY_FAILED_AFTER секунд исключаются, чтобы не блокировать очередь."""
         self.list_complete = []  # освобождаем старые данные перед загрузкой
+        now = time.time()
+        self.failed = {i: t for i, t in self.failed.items() if now - t < RETRY_FAILED_AFTER}
         where = 'error_translator'
+        if self.failed:
+            where += ' and id not in ({})'.format(','.join(str(int(i)) for i in self.failed))
+        batch = common.get_value_config_param('batch', self.par, BATCH) or BATCH
         ans, is_ok, status = common.send_rest(
-            'v2/entity/values?app_code={app_code}&object_code=rss_history&where={where}&column_order=id desc'.format(
-                app_code=config.schema_name, where=where))
+            'v2/entity/values?app_code={app_code}&object_code=rss_history&where={where}&column_order=id desc&row_count={n}'.format(
+                app_code=config.schema_name, where=where, n=int(batch)))
         if not is_ok:
             common.write_log_db(
                 '❌error', SRC, f"load_list_translator\nОшибка: {ans}", law_id=self.source)
@@ -269,6 +283,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                     is_ok, er = self.make_translate(data)
                     if not is_ok:
                         self.global_error += 1
+                        self.failed[data['id']] = time.time()
                         common.write_log_db(
                             '⚠️warning', SRC, f"Ошибка: {er}\n{self.describe_article(data)}", law_id=self.source, page=j+1, td=time.time() - t0)
                     else:
@@ -279,6 +294,7 @@ class TranslateRSS(trafaret_thread.TrafaretThread):
                             law_id=self.source, page=j+1, td=time.time() - t0)
                 except Exception as er:
                     self.global_error += 1
+                    self.failed[data['id']] = time.time()
                     common.write_log_db(
                         '❌error', SRC, f"work\nОшибка: {er}\n{self.describe_article(data)}", law_id=self.source, page=j+1, td=time.time() - t0)
             self.list_complete = []  # освобождаем список после обработки

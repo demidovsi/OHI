@@ -53,6 +53,9 @@ def _is_google_error_page(text):
 TRANSLATE_BACKEND = os.environ.get('TRANSLATE_BACKEND', 'local').lower()
 CLOUD_URL = 'https://translation.googleapis.com/language/translate/v2'
 CLOUD_TIMEOUT = 30
+# Сколько секунд фоновый поток (set_low_priority: TranslateRSS) уступает переводам свежих новостей перед очередным запросом.
+# Прежние 10 минут при постоянной работе потоков лент оставляли ему один кусок текста за 10 минут (~40 статей в сутки).
+LOW_PRIORITY_MAX_WAIT = float(os.environ.get('TRANSLATE_LOW_PRIORITY_MAX_WAIT', 5))
 LOCAL_URL = os.environ.get('TRANSLATE_LOCAL_URL', 'http://172.17.0.1:5099/translate')  # docker0 хоста: контейнер ohi-server в bridge-сети
 LOCAL_TIMEOUT = 120
 
@@ -152,9 +155,10 @@ class TranslationManager:
 
     def translate(self, text, target_lang, source_lang=None, request_id=None):
         """Перевод с приоритетом: фоновый поток (set_low_priority) перед каждым запросом ждёт, пока не освободятся
-        все обычные переводы (до 10 мин), поэтому свежие новости не стоят в очереди за накопленными."""
+        все обычные переводы (не дольше LOW_PRIORITY_MAX_WAIT секунд), поэтому свежие новости не стоят в очереди за накопленными,
+        а фоновый поток не голодает."""
         if getattr(self._tls, 'low', False):
-            deadline = time.time() + 600
+            deadline = time.time() + LOW_PRIORITY_MAX_WAIT
             while self._high_active > 0 and time.time() < deadline:
                 time.sleep(0.2)
             return self._translate(text, target_lang, source_lang, request_id)
