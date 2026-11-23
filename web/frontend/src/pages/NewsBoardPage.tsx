@@ -43,6 +43,7 @@ import NewsDialog, { type NewsUnit } from '../components/NewsDialog'
 import { FILL_SX, PAGE_SX } from '../components/layout'
 import DateField from '@shared-web/components/DateField'
 import { useAutoRefresh } from '@shared-web/components/DayNavigator'
+import ClampedText from '@shared-web/components/ClampedText'
 import { TablePagination, TableToolbar } from '@shared-web/components/TableControls'
 import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
@@ -565,20 +566,12 @@ export default function NewsBoardPage() {
                       {title || t('(без заголовка)')}
                     </Link>
                     {desc && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        title={expanded[r.id] ? undefined : t('Показать описание полностью')}
-                        onClick={() => setExpanded((e) => ({ ...e, [r.id]: !e[r.id] }))}
-                        sx={{
-                          cursor: 'pointer',
-                          mt: 0.25,
-                          ...(expanded[r.id]
-                            ? { whiteSpace: 'pre-wrap' }
-                            : { display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }),
-                        }}
-                      >
-                        {desc}
+                      <Typography variant="body2" color="text.secondary" component="div" sx={{ mt: 0.25 }}>
+                        <ClampedText
+                          text={desc}
+                          open={Boolean(expanded[r.id])}
+                          onToggle={() => setExpanded((e) => ({ ...e, [r.id]: !e[r.id] }))}
+                        />
                       </Typography>
                     )}
                   </TableCell>

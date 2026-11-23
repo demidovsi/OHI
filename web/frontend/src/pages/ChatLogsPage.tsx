@@ -1,10 +1,6 @@
 import { useEffect, useState } from 'react'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
-import Dialog from '@mui/material/Dialog'
-import DialogActions from '@mui/material/DialogActions'
-import DialogContent from '@mui/material/DialogContent'
-import DialogTitle from '@mui/material/DialogTitle'
 import FormControl from '@mui/material/FormControl'
 import InputLabel from '@mui/material/InputLabel'
 import MenuItem from '@mui/material/MenuItem'
@@ -25,11 +21,12 @@ import type { FormFields } from '../api'
 import { useT } from '../i18n'
 import FlashMessages from '../components/FlashMessages'
 import LoadingBar from '../components/LoadingBar'
-import PlainTextArea from '../components/PlainTextArea'
 import { FILL_SX, PAGE_SX } from '../components/layout'
 import DayNavigator, { showDoUpdate, useAutoRefresh } from '@shared-web/components/DayNavigator'
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
 import { formatLogTime } from '@shared-web/components/logTime'
+import ClampedText from '@shared-web/components/ClampedText'
+import { useOpened } from '../components/useOpened'
 import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
 // Лог чат-сообщений (бывший templates/chat_logs.html, бэкенд chat_logs.py): вся информация / выбранные сутки,
@@ -51,20 +48,6 @@ interface ChatRow {
 const AUTO_REFRESH_MS = 30 * 1000
 const FILTERS = ['filter_ip', 'filter_country', 'filter_city', 'filter_email'] as const
 
-/** Длинный текст в ячейке — три строки, щелчок открывает целиком. */
-function Clamp({ text, onOpen }: { text: string | null; onOpen: () => void }) {
-  if (!text) return null
-  return (
-    <Box
-      onClick={onOpen}
-      sx={{ cursor: 'pointer', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', whiteSpace: 'pre-wrap' }}
-      dir="auto"
-    >
-      {text}
-    </Box>
-  )
-}
-
 // Ширины колонок (px) по умолчанию; меняются мышью в шапке и запоминаются в браузере (двойной щелчок — по умолчанию)
 const COLS = { id: 70, time: 170, ip: 130, country: 110, city: 110, type: 120, message: 300, answer: 380, td: 70, email: 180 }
 const COL_KEYS = Object.keys(COLS)
@@ -74,7 +57,7 @@ export default function ChatLogsPage() {
   const widths = useColumnWidths('chat_logs_cols', COLS)
   const { par, messages, loading, error, submit, dismiss } = useForm('chat_logs')
   const [filters, setFilters] = useState<Record<string, string>>({})
-  const [shown, setShown] = useState<{ title: string; text: string } | null>(null)
+  const opened = useOpened() // раскрытые Запрос/Ответ помнит страница: обновление таблицы их не закрывает
 
   useEffect(() => {
     if (!par) return
@@ -90,7 +73,7 @@ export default function ChatLogsPage() {
     ...extra,
   })
 
-  const refreshIn = useAutoRefresh(par, () => submit(fields({})), shown != null, AUTO_REFRESH_MS)
+  const refreshIn = useAutoRefresh(par, () => submit(fields({})), false, AUTO_REFRESH_MS)
 
   if (error) return <Typography color="error">{error}</Typography>
   if (!par) return <LoadingBar loading />
@@ -196,11 +179,11 @@ export default function ChatLogsPage() {
                 <TableCell sx={{ verticalAlign: 'top' }}>{r.country}</TableCell>
                 <TableCell sx={{ verticalAlign: 'top' }}>{r.city}</TableCell>
                 <TableCell sx={{ verticalAlign: 'top', color: 'secondary.main' }}>{r.type_message}</TableCell>
-                <TableCell sx={{ verticalAlign: 'top', fontSize: 12 }}>
-                  <Clamp text={r.message} onOpen={() => setShown({ title: t('Запрос') + ' #' + r.id, text: r.message ?? '' })} />
+                <TableCell sx={{ verticalAlign: 'top', fontSize: 12 }} dir="auto">
+                  <ClampedText text={r.message ?? ''} open={opened.has(`${r.id}:message`)} onToggle={() => opened.toggle(`${r.id}:message`)} />
                 </TableCell>
-                <TableCell sx={{ verticalAlign: 'top', fontSize: 12 }}>
-                  <Clamp text={r.answer} onOpen={() => setShown({ title: t('Ответ') + ' #' + r.id, text: r.answer ?? '' })} />
+                <TableCell sx={{ verticalAlign: 'top', fontSize: 12 }} dir="auto">
+                  <ClampedText text={r.answer ?? ''} open={opened.has(`${r.id}:answer`)} onToggle={() => opened.toggle(`${r.id}:answer`)} />
                 </TableCell>
                 <TableCell align="right" sx={{ whiteSpace: 'nowrap', verticalAlign: 'top' }}>
                   {r.td ?? ''}
@@ -220,15 +203,6 @@ export default function ChatLogsPage() {
       </TableContainer>
       <TablePagination par={par} onSubmit={submit} base={fields({})} />
 
-      <Dialog open={shown != null} onClose={() => setShown(null)} maxWidth="md" fullWidth>
-        <DialogTitle>{shown?.title}</DialogTitle>
-        <DialogContent dividers>
-          <PlainTextArea value={shown?.text ?? ''} readOnly dir="auto" minRows={18} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShown(null)}>{t('Закрыть')}</Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   )
 }

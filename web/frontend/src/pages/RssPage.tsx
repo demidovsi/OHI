@@ -34,6 +34,8 @@ import FlashMessages from '../components/FlashMessages'
 import LoadingBar from '../components/LoadingBar'
 import SplitPane from '../components/SplitPane'
 import { COLUMN_SX, FILL_SX, PAGE_SX } from '../components/layout'
+import ClampedText from '@shared-web/components/ClampedText'
+import { useOpened } from '../components/useOpened'
 import { TablePagination, TableToolbar, baseFields } from '@shared-web/components/TableControls'
 import { ColGroup, ResizableHeadCell, resizableTableSx, useColumnWidths } from '@shared-web/components/columnResize'
 
@@ -76,6 +78,7 @@ export default function RssPage() {
   const { par, messages, loading, error, submit, dismiss } = useForm('rss')
   const [unit, setUnit] = useState<Unit>(unitFrom(undefined))
   const [confirmDelete, setConfirmDelete] = useState<RssRow | null>(null)
+  const opened = useOpened() // раскрытые длинные тексты помнит страница (обновление таблицы их не закрывает)
 
   useEffect(() => {
     if (par) setUnit(unitFrom(par.unit))
@@ -137,18 +140,28 @@ export default function RssPage() {
                     r.sh_name
                   )}
                 </TableCell>
-                <TableCell sx={{ verticalAlign: 'top', wordBreak: 'break-all', ...(r.stop && { color: 'warning.main', textDecoration: 'line-through' }) }}>
-                  {r.url}
+                <TableCell sx={{ verticalAlign: 'top' }}>
+                  <ClampedText
+                    text={r.url ?? ''}
+                    open={opened.has(`${r.id}:url`)}
+                    onToggle={() => opened.toggle(`${r.id}:url`)}
+                    textSx={{ wordBreak: 'break-all', ...(r.stop && { color: 'warning.main', textDecoration: 'line-through' }) }}
+                  />
                 </TableCell>
                 <TableCell sx={{ verticalAlign: 'top' }}>{r.lang}</TableCell>
-                <TableCell sx={{ verticalAlign: 'top', color: 'secondary.main', maxWidth: 280 }}>
-                  <Box sx={{ display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }} title={r.description ?? ''}>
-                    {r.description}
-                  </Box>
+                <TableCell sx={{ verticalAlign: 'top' }}>
+                  <ClampedText
+                    text={r.description ?? ''}
+                    open={opened.has(`${r.id}:description`)}
+                    onToggle={() => opened.toggle(`${r.id}:description`)}
+                    textSx={{ color: 'secondary.main' }}
+                  />
                 </TableCell>
                 <TableCell sx={{ verticalAlign: 'top' }}>{r.type_rss}</TableCell>
                 <TableCell sx={{ verticalAlign: 'top' }}>{r.type_article}</TableCell>
-                <TableCell sx={{ verticalAlign: 'top' }}>{r.categories}</TableCell>
+                <TableCell sx={{ verticalAlign: 'top' }}>
+                  <ClampedText text={r.categories ?? ''} open={opened.has(`${r.id}:categories`)} onToggle={() => opened.toggle(`${r.id}:categories`)} />
+                </TableCell>
               </TableRow>
             ))}
             {!rows.length && !loading && (
