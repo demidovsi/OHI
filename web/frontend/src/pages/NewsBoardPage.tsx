@@ -235,7 +235,7 @@ export default function NewsBoardPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- только при новом ответе сервера
   }, [par])
 
-  // Старт: ?open_id=<id> (ссылка из чат-бота) — сутки этой новости и открыть её; иначе — показать выбранную ранее
+  // Старт: ?open_id=<id> (ссылка из чат-бота) — сутки этой новости и открыть её; иначе — прокрутить к выбранной ранее
   useEffect(() => {
     if (!par || startDone.current) return
     startDone.current = true
@@ -247,10 +247,9 @@ export default function NewsBoardPage() {
       submit(fields({ find_id: open }))
       return
     }
-    if (selectedId != null) {
-      if ((par.data ?? []).some((r: NewsRow) => r.id === selectedId)) scrollTo.current = selectedId
-      else submit(fields({ find_id: selectedId }))
-    }
+    // выбранная ранее новость: прокрутить к ней, если она есть в показанных сутках; сутки ради неё не меняются
+    // (раньше при её отсутствии шёл переход на её сутки — и при возврате на форму показывались вчерашние сутки вместо текущих)
+    if (selectedId != null && (par.data ?? []).some((r: NewsRow) => r.id === selectedId)) scrollTo.current = selectedId
     // eslint-disable-next-line react-hooks/exhaustive-deps -- один раз после первой загрузки
   }, [par])
 
