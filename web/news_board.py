@@ -159,6 +159,10 @@ def prepare_form(request):
         return answer
     common.default('news_board_st_date', common.local_today())
     st_date = get('news_board_st_date')
+    # пользователь смотрел текущие сутки — при возвращении на форму (в т.ч. на следующий день) показываем новые текущие сутки,
+    # а не сохранённую в сессии вчерашнюю дату
+    if get('news_board_follow_today') and st_date:
+        st_date = common.local_today()
     prev_date = st_date
     since_id = ''
     find_id = delete_id = ''
@@ -186,6 +190,7 @@ def prepare_form(request):
     else:
         common.write_log('Новости (дашборд)', request)
     add('news_board_st_date', st_date)
+    add('news_board_follow_today', bool(st_date) and st_date == common.local_today())
     load_list_rss(answer)
     load_themes(answer)
     answer['st_date'] = st_date
